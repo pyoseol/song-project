@@ -1,0 +1,339 @@
+﻿/* =====================
+   湲곕낯 ?ㅼ젙
+===================== */
+:root {
+  --bg-main: #ffffff;
+  --bg-soft: #f9fafb;
+  --bg-panel: #ffffff;
+
+  --border-light: #e5e7eb;
+  --border-soft: #f1f5f9;
+
+  --text-main: #0f172a;
+  --text-sub: #64748b;
+
+  --accent: #3b82f6;   /* ?뚮? ?ъ씤??*/
+  --accent-soft: #dbeafe;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg-soft);
+  color: var(--text-main);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+/* =====================
+   ?덉씠?꾩썐
+===================== */
+
+.app-root {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-soft);
+}
+
+/* =====================
+   ?ㅻ뜑
+===================== */
+
+.app-header {
+  height: 56px;
+  background: var(--bg-main);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.25em;
+  color: var(--text-sub);
+}
+
+/* =====================
+   硫붿씤
+===================== */
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-grid-area {
+  flex: 1;
+  display: flex;
+}
+
+.app-grid-inner {
+  flex: 1;
+  padding: 16px 32px 0;
+  display: flex;
+  gap: 16px;
+}
+
+/* =====================
+   ?몃옓 ?쇰꺼
+===================== */
+
+.track-list {
+  width: 90px;
+  padding-top: 16px;
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.track-list-item {
+  margin-bottom: 12px;
+}
+
+/* =====================
+   洹몃━???⑤꼸
+===================== */
+
+.grid-panel {
+  flex: 1;
+  background: var(--bg-panel);
+  border-radius: 14px;
+  border: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* =====================
+   ?쇱븘??濡?===================== */
+
+.piano-container {
+  flex: 1;
+  padding: 16px;
+}
+
+.piano-grid {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  overflow: hidden;
+  background: var(--bg-main);
+}
+
+.piano-cell {
+  width: 100%;
+  height: 100%;
+  border-right: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-main);
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.12s ease,
+    box-shadow 0.18s ease;
+}
+
+/* 4諛뺤옄 援щ텇??*/
+.piano-cell.bar {
+  border-right-color: var(--accent-soft);
+}
+
+/* ?쒖꽦 ?명듃 */
+.piano-cell.active {
+  background: var(--accent);
+  transform: scale(0.98);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+/* ?ъ깮 ?꾩튂 */
+.piano-cell.current {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  animation: grid-pulse 1.1s ease-in-out infinite;
+}
+
+/* =====================
+   ?쒕읆
+===================== */
+
+.drum-row {
+  height: 80px;
+  padding: 8px 16px 16px;
+  background: var(--bg-main);
+  border-top: 1px solid var(--border-light);
+}
+
+.drum-grid {
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--border-light);
+  border-radius: 0 0 10px 10px;
+  overflow: hidden;
+}
+
+.drum-cell {
+  width: 100%;
+  height: 100%;
+  border-right: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.12s ease,
+    box-shadow 0.18s ease;
+}
+
+.drum-cell.bar {
+  border-right-color: var(--accent-soft);
+}
+
+.drum-cell.current {
+  background: var(--accent-soft);
+  animation: grid-pulse-soft 1.1s ease-in-out infinite;
+}
+
+/* ?쒕읆 ??*/
+.drum-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.drum-dot.active {
+  background: var(--text-main);
+  transform: scale(1.05);
+  transition: transform 0.12s ease;
+}
+
+/* =====================
+   ?몃옖?ㅽ룷??諛?===================== */
+
+.transport-bar {
+  height: 96px;
+  background: var(--bg-main);
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 0 32px;
+}
+
+.transport-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.transport-play-button {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.transport-label {
+  font-size: 11px;
+  color: var(--text-sub);
+  text-align: center;
+}
+
+.transport-tempo {
+  min-width: 220px;
+}
+
+.transport-tempo-title {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.transport-tempo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transport-tempo-row input[type="range"] {
+  accent-color: var(--accent);
+}
+
+.transport-tempo-value {
+  width: 40px;
+  text-align: right;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.transport-select-group span {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.transport-select {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-main);
+  font-size: 12px;
+  color: var(--text-main);
+}
+
+.transport-button {
+  border-radius: 999px;
+  padding: 6px 18px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-main);
+  font-size: 12px;
+  cursor: pointer;
+}
+@keyframes grid-pulse {
+  0% {
+    box-shadow: inset 0 0 0 0 rgba(59, 130, 246, 0.25);
+  }
+  50% {
+    box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.35);
+  }
+  100% {
+    box-shadow: inset 0 0 0 0 rgba(59, 130, 246, 0.25);
+  }
+}
+
+@keyframes grid-pulse-soft {
+  0% {
+    box-shadow: inset 0 0 0 0 rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.25);
+  }
+  100% {
+    box-shadow: inset 0 0 0 0 rgba(59, 130, 246, 0.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .piano-cell.current,
+  .drum-cell.current {
+    animation: none;
+  }
+}

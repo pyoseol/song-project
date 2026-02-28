@@ -1,0 +1,18 @@
+services:
+  api:
+    build: ./api
+    ports:
+      - "8000:8000"
+    environment:
+      OUTPUT_DIR: /app/outputs
+      MODEL_CACHE_DIR: /models
+      MUSIC_PROVIDER: ${MUSIC_PROVIDER:-procedural}
+      IMAGE_PROVIDER: ${IMAGE_PROVIDER:-procedural}
+      MUSICGEN_MODEL_ID: ${MUSICGEN_MODEL_ID:-facebook/musicgen-small}
+      DIFFUSION_MODEL_ID: ${DIFFUSION_MODEL_ID:-runwayml/stable-diffusion-v1-5}
+      HF_TOKEN: ${HF_TOKEN:-}
+      ALLOW_PROVIDER_FALLBACK: ${ALLOW_PROVIDER_FALLBACK:-true}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-*}
+    volumes:
+      - ./outputs:/app/outputs
+      - ./models:/models

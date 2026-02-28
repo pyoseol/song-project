@@ -1,0 +1,60 @@
+{
+  "e545218986a0411e9ab68935dcf8437d": {
+    "id": "e545218986a0411e9ab68935dcf8437d",
+    "status": "failed",
+    "created_at": 1771695345,
+    "payload": {
+      "prompt_music": "upbeat k-pop style, bright piano, 140bpm",
+      "prompt_visual": "neon city, colorful abstract music video",
+      "duration_sec": 20,
+      "num_images": 6
+    },
+    "result": null,
+    "error": "No module named 'PIL'"
+  },
+  "d9c8d2c7d830400e9435be935780a8cb": {
+    "id": "d9c8d2c7d830400e9435be935780a8cb",
+    "status": "failed",
+    "created_at": 1771695351,
+    "payload": {
+      "prompt_music": "upbeat k-pop style, bright piano, 140bpm",
+      "prompt_visual": "neon city, colorful abstract music video",
+      "duration_sec": 20,
+      "num_images": 6
+    },
+    "result": null,
+    "error": "No module named 'PIL'"
+  },
+  "de71154aa71648f0b8ad30687fcb5cf1": {
+    "id": "de71154aa71648f0b8ad30687fcb5cf1",
+    "status": "done",
+    "created_at": 1771697071,
+    "payload": {
+      "prompt_music": "upbeat k-pop style, bright piano, 140bpm",
+      "prompt_visual": "neon city, colorful abstract music video",
+      "duration_sec": 20,
+      "num_images": 6
+    },
+    "result": {
+      "audio": "/app/outputs/de71154aa71648f0b8ad30687fcb5cf1/music.wav",
+      "video": "/app/outputs/de71154aa71648f0b8ad30687fcb5cf1/mv.mp4"
+    },
+    "error": null
+  },
+  "2586613a52684ee390a4d0e09e79dbe2": {
+    "id": "2586613a52684ee390a4d0e09e79dbe2",
+    "status": "done",
+    "created_at": 1771697072,
+    "payload": {
+      "prompt_music": "upbeat k-pop style, bright piano, 140bpm",
+      "prompt_visual": "neon city, colorful abstract music video",
+      "duration_sec": 20,
+      "num_images": 6
+    },
+    "result": {
+      "audio": "/app/outputs/2586613a52684ee390a4d0e09e79dbe2/music.wav",
+      "video": "/app/outputs/2586613a52684ee390a4d0e09e79dbe2/mv.mp4"
+    },
+    "error": null
+  }
+}

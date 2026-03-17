@@ -56,5 +56,103 @@
       "video": "/app/outputs/2586613a52684ee390a4d0e09e79dbe2/mv.mp4"
     },
     "error": null
+  },
+  "202dfd233672498cb132bd5eb56bc1f5": {
+    "id": "202dfd233672498cb132bd5eb56bc1f5",
+    "status": "done",
+    "created_at": 1772546894,
+    "updated_at": 1772547261,
+    "payload": {
+      "prompt_music": "cinematic electronic track with emotional piano and strong drums",
+      "prompt_visual": "neon city at night, rain, cinematic music video frame",
+      "duration_sec": 15,
+      "num_images": 6
+    },
+    "result": {
+      "audio": "/app/outputs/202dfd233672498cb132bd5eb56bc1f5/music.wav",
+      "video": "/app/outputs/202dfd233672498cb132bd5eb56bc1f5/mv.mp4",
+      "audio_url": "/outputs/202dfd233672498cb132bd5eb56bc1f5/music.wav",
+      "video_url": "/outputs/202dfd233672498cb132bd5eb56bc1f5/mv.mp4",
+      "image_urls": [
+        "/outputs/202dfd233672498cb132bd5eb56bc1f5/cut_00.png",
+        "/outputs/202dfd233672498cb132bd5eb56bc1f5/cut_01.png",
+        "/outputs/202dfd233672498cb132bd5eb56bc1f5/cut_02.png",
+        "/outputs/202dfd233672498cb132bd5eb56bc1f5/cut_03.png",
+        "/outputs/202dfd233672498cb132bd5eb56bc1f5/cut_04.png",
+        "/outputs/202dfd233672498cb132bd5eb56bc1f5/cut_05.png"
+      ],
+      "music_plan": {
+        "bpm": 82,
+        "waveform": "triangle",
+        "energy": 0.35
+      },
+      "music_generation": {
+        "provider": "procedural",
+        "model": "prompt-synth-v1",
+        "duration_sec": 15,
+        "sample_rate": 44100
+      },
+      "visual_plan": {
+        "mood": "neon",
+        "motif": "city",
+        "accent": [
+          120,
+          180,
+          255
+        ]
+      },
+      "image_generation": {
+        "provider": "procedural",
+        "model": "storyboard-renderer-v1",
+        "device": null
+      },
+      "scenes": [
+        {
+          "title": "Scene 01",
+          "camera": "wide shot",
+          "motion": "slow drift"
+        },
+        {
+          "title": "Scene 02",
+          "camera": "tracking shot",
+          "motion": "pulse zoom"
+        },
+        {
+          "title": "Scene 03",
+          "camera": "close-up",
+          "motion": "parallax slide"
+        },
+        {
+          "title": "Scene 04",
+          "camera": "aerial shot",
+          "motion": "spiral reveal"
+        },
+        {
+          "title": "Scene 05",
+          "camera": "silhouette shot",
+          "motion": "soft shake"
+        },
+        {
+          "title": "Scene 06",
+          "camera": "wide shot",
+          "motion": "slow drift"
+        }
+      ]
+    },
+    "error": null
+  },
+  "02a78cea4224499e98db5f11c328213c": {
+    "id": "02a78cea4224499e98db5f11c328213c",
+    "status": "music_generating",
+    "created_at": 1772613997,
+    "updated_at": 1772613997,
+    "payload": {
+      "prompt_music": "cinematic electronic track with emotional piano and strong drums",
+      "prompt_visual": "neon city at night, rain, cinematic music video frame",
+      "duration_sec": 15,
+      "num_images": 6
+    },
+    "result": null,
+    "error": null
   }
 }

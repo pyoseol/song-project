@@ -4,7 +4,6 @@ import { melodySynth, kickSynth, snareSynth } from "./instruments.ts";
 import { useSongStore } from "../store/songStore.ts";
 
 // 12칸 멜로디를 특정 음계로 고정 매핑
-// 0번 줄이 가장 위(11번 줄이 가장 아래). C 메이저/펜타토닉 느낌으로 정렬
 const MELODY_SCALE_MIDI: number[] = [
   84, // row 0: C6
   81, // row 1: A5
@@ -19,7 +18,45 @@ const MELODY_SCALE_MIDI: number[] = [
   60, // row10: C4
   57, // row11: A3
 ];
-// 원하는 음계면 배열 숫자만 바꾸면 됩니다 (예: C 메이저 계열 등)
+
+const BASS_SCALE_MIDI: number[] = [
+  72, // C5
+  69, // A4
+  67, // G4
+  64, // E4
+  62, // D4
+  60, // C4
+  57, // A3
+  55, // G3
+  52, // E3
+  50, // D3
+  48, // C3
+  45, // A2 (작은 스피커의 마지노선)
+];
+
+// 💡 추가 악기들 설정 (frequency 속성 제거)
+const hihatClosedSynth = new Tone.MetalSynth({
+  envelope: { attack: 0.001, decay: 0.1, release: 0.01 },
+  harmonicity: 5.1,
+  modulationIndex: 32,
+  resonance: 4000,
+  octaves: 1.5,
+}).toDestination();
+
+const hihatOpenSynth = new Tone.MetalSynth({
+  envelope: { attack: 0.001, decay: 0.3, release: 0.1 },
+  harmonicity: 5.1,
+  modulationIndex: 32,
+  resonance: 4000,
+  octaves: 1.5,
+}).toDestination();
+
+const bassSynth = new Tone.Synth({
+  oscillator: { type: "triangle8" }, 
+  envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.5 },
+}).toDestination();
+
+bassSynth.volume.value = 2;
 
 let loopId: number | null = null;
 
@@ -70,8 +107,7 @@ async function loadPianoBuffers(): Promise<Record<string, AudioBuffer>> {
         );
         return [note, audio] as const;
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : String(err);
+        const message = err instanceof Error ? err.message : String(err);
         throw new Error(`Failed to decode ${url}: ${message}`);
       }
     })
@@ -82,49 +118,51 @@ async function loadPianoBuffers(): Promise<Record<string, AudioBuffer>> {
 
 export function initTransport() {
   if (loopId !== null) return;
-
-  // 임시로 예약됐던 이벤트 제거
   Tone.Transport.cancel();
 
   loopId = Tone.Transport.scheduleRepeat((time) => {
     const {
       melody,
       drums,
+      bass,
       currentStep,
       steps,
       bpm,
       setCurrentStep,
     } = useSongStore.getState();
 
-    // BPM 반영
     Tone.Transport.bpm.value = bpm;
 
-
-    // 멜로디 재생 (스텝 기준)
+    // 1. 멜로디 재생
     melody.forEach((rowArr, rowIndex) => {
       if (!rowArr[currentStep]) return;
-
-      // rowIndex를 우리가 정의한 음계에 매핑
-      const midi =
-        MELODY_SCALE_MIDI[rowIndex] ??
-        MELODY_SCALE_MIDI[MELODY_SCALE_MIDI.length - 1];
-
+      const midi = MELODY_SCALE_MIDI[rowIndex] ?? MELODY_SCALE_MIDI[MELODY_SCALE_MIDI.length - 1];
       const note = Tone.Frequency(midi, "midi").toNote();
-      // 노트 길이는 16분음표로 설정 (원하면 "8n"으로 변경)
       melodySynth.triggerAttackRelease(note, "8n", time);
     });
 
-    // 드럼 0: 킥
+    // 2. 베이스 재생
+    bass.forEach((rowArr, rowIndex) => {
+      if (!rowArr[currentStep]) return;
+      const midi = BASS_SCALE_MIDI[rowIndex] ?? BASS_SCALE_MIDI[BASS_SCALE_MIDI.length - 1];
+      const note = Tone.Frequency(midi, "midi").toNote();
+      bassSynth.triggerAttackRelease(note, "8n", time);
+    });
+
+    // 3. 드럼 재생 (💡 하이햇 재생 시 주파수 200을 첫 번째 인자로 전달)
     if (drums[0]?.[currentStep]) {
       kickSynth.triggerAttackRelease("C2", "8n", time);
     }
-
-    // 드럼 1: 스네어
     if (drums[1]?.[currentStep]) {
       snareSynth.triggerAttackRelease("16n", time);
     }
+    if (drums[2]?.[currentStep]) {
+      hihatClosedSynth.triggerAttackRelease(200, "32n", time);
+    }
+    if (drums[3]?.[currentStep]) {
+      hihatOpenSynth.triggerAttackRelease(200, "8n", time);
+    }
 
-    // 다음 스텝
     const nextStep = (currentStep + 1) % steps;
     setCurrentStep(nextStep);
   }, "16n");
@@ -134,9 +172,7 @@ export function initTransport() {
 
 export async function playMelodyPreview(row: number): Promise<void> {
   await Tone.start();
-  const midi =
-    MELODY_SCALE_MIDI[row] ??
-    MELODY_SCALE_MIDI[MELODY_SCALE_MIDI.length - 1];
+  const midi = MELODY_SCALE_MIDI[row] ?? MELODY_SCALE_MIDI[MELODY_SCALE_MIDI.length - 1];
   const note = Tone.Frequency(midi, "midi").toNote();
   melodySynth.triggerAttackRelease(note, "8n");
 }
@@ -149,50 +185,68 @@ export async function playDrumPreview(row: number): Promise<void> {
   }
   if (row === 1) {
     snareSynth.triggerAttackRelease("16n");
+    return;
+  }
+  // 💡 프리뷰 재생 시에도 주파수 200 전달
+  if (row === 2) {
+    hihatClosedSynth.triggerAttackRelease(200, "32n");
+    return;
+  }
+  if (row === 3) {
+    hihatOpenSynth.triggerAttackRelease(200, "8n");
+    return;
   }
 }
 
 export async function exportSongAsMp3(): Promise<Blob> {
   await Tone.start();
   await loadLame();
-  const { melody, drums, steps, bpm } = useSongStore.getState();
+  const { melody, drums, bass, steps, bpm } = useSongStore.getState();
   const pianoBuffers = await loadPianoBuffers();
 
   const sixteenthSeconds = (60 / bpm) / 4;
   const durationSeconds = steps * sixteenthSeconds + 1.0;
 
   const rendered = await Tone.Offline(async ({ transport }) => {
-    const reverb = new Tone.Reverb({
-      decay: 2.0,
-      preDelay: 0.01,
-      wet: 0.2,
-    }).toDestination();
-
-    const sampler = new Tone.Sampler({
-      urls: pianoBuffers,
-      release: 1,
-    }).connect(reverb);
+    const reverb = new Tone.Reverb({ decay: 2.0, preDelay: 0.01, wet: 0.2 }).toDestination();
+    const sampler = new Tone.Sampler({ urls: pianoBuffers, release: 1 }).connect(reverb);
 
     const kick = new Tone.MembraneSynth({
       pitchDecay: 0.02,
       octaves: 4,
       oscillator: { type: "sine" },
-      envelope: {
-        attack: 0.001,
-        decay: 0.3,
-        sustain: 0,
-        release: 0.3,
-      },
+      envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.3 },
     }).toDestination();
 
     const snare = new Tone.NoiseSynth({
       noise: { type: "white" },
-      envelope: {
-        attack: 0.001,
-        decay: 0.2,
-        sustain: 0,
-        release: 0.05,
-      },
+      envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.05 },
+    }).toDestination();
+
+    // 💡 MP3 렌더링용 추가 악기 세팅 (frequency 제거)
+    const hihatC = new Tone.MetalSynth({
+      envelope: { attack: 0.001, decay: 0.1, release: 0.01 },
+      harmonicity: 5.1,
+      modulationIndex: 32,
+      resonance: 4000,
+      octaves: 1.5,
+    }).toDestination();
+
+    const hihatO = new Tone.MetalSynth({
+      envelope: { attack: 0.001, decay: 0.3, release: 0.1 },
+      harmonicity: 5.1,
+      modulationIndex: 32,
+      resonance: 4000,
+      octaves: 1.5,
+    }).toDestination();
+
+    const bSynth = new Tone.FMSynth({
+      harmonicity: 1,
+      modulationIndex: 1,
+      oscillator: { type: "triangle" },
+      envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.5 },
+      modulation: { type: "square" },
+      modulationEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.1 },
     }).toDestination();
 
     transport.bpm.value = bpm;
@@ -202,19 +256,24 @@ export async function exportSongAsMp3(): Promise<Blob> {
 
       for (let row = 0; row < melody.length; row += 1) {
         if (!melody[row]?.[col]) continue;
-        const midi =
-          MELODY_SCALE_MIDI[row] ??
-          MELODY_SCALE_MIDI[MELODY_SCALE_MIDI.length - 1];
+        const midi = MELODY_SCALE_MIDI[row] ?? MELODY_SCALE_MIDI[MELODY_SCALE_MIDI.length - 1];
         const note = Tone.Frequency(midi, "midi").toNote();
         sampler.triggerAttackRelease(note, "8n", time);
       }
 
-      if (drums[0]?.[col]) {
-        kick.triggerAttackRelease("C2", "8n", time);
+      for (let row = 0; row < bass.length; row += 1) {
+        if (!bass[row]?.[col]) continue;
+        const midi = BASS_SCALE_MIDI[row] ?? BASS_SCALE_MIDI[BASS_SCALE_MIDI.length - 1];
+        const note = Tone.Frequency(midi, "midi").toNote();
+        bSynth.triggerAttackRelease(note, "8n", time);
       }
-      if (drums[1]?.[col]) {
-        snare.triggerAttackRelease("16n", time);
-      }
+
+      if (drums[0]?.[col]) kick.triggerAttackRelease("C2", "8n", time);
+      if (drums[1]?.[col]) snare.triggerAttackRelease("16n", time);
+      
+      // 💡 렌더링 시에도 주파수 200 전달
+      if (drums[2]?.[col]) hihatC.triggerAttackRelease(200, "32n", time);
+      if (drums[3]?.[col]) hihatO.triggerAttackRelease(200, "8n", time);
     }
 
     transport.start(0);
@@ -256,9 +315,7 @@ function audioBufferToMp3(buffer: AudioBuffer): Blob {
     if (numChannels === 1) {
       mp3buf = encoder.encodeBuffer(left);
     } else {
-      const right = floatToInt16(
-        channelData[1].subarray(i, i + blockSize)
-      );
+      const right = floatToInt16(channelData[1].subarray(i, i + blockSize));
       mp3buf = encoder.encodeBuffer(left, right);
     }
 
@@ -290,16 +347,17 @@ function getOrigin(): string {
   return `${protocol}//${host}`;
 }
 
-function toArrayBuffer(
-  data: Int8Array | Uint8Array | number[]
-): ArrayBuffer {
+function toArrayBuffer(data: Int8Array | Uint8Array | number[]): ArrayBuffer {
   const u8 =
     data instanceof Uint8Array
       ? data
       : data instanceof Int8Array
-        ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
-        : new Uint8Array(data);
-  return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer;
+      ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+      : new Uint8Array(data);
+  return u8.buffer.slice(
+    u8.byteOffset,
+    u8.byteOffset + u8.byteLength
+  ) as ArrayBuffer;
 }
 
 type Mp3EncoderInstance = {
@@ -337,10 +395,15 @@ function loadLame(): Promise<void> {
     script.src = scriptUrl;
     script.async = true;
     script.onload = () => resolve();
-    script.onerror = () =>
-      reject(new Error(`Failed to load ${scriptUrl}`));
+    script.onerror = () => reject(new Error(`Failed to load ${scriptUrl}`));
     document.head.appendChild(script);
   });
   return lameLoadPromise;
 }
 
+export async function playBassPreview(row: number): Promise<void> {
+  await Tone.start();
+  const midi = BASS_SCALE_MIDI[row] ?? BASS_SCALE_MIDI[BASS_SCALE_MIDI.length - 1];
+  const note = Tone.Frequency(midi, "midi").toNote();
+  bassSynth.triggerAttackRelease(note, "8n");
+}

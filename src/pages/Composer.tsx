@@ -1,119 +1,119 @@
 // src/pages/Composer.tsx
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { PianoRoll } from "../components/PianoRoll.tsx";
 import { TransportBar } from "../components/TransportBar.tsx";
 import { initTransport, playDrumPreview } from "../audio/engine.ts";
-import { useSongStore, DRUM_ROWS } from "../store/songStore.ts";
+import { useSongStore, DRUM_ROWS, BASS_ROWS } from "../store/songStore.ts";
+import { useUIStore } from "../store/uiStore.ts";
 
 export default function Composer() {
-  const { steps, drums, toggleDrum, currentStep } = useSongStore();
+  const { steps, drums, toggleDrum, bass, toggleBass } = useSongStore();
+  const { activeTab, setActiveTab } = useUIStore();
 
-  // 드럼 드래그용 상태
-  const [isDrawingDrum, setIsDrawingDrum] = useState(false);
-  const [drumDrawValue, setDrumDrawValue] = useState<boolean | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     initTransport();
-  }, [initTransport]);
-
-  const handleDrumMouseDown = (row: number, col: number) => {
-    const active = drums[row]?.[col];
-    const target = !active;
-    toggleDrum(row, col);
-    void playDrumPreview(row);
-    setIsDrawingDrum(true);
-    setDrumDrawValue(target);
-  };
-
-  const handleDrumMouseEnter = (row: number, col: number) => {
-    if (!isDrawingDrum || drumDrawValue === null) return;
-    const active = drums[row]?.[col];
-    if (active !== drumDrawValue) {
-      toggleDrum(row, col);
-    }
-  };
-
-  const handleDrumMouseUp = () => {
-    setIsDrawingDrum(false);
-    setDrumDrawValue(null);
-  };
+  }, []);
 
   return (
-    <div className="app-root">
-      <header className="app-header">
-        <div className="logo-dot" />
-        <span>SONG</span>
-      </header>
+    <div style={{ 
+      display: 'flex', flexDirection: 'column', height: '100vh', 
+      width: '100vw', overflow: 'hidden', background: '#121212' 
+    }}>
 
-      <main className="app-main">
-        <div className="app-grid-area">
-          <div className="app-grid-inner">
-            {/* 왼쪽 트랙 라벨 */}
-            <div className="track-list">
-              <div className="track-list-item">Melody</div>
-              <div style={{ marginTop: 20 }} className="track-list-item">
-                Drums
-              </div>
-            </div>
+      <nav style={{ height: '60px', display: 'flex', background: '#000', padding: '10px 20px 0', gap: '5px', borderBottom: '1px solid #333' }}>
+        <button onClick={() => setActiveTab("melody")} style={{
+          padding: '0 40px', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer',
+          background: activeTab === "melody" ? "#333" : "transparent",
+          color: activeTab === "melody" ? "#4ade80" : "#666",
+          fontWeight: 'bold', fontSize: '16px'
+        }}> MELODY</button>
+        
+        <button onClick={() => setActiveTab("drums")} style={{
+          padding: '0 40px', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer',
+          background: activeTab === "drums" ? "#333" : "transparent",
+          color: activeTab === "drums" ? "#f97316" : "#666",
+          fontWeight: 'bold', fontSize: '16px'
+        }}> DRUMS</button>
 
-            {/* 오른쪽 패널 */}
-            <div className="grid-panel">
-              {/* 피아노 롤 */}
-              <PianoRoll />
+        {/* 💡 BASS 탭 버튼 추가 */}
+        <button onClick={() => setActiveTab("bass")} style={{
+          padding: '0 40px', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer',
+          background: activeTab === "bass" ? "#333" : "transparent",
+          color: activeTab === "bass" ? "#c084fc" : "#666", // 베이스는 보라색으로 포인트
+          fontWeight: 'bold', fontSize: '16px'
+        }}> BASS</button>
 
-              {/* 드럼 2줄 – 피아노와 완전히 같은 grid */}
-              <div
-                className="drum-row"
-                onMouseUp={handleDrumMouseUp}
-              >
-                <div
-                  className="drum-grid"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: `repeat(${steps}, 1fr)`,
-                    gridTemplateRows: `repeat(DRUM_ROWS, 1fr)`,
-                  }}
-                >
-                  {Array.from({ length: DRUM_ROWS }).map((_, row) =>
-                    Array.from({ length: steps }).map((_, col) => {
-                      const active = drums[row]?.[col];
-                      const isCurrent = col === currentStep;
-                      const isBar = col % 4 === 0;
+        <div style={{ marginLeft: 'auto', marginBottom: '10px' }}>
+          <button 
+            onClick={() => navigate('/community')}
+            style={{
+              padding: '8px 16px', borderRadius: '20px', border: '1px solid #444',
+              background: '#222', color: '#fff', cursor: 'pointer', fontSize: '14px',
+              display: 'flex', alignItems: 'center', gap: '6px'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.background = '#333'}
+            onMouseOut={(e) => e.currentTarget.style.background = '#222'}
+          >
+            💬 커뮤니티
+          </button>
+        </div>
+      </nav>
 
-                      return (
-                        <button
-                          key={`${row}-${col}`}
-                          className={[
-                            "drum-cell",
-                            isBar ? "bar" : "",
-                            isCurrent ? "current" : "",
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                          onMouseDown={() =>
-                            handleDrumMouseDown(row, col)
-                          }
-                          onMouseEnter={() =>
-                            handleDrumMouseEnter(row, col)
-                          }
-                        >
-                          <div
-                            className={
-                              "drum-dot" + (active ? " active" : "")
-                            }
-                          />
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
+      <main style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        {(activeTab === "melody" || activeTab === "bass") && <PianoRoll />}
+        
+        {activeTab === "drums" && (
+          <div style={{ height: '100%', overflow: 'auto', padding: '40px' }}>
+            <div style={{ 
+              display: 'grid', gridTemplateColumns: `repeat(${steps}, 60px)`, 
+              gridAutoRows: '80px', gap: '8px', width: 'max-content', margin: '0 auto' 
+            }}>
+              {Array.from({ length: DRUM_ROWS }).map((_, row) =>
+                Array.from({ length: steps }).map((_, col) => {
+                  const active = drums[row]?.[col];
+                  // 💡 줄별로 색상 다르게 표시 (Kick, Snare, Hihat C, Hihat O)
+                  const colors = ['#f97316', '#38bdf8', '#fbbf24', '#fcd34d'];
+                  const bgColor = active ? colors[row] : '#222';
+                  
+                  return (
+                    <button key={`${row}-${col}`} onClick={() => { toggleDrum(row, col); playDrumPreview(row); }}
+                      style={{ background: bgColor, border: '1px solid #333', borderRadius: '4px', cursor: 'pointer' }}
+                    />
+                  );
+                })
+              )}
             </div>
           </div>
-        </div>
+        )}
 
-        <TransportBar />
+        {/* 💡 BASS 화면 추가 */}
+        {activeTab === "bass" && (
+          <div style={{ height: '100%', overflow: 'auto', padding: '40px' }}>
+            <div style={{ 
+              display: 'grid', gridTemplateColumns: `repeat(${steps}, 60px)`, 
+              gridAutoRows: '40px', gap: '4px', width: 'max-content', margin: '0 auto' 
+            }}>
+              {Array.from({ length: BASS_ROWS }).map((_, row) =>
+                Array.from({ length: steps }).map((_, col) => {
+                  const active = bass[row]?.[col];
+                  return (
+                    <button key={`bass-${row}-${col}`} onClick={() => { toggleBass(row, col); }}
+                      style={{ background: active ? '#c084fc' : '#222', border: '1px solid #333', borderRadius: '4px', cursor: 'pointer' }}
+                    />
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
       </main>
+
+      <footer style={{ height: '80px', borderTop: '1px solid #333', background: '#111' }}>
+        <TransportBar />
+      </footer>
     </div>
   );
 }

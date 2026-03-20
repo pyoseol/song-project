@@ -1,6 +1,6 @@
 
 // 💡 발급받은 GitHub API 키(Personal Access Token 등)를 여기에 넣으세요.
-const GITHUB_TOKEN = "";
+const GITHUB_TOKEN = import.meta.env.VITE_API_KEY;
 
 // GitHub Models 엔드포인트 주소
 const GITHUB_ENDPOINT = "https://models.inference.ai.azure.com/chat/completions";

@@ -5,8 +5,7 @@ import * as Tone from "tone";
 import { exportSongAsMp3 } from "../audio/engine.ts";
 import { useSongStore } from "../store/songStore.ts";
 import type { SongProject } from "../store/songStore.ts";
-import { fetchAiMusic } from "../utils/ai"; // 1단계 함수를 따로 분리했다면 import
-
+import { fetchAiMusic } from "../utils/ai"; 
 
 export const TransportBar = () => {
   const {
@@ -26,7 +25,6 @@ export const TransportBar = () => {
 
   const handleTogglePlay = async () => {
     await Tone.start();
-
     Tone.Transport.bpm.value = bpm;
 
     if (isPlaying) {
@@ -58,8 +56,7 @@ export const TransportBar = () => {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("MP3 export failed:", error);
-      const message =
-        error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error ? error.message : String(error);
       alert(`MP3 save failed.\n\n${message}`);
     } finally {
       setIsExporting(false);
@@ -67,16 +64,8 @@ export const TransportBar = () => {
   };
 
   const handleSaveProject = () => {
-    const project: SongProject = {
-      version: 1,
-      bpm,
-      steps,
-      melody,
-      drums,
-    };
-    const blob = new Blob([JSON.stringify(project, null, 2)], {
-      type: "application/json",
-    });
+    const project: SongProject = { version: 1, bpm, steps, melody, drums };
+    const blob = new Blob([JSON.stringify(project, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -108,21 +97,13 @@ export const TransportBar = () => {
   };
 
   const handleAiGenerate = async () => {
-    const userPrompt = prompt(
-      "어떤 분위기의 곡을 만들고 싶으신가요?\n(예: 신나는 120bpm 댄스 비트 만들어줘)"
-    );
-    
-    // 취소하거나 빈 칸이면 무시
+    const userPrompt = prompt("어떤 분위기의 곡을 만들고 싶으신가요?\n(예: 신나는 120bpm 댄스 비트 만들어줘)");
     if (!userPrompt) return;
 
     setIsGenerating(true);
     try {
-      // 1. AI API 호출 (SongProject 타입에 맞는 JSON 리턴 기대)
       const aiGeneratedProject = (await fetchAiMusic(userPrompt)) as SongProject;
-      
-      // 2. Load Project와 동일하게 Zustand 스토어 업데이트
       useSongStore.getState().loadProject(aiGeneratedProject);
-      
       alert("✨ AI 작곡이 완료되었습니다!");
     } catch (error) {
       console.error("AI 작곡 실패:", error);
@@ -132,69 +113,83 @@ export const TransportBar = () => {
     }
   };
 
+  // 💡 공통 버튼 스타일 정의
+  const baseBtnStyle = {
+    background: '#222',
+    color: '#ddd',
+    border: '1px solid #444',
+    padding: '8px 16px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    transition: 'all 0.2s',
+  };
+
   return (
-    <div className="transport-bar">
-      {/* Play / Pause */}
-      <div className="transport-block">
-        <button className="transport-play-button" onClick={handleTogglePlay}>
-          {isPlaying ? (
-            <div style={{ display: "flex", gap: 4 }}>
-              <div
-                style={{
-                  width: 6,
-                  height: 18,
-                  background: "#0f172a",
-                  borderRadius: 2,
-                }}
-              />
-              <div
-                style={{
-                  width: 6,
-                  height: 18,
-                  background: "#0f172a",
-                  borderRadius: 2,
-                }}
-              />
-            </div>
-          ) : (
-            <div
-              style={{
-                width: 0,
-                height: 0,
-                borderTop: "11px solid transparent",
-                borderBottom: "11px solid transparent",
-                borderLeft: "18px solid #0f172a",
-                marginLeft: 3,
-              }}
-            />
-          )}
-        </button>
-        <div className="transport-label">Play</div>
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      height: '100%',
+      padding: '0 20px',
+      background: '#111', // 상단 네비게이션과 동일한 블랙 배경
+      color: '#fff',
+      gap: '24px',
+      boxSizing: 'border-box'
+    }}>
+      
+      {/* 1. 재생 버튼 (스크린샷 참고한 파란색 포인트) */}
+      <button 
+        onClick={handleTogglePlay}
+        style={{
+          width: '50px', height: '50px', borderRadius: '50%',
+          background: '#4285F4', border: 'none', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 2px 8px rgba(66, 133, 244, 0.4)'
+        }}
+      >
+        {isPlaying ? (
+          <div style={{ display: "flex", gap: '6px' }}>
+            <div style={{ width: '4px', height: '18px', background: "#fff", borderRadius: '2px' }} />
+            <div style={{ width: '4px', height: '18px', background: "#fff", borderRadius: '2px' }} />
+          </div>
+        ) : (
+          <div style={{
+            width: 0, height: 0,
+            borderTop: "10px solid transparent",
+            borderBottom: "10px solid transparent",
+            borderLeft: "16px solid #fff",
+            marginLeft: '4px'
+          }} />
+        )}
+      </button>
+
+      {/* 2. 템포(Tempo) 조절 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <span style={{ fontSize: '14px', color: '#888', fontWeight: 'bold' }}>Tempo</span>
+        <input
+          type="range"
+          min={60} max={200} value={bpm}
+          onChange={(e) => setBpm(Number(e.target.value))}
+          style={{ accentColor: '#4285F4', cursor: 'pointer', width: '100px' }}
+        />
+        <span style={{ fontSize: '15px', color: '#4285F4', fontWeight: 'bold', width: '30px' }}>{bpm}</span>
       </div>
 
-      {/* Tempo */}
-      <div className="transport-tempo transport-block">
-        <div className="transport-tempo-title">Tempo</div>
-        <div className="transport-tempo-row">
-          <input
-            type="range"
-            min={60}
-            max={200}
-            value={bpm}
-            onChange={(e) => setBpm(Number(e.target.value))}
-            style={{ flex: 1 }}
-          />
-          <span className="transport-tempo-value">{bpm}</span>
-        </div>
-      </div>
+      <div style={{ width: '1px', height: '30px', background: '#333' }} /> {/* 세로 구분선 */}
 
-      {/* Length */}
-      <div className="transport-select-group transport-block">
-        <span>Length</span>
+      {/* 3. 길이(Length) 설정 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <span style={{ fontSize: '14px', color: '#888', fontWeight: 'bold' }}>Length</span>
         <select
-          className="transport-select"
           value={steps}
           onChange={(e) => setSteps(Number(e.target.value))}
+          style={{
+            background: '#222', color: '#fff', border: '1px solid #444',
+            padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', outline: 'none'
+          }}
         >
           <option value={8}>8 steps</option>
           <option value={16}>16 steps</option>
@@ -202,57 +197,63 @@ export const TransportBar = () => {
         </select>
       </div>
 
-      {/* Restart */}
-      <button className="transport-button transport-block" onClick={clear}>
-        Restart
-      </button>
+      <div style={{ width: '1px', height: '30px', background: '#333' }} /> {/* 세로 구분선 */}
 
-      {/* Save MP3 */}
-      <button
-        className="transport-button transport-block"
-        onClick={handleExportMp3}
-        disabled={isExporting}
-      >
-        {isExporting ? "Saving..." : "Save MP3"}
-      </button>
+      {/* 4. 유틸리티 버튼 그룹 (좌측 정렬) */}
+      <div style={{ display: 'flex', gap: '8px', flex: 1 }}>
+        <button 
+          style={baseBtnStyle} 
+          onMouseOver={(e) => e.currentTarget.style.background = '#333'}
+          onMouseOut={(e) => e.currentTarget.style.background = '#222'}
+          onClick={clear}
+        >
+          🔄 초기화
+        </button>
+        <button 
+          style={baseBtnStyle} 
+          onMouseOver={(e) => e.currentTarget.style.background = '#333'}
+          onMouseOut={(e) => e.currentTarget.style.background = '#222'}
+          onClick={handleExportMp3} disabled={isExporting}
+        >
+          {isExporting ? "⏳ 변환 중..." : "💾 MP3 저장"}
+        </button>
+        <button 
+          style={baseBtnStyle} 
+          onMouseOver={(e) => e.currentTarget.style.background = '#333'}
+          onMouseOut={(e) => e.currentTarget.style.background = '#222'}
+          onClick={handleSaveProject}
+        >
+          📁 프로젝트 저장
+        </button>
+        <button 
+          style={baseBtnStyle} 
+          onMouseOver={(e) => e.currentTarget.style.background = '#333'}
+          onMouseOut={(e) => e.currentTarget.style.background = '#222'}
+          onClick={handleLoadProjectClick}
+        >
+          📂 불러오기
+        </button>
+        <input ref={fileInputRef} type="file" accept="application/json" onChange={handleLoadProject} style={{ display: "none" }} />
+      </div>
 
-      {/* Save/Load Project */}
+      {/* 5. AI 도움 버튼 (우측 끝으로 밀착) */}
       <button
-        className="transport-button transport-block"
-        onClick={handleSaveProject}
-      >
-        Save Project
-      </button>
-      <button
-        className="transport-button transport-block"
-        onClick={handleLoadProjectClick}
-      >
-        Load Project
-      </button>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="application/json"
-        onChange={handleLoadProject}
-        style={{ display: "none" }}
-      />
-      
-      <button
-        className="transport-button transport-block"
         onClick={handleAiGenerate}
         disabled={isGenerating}
         style={{
-          background: isGenerating ? "#64748b" : "#8b5cf6", // 보라색으로 강조
+          ...baseBtnStyle,
+          background: isGenerating ? "#64748b" : "#8b5cf6", // 보라색 포인트
           color: "white",
-          marginLeft: "auto", // 맨 우측으로 밀기 (선택사항)
-          border: "none"
+          border: "none",
+          fontWeight: "bold",
+          padding: '10px 20px',
         }}
+        onMouseOver={(e) => { if(!isGenerating) e.currentTarget.style.background = '#7c3aed' }}
+        onMouseOut={(e) => { if(!isGenerating) e.currentTarget.style.background = '#8b5cf6' }}
       >
         {isGenerating ? "🎵 작곡 중..." : "✨ AI 도움"}
       </button>
+
     </div>
   );
 };
-
-
-

@@ -2,13 +2,22 @@
 import { create } from "zustand";
 
 export const MELODY_ROWS = 12;
-// 💡 드럼을 4개로 늘립니다 (0:Kick, 1:Snare, 2:HiHat Closed, 3:HiHat Open)
-export const DRUM_ROWS = 4; 
-// 💡 베이스 줄 개수 추가 (멜로디처럼 12음계 사용)
-export const BASS_ROWS = 12; 
+export const DRUM_ROWS = 4;
+export const BASS_ROWS = 12;
 
 const DEFAULT_STEPS = 32;
 
+// 💡 1. 화음을 찍을 위치(줄 번호) 사전
+const CHORD_MAP: Record<string, number[]> = {
+  "C": [10, 8, 7], // C4, E4, G4
+  "D": [9, 6, 5],  // D4, A4, C5
+  "E": [8, 7, 5],  // E4, G4, C5
+  "F": [10, 6, 5], // C4, A4, C5
+  "G": [9, 7, 5],  // D4, G4, C5
+  "A": [11, 10, 8] // A3, C4, E4
+};
+
+// 💡 2. 메뉴판(타입): 여기에 applyChord가 적혀있으면...
 export type SongState = {
   bpm: number;
   steps: number;
@@ -17,11 +26,13 @@ export type SongState = {
 
   melody: boolean[][];
   drums: boolean[][];
-  bass: boolean[][]; // 💡 베이스 상태 추가
+  bass: boolean[][];
 
   toggleMelody: (row: number, col: number) => void;
   toggleDrum: (row: number, col: number) => void;
-  toggleBass: (row: number, col: number) => void; // 💡 베이스 토글 함수 추가
+  toggleBass: (row: number, col: number) => void;
+  
+  applyChord: (chord: string, col: number, isBass: boolean) => void; 
 
   setBpm: (bpm: number) => void;
   setSteps: (steps: number) => void;
@@ -37,7 +48,7 @@ export type SongProject = {
   steps: number;
   melody: boolean[][];
   drums: boolean[][];
-  bass?: boolean[][]; // 💡 과거 버전 호환성을 위해 선택적(?) 속성으로 추가
+  bass?: boolean[][];
 };
 
 function createEmptyMatrix(rows: number, cols: number): boolean[][] {
@@ -52,7 +63,7 @@ function normalizeMatrix(
   cols: number
 ): boolean[][] {
   const matrix = createEmptyMatrix(rows, cols);
-  if (!input) return matrix; // 방어 로직 추가
+  if (!input) return matrix;
   for (let r = 0; r < rows; r += 1) {
     for (let c = 0; c < cols; c += 1) {
       matrix[r][c] = Boolean(input?.[r]?.[c]);
@@ -69,7 +80,7 @@ export const useSongStore = create<SongState>((set, get) => ({
 
   melody: createEmptyMatrix(MELODY_ROWS, DEFAULT_STEPS),
   drums: createEmptyMatrix(DRUM_ROWS, DEFAULT_STEPS),
-  bass: createEmptyMatrix(BASS_ROWS, DEFAULT_STEPS), // 💡 베이스 초기화
+  bass: createEmptyMatrix(BASS_ROWS, DEFAULT_STEPS),
 
   toggleMelody: (row, col) =>
     set((state) => {
@@ -85,12 +96,33 @@ export const useSongStore = create<SongState>((set, get) => ({
       return { drums: next };
     }),
 
-  // 💡 베이스 토글 로직 구현
   toggleBass: (row, col) =>
     set((state) => {
       const next = state.bass.map((r) => [...r]);
       next[row][col] = !next[row][col];
       return { bass: next };
+    }),
+
+  // 💡 3. 주방(구현부): 무조건 여기에 실제 작동하는 함수가 있어야 에러가 안 납니다!
+  applyChord: (chord, col, isBass) =>
+    set((state) => {
+      const gridKey = isBass ? "bass" : "melody";
+      const nextGrid = state[gridKey].map((r) => [...r]);
+      const rowsToActive = CHORD_MAP[chord] || [];
+
+      // 해당 열(col)의 기존 음표를 먼저 싹 지우기
+      for (let r = 0; r < nextGrid.length; r++) {
+        nextGrid[r][col] = false;
+      }
+
+      // 화음에 해당하는 줄(row)만 켜기
+      rowsToActive.forEach((r) => {
+        if (r >= 0 && r < nextGrid.length) {
+          nextGrid[r][col] = true;
+        }
+      });
+
+      return { [gridKey]: nextGrid } as Partial<SongState>;
     }),
 
   setBpm: (bpm) => set({ bpm }),
@@ -103,7 +135,7 @@ export const useSongStore = create<SongState>((set, get) => ({
       bpm,
       melody: createEmptyMatrix(MELODY_ROWS, steps),
       drums: createEmptyMatrix(DRUM_ROWS, steps),
-      bass: createEmptyMatrix(BASS_ROWS, steps), // 💡 추가
+      bass: createEmptyMatrix(BASS_ROWS, steps),
     });
   },
 
@@ -117,7 +149,7 @@ export const useSongStore = create<SongState>((set, get) => ({
       currentStep: 0,
       melody: createEmptyMatrix(MELODY_ROWS, steps),
       drums: createEmptyMatrix(DRUM_ROWS, steps),
-      bass: createEmptyMatrix(BASS_ROWS, steps), // 💡 추가
+      bass: createEmptyMatrix(BASS_ROWS, steps),
     });
   },
 
@@ -134,8 +166,7 @@ export const useSongStore = create<SongState>((set, get) => ({
       isPlaying: false,
       melody: normalizeMatrix(project.melody, MELODY_ROWS, steps),
       drums: normalizeMatrix(project.drums, DRUM_ROWS, steps),
-      // 💡 이전 프로젝트 파일에 베이스가 없으면 빈 배열로 초기화
-      bass: normalizeMatrix(project.bass || [], BASS_ROWS, steps), 
+      bass: normalizeMatrix(project.bass || [], BASS_ROWS, steps),
     });
   },
 }));

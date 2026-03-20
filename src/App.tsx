@@ -1,6 +1,6 @@
 // src/App.tsx
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Composer from './pages/Composer';
+import { Composer } from './pages/Composer';
 import PostList from './pages/community/PostList';
 import PostWrite from './pages/community/PostWrite';
 import PostDetail from './pages/community/PostDetail';

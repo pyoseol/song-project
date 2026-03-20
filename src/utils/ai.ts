@@ -14,10 +14,11 @@ export async function fetchAiMusic(prompt: string) {
     [규칙]
     1. "version"은 1, "steps"는 32 고정.
     2. "bpm"은 분위기에 맞는 80~150 사이 숫자.
-    3. "melody": 12행 x 32열의 2차원 배열. 요소는 boolean(true/false).
+    3. "melody": 12행 x 32열의 2차원 배열. 요소는 boolean(true/false). 음정은 순서대로 C6,A5,G5,E5,D5,C5,A4,G4,E4,D4,C4,A3
     4. "drums": 4행 x 32열의 2차원 배열. (행 순서: 0번줄 Kick, 1번줄 Snare, 2번줄 Hihat-Closed, 3번줄 Hihat-Open). 요소는 boolean(true/false).
-    5. "bass": 12행 x 32열의 2차원 배열. 요소는 boolean(true/false). 
+    5. "bass": 12행 x 32열의 2차원 배열. 요소는 boolean(true/false). 음정은 순서대로 C5 A4 G4 E4 D4 C4 A3 G3 E3 D3 C3 A2
     6. 절대 다른 설명이나 마크다운(\`\`\`json 등) 없이 오직 순수한 JSON 객체만 출력하세요.
+    7. 화음을 적절히 활용하며, 단순하게 계단식 음 배치만 계속되게 하지 않게, 적절한 음 배치로 출력하세요.
   `;
 
   const response = await fetch(GITHUB_ENDPOINT, {

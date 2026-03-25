@@ -3,12 +3,16 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SiteHeader from '../../components/layout/SiteHeader';
 import { useAuthStore } from '../../store/authStore';
-import {
-  loginWithServer,
-  requestPasswordReset,
-  signupWithServer,
-} from '../../utils/authApi';
 import './AuthPage.css';
+
+// 🔥 1. 기존 커스텀 API 대신 파이어베이스 도구들을 불러옵니다.
+import { auth } from '../../firebase'; // ★주의: firebase.ts 파일을 만든 위치에 맞게 경로를 수정해주세요! (예: '../../firebase')
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  sendPasswordResetEmail, 
+  updateProfile 
+} from 'firebase/auth';
 
 export type AuthMode = 'login' | 'signup' | 'reset';
 
@@ -79,16 +83,21 @@ const FEATURE_ITEMS = [
   },
 ];
 
-function getFallbackErrorMessage(mode: AuthMode) {
-  if (mode === 'reset') {
-    return '비밀번호 재설정 요청 중 오류가 발생했습니다.';
+// 🔥 2. 파이어베이스 에러 코드를 한국어로 예쁘게 바꿔주는 도우미 함수 추가
+function getFirebaseErrorMessage(error: any, mode: AuthMode) {
+  const code = error?.code;
+  switch (code) {
+    case 'auth/email-already-in-use': return '이미 가입된 이메일입니다.';
+    case 'auth/invalid-credential': return '이메일 또는 비밀번호가 잘못되었습니다.';
+    case 'auth/wrong-password': return '비밀번호가 틀렸습니다.';
+    case 'auth/user-not-found': return '가입되지 않은 이메일입니다.';
+    case 'auth/weak-password': return '비밀번호는 6자리 이상이어야 합니다.';
+    case 'auth/invalid-email': return '유효하지 않은 이메일 형식입니다.';
+    default: 
+      if (mode === 'reset') return '비밀번호 재설정 요청 중 오류가 발생했습니다.';
+      if (mode === 'signup') return '회원가입 처리 중 오류가 발생했습니다.';
+      return '로그인 처리 중 오류가 발생했습니다.';
   }
-
-  if (mode === 'signup') {
-    return '회원가입 처리 중 오류가 발생했습니다.';
-  }
-
-  return '로그인 처리 중 오류가 발생했습니다.';
 }
 
 export default function AuthPage({ mode }: AuthPageProps) {
@@ -147,38 +156,40 @@ export default function AuthPage({ mode }: AuthPageProps) {
     setIsSubmitting(true);
 
     try {
+      // 🔥 3. 파이어베이스로 회원가입 처리하기
       if (mode === 'signup') {
-        const response = await signupWithServer({
-          email: trimmedEmail,
-          password,
-          name: trimmedNickname,
-        });
+        const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
+        
+        // 가입 직후 파이어베이스 프로필에 닉네임 저장
+        await updateProfile(userCredential.user, { displayName: trimmedNickname });
+        
+        // 파이어베이스 토큰 가져오기 (기존 sessionToken 대체)
+        const token = await userCredential.user.getIdToken();
 
         signup({
-          email: response.user.email,
-          nickname: response.user.name,
-          avatarUrl: response.user.avatarUrl,
-          sessionToken: response.sessionToken,
+          email: userCredential.user.email || trimmedEmail,
+          nickname: trimmedNickname,
+          avatarUrl: userCredential.user.photoURL || undefined,
+          sessionToken: token,
         });
         navigate('/');
         return;
       }
 
+      // 🔥 4. 파이어베이스로 로그인 처리하기
       if (mode === 'login') {
-        const response = await loginWithServer({
-          email: trimmedEmail,
-          password,
-        });
+        const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
+        const token = await userCredential.user.getIdToken();
 
         login({
-          email: response.user.email,
-          name: response.user.name,
-          avatarUrl: response.user.avatarUrl,
-          sessionToken: response.sessionToken,
+          email: userCredential.user.email || trimmedEmail,
+          name: userCredential.user.displayName || 'Guest',
+          avatarUrl: userCredential.user.photoURL || undefined,
+          sessionToken: token,
         });
 
         if (rememberMe) {
-          localStorage.setItem('song-maker-remember-email', response.user.email);
+          localStorage.setItem('song-maker-remember-email', trimmedEmail);
         } else {
           localStorage.removeItem('song-maker-remember-email');
         }
@@ -187,15 +198,15 @@ export default function AuthPage({ mode }: AuthPageProps) {
         return;
       }
 
-      const response = await requestPasswordReset({
-        email: trimmedEmail,
-      });
-
-      setNotice({ kind: 'success', message: response.message });
-    } catch (error) {
+      // 🔥 5. 파이어베이스로 비밀번호 재설정 이메일 보내기
+      await sendPasswordResetEmail(auth, trimmedEmail);
+      setNotice({ kind: 'success', message: '비밀번호 재설정 이메일을 보냈습니다. 메일함을 확인해주세요!' });
+      
+    } catch (error: any) {
+      console.error("Auth Error:", error);
       setNotice({
         kind: 'error',
-        message: error instanceof Error ? error.message : getFallbackErrorMessage(mode),
+        message: getFirebaseErrorMessage(error, mode),
       });
     } finally {
       setIsSubmitting(false);

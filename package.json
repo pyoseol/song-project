@@ -14,6 +14,7 @@
     "preview": "vite preview --configLoader native"
   },
   "dependencies": {
+    "firebase": "^12.11.0",
     "lamejs": "^1.2.1",
     "mysql2": "^3.20.0",
     "react": "^19.2.0",

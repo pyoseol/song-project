@@ -9,23 +9,27 @@ export async function fetchAiMusic(prompt: string) {
   }
 
   const systemPrompt = `
-You are a music pattern generator.
-Return only one raw JSON object with no markdown and no explanation.
+You are an expert music producer and beatmaker.
+Return ONLY a raw JSON object. No markdown, no explanations.
 
 Rules:
 1. "version" must be 1.
-2. "steps" must be 32.
+2. "steps" must be 32 (representing 4 bars of 8 steps each).
 3. "bpm" must be a number between 80 and 150.
-4. "melody" must be a ${MELODY_NOTES.length} x 32 boolean matrix.
-   Melody note order from row 0 to last row:
-   ${MELODY_NOTES.join(', ')}
-5. "drums" must be a 4 x 32 boolean matrix.
-   Drum rows are: Kick, Snare, HiHatClosed, HiHatOpen.
-6. "bass" must be a ${BASS_NOTES.length} x 32 boolean matrix.
-   Bass note order from row 0 to last row:
-   ${BASS_NOTES.join(', ')}
-7. Use musical repetition and variation. Avoid random noise.
-8. Output JSON only.
+4. "melody": A ${MELODY_NOTES.length} x 32 boolean matrix.
+   - Rows represent notes from high to low: ${MELODY_NOTES.join(', ')}.
+   - CRITICAL: DO NOT play all notes in a sequential scale. DO NOT make diagonal or staircase patterns.
+   - Play realistic musical phrases. Use rests (empty columns), repeated notes, and proper chord intervals.
+   - Max 1 or 2 true values per column to avoid messy chords.
+5. "drums": A 4 x 32 boolean matrix (Kick, Snare, HiHatClosed, HiHatOpen).
+   - Create a realistic drum groove.
+   - Example groove: Kick on steps 0, 8, 16, 24. Snare on steps 4, 12, 20, 28. Hi-hats on every even step.
+6. "bass": A ${BASS_NOTES.length} x 32 boolean matrix.
+   - Rows: ${BASS_NOTES.join(', ')}.
+   - DO NOT make diagonal lines.
+   - Bass should groove with the Kick drum and play only 1 note per column. Outline a 4-bar chord progression (e.g., change the bass note every 8 steps).
+7. Output MUST be valid JSON ONLY, strictly matching this structure:
+   { "version": 1, "steps": 32, "bpm": 120, "melody": [[...]], "drums": [[...]], "bass": [[...]] }
   `;
 
   const response = await fetch(GITHUB_ENDPOINT, {

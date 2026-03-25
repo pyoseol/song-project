@@ -1,0 +1,572 @@
+.music-share-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(110, 138, 255, 0.18), transparent 24%),
+    radial-gradient(circle at 84% 14%, rgba(103, 232, 249, 0.08), transparent 18%),
+    linear-gradient(180deg, #222428 0%, #17181c 100%);
+  color: #f5f7fa;
+  font-family: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', sans-serif;
+}
+
+.music-share-shell {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 18px 24px 40px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.music-share-sidebar,
+.music-share-content,
+.music-share-comment-modal {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  background: #1f2024;
+}
+
+.music-share-sidebar {
+  display: none;
+}
+
+.music-share-sidebar-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.music-share-sidebar-kicker,
+.music-share-content-kicker {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(110, 138, 255, 0.14);
+  color: #bcd0ff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.music-share-sidebar-head strong {
+  font-size: 18px;
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+}
+
+.music-share-sidebar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.music-share-sidebar-button,
+.music-share-sidebar-link,
+.music-share-tag-button,
+.music-share-page-button,
+.music-share-card-main,
+.music-share-card-action,
+.music-share-card-favorite-button,
+.music-share-comment-head button,
+.music-share-comment-form button {
+  font: inherit;
+}
+
+.music-share-sidebar-button {
+  border: 0;
+  background: rgba(255, 255, 255, 0.03);
+  color: #d5dceb;
+  padding: 12px 14px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.music-share-sidebar-button strong {
+  color: #9ba7c4;
+  font-size: 12px;
+}
+
+.music-share-sidebar-button:hover,
+.music-share-sidebar-button.is-active {
+  background: rgba(110, 138, 255, 0.14);
+  color: #ffffff;
+}
+
+.music-share-sidebar-link {
+  margin-top: auto;
+  border: 0;
+  background: transparent;
+  color: #d8e2ff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.music-share-content {
+  padding: 20px;
+}
+
+.music-share-content-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.music-share-title {
+  margin: 12px 0 0;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+
+.music-share-count {
+  color: #8a93a8;
+  font-size: 13px;
+}
+
+.music-share-toolbar {
+  margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.music-share-toolbar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.music-share-search {
+  position: relative;
+  display: inline-flex;
+  width: min(100%, 420px);
+}
+
+.music-share-search::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border: 1.8px solid #6d7386;
+  border-radius: 50%;
+  transform: translateY(-62%);
+}
+
+.music-share-search::after {
+  content: '';
+  position: absolute;
+  left: 26px;
+  top: 50%;
+  width: 7px;
+  height: 1.8px;
+  border-radius: 999px;
+  background: #6d7386;
+  transform: translateY(5px) rotate(45deg);
+  transform-origin: left center;
+}
+
+.music-share-search input,
+.music-share-sort-select,
+.music-share-comment-form textarea {
+  width: 100%;
+  border: 1px solid rgba(148, 154, 176, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #eff2fa;
+  box-sizing: border-box;
+}
+
+.music-share-search input {
+  height: 40px;
+  padding: 0 16px 0 40px;
+}
+
+.music-share-sort-select {
+  width: 140px;
+  height: 40px;
+  padding: 0 12px;
+}
+
+.music-share-search input::placeholder,
+.music-share-comment-form textarea::placeholder {
+  color: #7e8698;
+}
+
+.music-share-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.music-share-tag-button {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: #adb4c3;
+  padding: 8px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.music-share-tag-button.is-active {
+  background: rgba(110, 138, 255, 0.16);
+  border-color: rgba(110, 138, 255, 0.3);
+  color: #ffffff;
+}
+
+.music-share-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.music-share-card {
+  position: relative;
+  display: flex;
+  min-height: 268px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background-color: #44464b;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+
+.music-share-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 42%),
+    linear-gradient(180deg, transparent 58%, rgba(10, 10, 12, 0.74) 100%);
+  pointer-events: none;
+}
+
+.music-share-card-main {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  width: 100%;
+  min-height: 100%;
+  padding: 12px 12px 82px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.music-share-card-header {
+  display: flex;
+  justify-content: space-between;
+}
+
+.music-share-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.music-share-card-chip {
+  display: inline-flex;
+  width: fit-content;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(121, 255, 67, 0.16);
+  color: #e1ffd4;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.music-share-card-author {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.music-share-card-footer {
+  position: absolute;
+  right: 12px;
+  bottom: 74px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.music-share-card-title {
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.music-share-card-caption,
+.music-share-card-reference {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 11px;
+}
+
+.music-share-card-reference {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.music-share-card-favorite-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(12, 13, 16, 0.56);
+  color: #e8edf7;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.music-share-card-favorite-button.is-active {
+  color: #ffb9d1;
+}
+
+.music-share-card-stats {
+  position: absolute;
+  z-index: 2;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  margin-top: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.music-share-card-stats--legacy,
+.music-share-card-actions {
+  display: none;
+}
+
+.music-share-card-stat-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: rgba(235, 240, 248, 0.86);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.18s ease, transform 0.18s ease;
+}
+
+.music-share-card-stat-button:hover {
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.music-share-card-stat-button.is-active {
+  color: #ffd6e3;
+}
+
+.music-share-card-stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+}
+
+.music-share-card-stat-button.is-active .music-share-card-stat-icon {
+  color: #ffb6ce;
+}
+
+.music-share-pagination {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.music-share-page-button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #9aa2b6;
+  cursor: pointer;
+}
+
+.music-share-page-button.is-active {
+  background: rgba(110, 138, 255, 0.18);
+  color: #ffffff;
+}
+
+.music-share-comment-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: rgba(6, 8, 12, 0.7);
+  backdrop-filter: blur(8px);
+}
+
+.music-share-comment-modal {
+  width: min(100%, 560px);
+  max-height: min(80vh, 720px);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.music-share-comment-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.music-share-comment-head strong {
+  display: block;
+  font-size: 20px;
+}
+
+.music-share-comment-head span {
+  display: block;
+  margin-top: 6px;
+  color: #9ca5b7;
+  font-size: 12px;
+}
+
+.music-share-comment-head button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #f4f6fb;
+  cursor: pointer;
+}
+
+.music-share-comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.music-share-comment-item,
+.music-share-comment-empty {
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.music-share-comment-item strong {
+  display: block;
+  font-size: 13px;
+}
+
+.music-share-comment-item span {
+  display: block;
+  margin-top: 6px;
+  color: #9ca5b7;
+  font-size: 11px;
+}
+
+.music-share-comment-item p,
+.music-share-comment-empty {
+  margin: 8px 0 0;
+  color: #e8edf6;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.music-share-comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.music-share-comment-form textarea {
+  min-height: 100px;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.music-share-comment-form button {
+  align-self: flex-end;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(121, 255, 67, 0.22);
+  border-radius: 12px;
+  background: rgba(121, 255, 67, 0.12);
+  color: #efffe7;
+  cursor: pointer;
+}
+
+@media (max-width: 1180px) {
+  .music-share-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .music-share-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .music-share-shell {
+    padding: 16px 14px 28px;
+  }
+
+  .music-share-content-head,
+  .music-share-toolbar-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .music-share-search,
+  .music-share-sort-select {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .music-share-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .music-share-card {
+    min-height: 292px;
+  }
+
+  .music-share-card-stats {
+    gap: 10px;
+  }
+
+  .music-share-comment-modal {
+    padding: 14px;
+    border-radius: 18px;
+  }
+}

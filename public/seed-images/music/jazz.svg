@@ -1,0 +1,18 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#16110F"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <circle cx="930" cy="210" r="150" fill="#FFD27A" fill-opacity="0.22"/>
+  <rect x="118" y="126" width="964" height="648" rx="42" fill="#100D0C" fill-opacity="0.52" stroke="#44342D" stroke-width="2"/>
+  <path d="M286 656C286 512 378 342 518 248C557 222 606 208 642 208C695 208 736 242 736 294C736 350 692 402 623 448C565 487 539 528 539 574C539 625 576 660 635 660C687 660 738 632 790 579L842 631C773 710 686 748 587 748C404 748 286 713 286 656Z" fill="#E8B667"/>
+  <path d="M821 308C821 268 850 236 890 236C930 236 959 268 959 308V584C959 624 930 656 890 656C850 656 821 624 821 584V308Z" fill="#F3E0B5"/>
+  <circle cx="889" cy="688" r="62" fill="#F3E0B5"/>
+  <text x="176" y="266" fill="#FFE5B0" font-family="Georgia, serif" font-size="52">Late Night Standard</text>
+  <text x="176" y="334" fill="#CBB799" font-family="Georgia, serif" font-size="34">II V I progression memo</text>
+  <text x="176" y="724" fill="#FFF5DF" font-family="Georgia, serif" font-size="72">JAZZ LOOP</text>
+  <defs>
+    <linearGradient id="bg" x1="132" y1="96" x2="1020" y2="808" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3B2A23"/>
+      <stop offset="1" stop-color="#1A1311"/>
+    </linearGradient>
+  </defs>
+</svg>

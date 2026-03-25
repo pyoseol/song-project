@@ -1,0 +1,22 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#131823"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <rect x="120" y="112" width="960" height="676" rx="44" fill="#0F131D" stroke="#35425E" stroke-width="2"/>
+  <rect x="178" y="170" width="844" height="420" rx="28" fill="#182133"/>
+  <path d="M228 500L362 374L474 452L620 298L756 430L934 250V546H228V500Z" fill="url(#wave)" fill-opacity="0.92"/>
+  <circle cx="933" cy="250" r="18" fill="#FFE388"/>
+  <rect x="284" y="648" width="632" height="22" rx="11" fill="#2F3A54"/>
+  <rect x="408" y="708" width="384" height="18" rx="9" fill="#415071"/>
+  <text x="178" y="738" fill="#EFF4FF" font-family="Arial, sans-serif" font-size="64" font-weight="700">OST / ANIME / GAME</text>
+  <defs>
+    <linearGradient id="bg" x1="160" y1="76" x2="1036" y2="816" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#243456"/>
+      <stop offset="1" stop-color="#111722"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="228" y1="298" x2="934" y2="546" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#82D4FF"/>
+      <stop offset="0.5" stop-color="#B59DFF"/>
+      <stop offset="1" stop-color="#FFE388"/>
+    </linearGradient>
+  </defs>
+</svg>

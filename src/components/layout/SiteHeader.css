@@ -1,0 +1,198 @@
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(16, 16, 17, 0.96);
+  backdrop-filter: blur(14px);
+}
+
+.site-header-inner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 24px;
+  max-width: 1320px;
+  min-height: 56px;
+  margin: 0 auto;
+  padding: 0 18px;
+}
+
+.site-header-brand,
+.site-header-nav-link {
+  font: inherit;
+}
+
+.site-header-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.site-header-brand-note {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #ffffff;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.site-header-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.site-header-nav-link {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease;
+}
+
+.site-header-nav-link:hover,
+.site-header-nav-link.is-active {
+  color: #ffffff;
+}
+
+.site-header-nav-link.is-active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.site-header-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.site-header-extra {
+  display: inline-flex;
+  align-items: center;
+}
+
+.site-header-account .topbar-account {
+  gap: 0;
+}
+
+.site-header-account .topbar-account-link,
+.site-header-account .topbar-account-profile {
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #f5f7fb;
+  font-size: 13px;
+}
+
+.site-header-account .topbar-account-link.is-primary {
+  color: #f5f7fb;
+}
+
+.site-header-account .topbar-account-link + .topbar-account-link,
+.site-header-account .topbar-account-profile + .topbar-account-link {
+  position: relative;
+  padding-left: 12px;
+  margin-left: 12px;
+}
+
+.site-header-account .topbar-account-link + .topbar-account-link::before,
+.site-header-account .topbar-account-profile + .topbar-account-link::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 1px;
+  height: 11px;
+  background: rgba(255, 255, 255, 0.18);
+  transform: translateY(-50%);
+  content: '';
+}
+
+.site-header-account .topbar-account-profile {
+  gap: 6px;
+}
+
+.site-header-account .topbar-account-avatar {
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(145deg, #1e2126 0%, #3b4048 100%);
+  color: #ffffff;
+  font-size: 10px;
+}
+
+.site-header-account .topbar-account-name {
+  max-width: 90px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 1180px) {
+  .site-header-inner {
+    gap: 16px;
+  }
+
+  .site-header-nav {
+    gap: 8px;
+  }
+
+  .site-header-nav-link {
+    padding: 0 10px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 920px) {
+  .site-header-nav {
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 4px;
+  }
+
+  .site-header-nav::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .site-header-inner {
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    padding: 0 12px;
+  }
+
+  .site-header-brand-note {
+    font-size: 22px;
+  }
+
+  .site-header-account .topbar-account-name {
+    display: none;
+  }
+
+  .site-header-account .topbar-account-link + .topbar-account-link,
+  .site-header-account .topbar-account-profile + .topbar-account-link {
+    padding-left: 8px;
+    margin-left: 8px;
+  }
+}

@@ -1,0 +1,11 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#1B1C21"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <rect x="136" y="224" width="928" height="400" rx="34" fill="#0F1218" stroke="#404856" stroke-width="2"/>
+  <rect x="194" y="288" width="812" height="186" rx="22" fill="#222833"/>
+  <g fill="#F7FAFF">
+    <rect x="222" y="314" width="70" height="146" rx="10"/><rect x="306" y="314" width="70" height="146" rx="10"/><rect x="390" y="314" width="70" height="146" rx="10"/><rect x="474" y="314" width="70" height="146" rx="10"/><rect x="558" y="314" width="70" height="146" rx="10"/><rect x="642" y="314" width="70" height="146" rx="10"/><rect x="726" y="314" width="70" height="146" rx="10"/><rect x="810" y="314" width="70" height="146" rx="10"/>
+  </g>
+  <text x="138" y="166" fill="#F0F3FA" font-family="Arial, sans-serif" font-size="72" font-weight="700">YAMAHA MX61</text>
+  <defs><linearGradient id="bg" x1="126" y1="92" x2="1058" y2="814"><stop stop-color="#4A403C"/><stop offset="1" stop-color="#1D1C1E"/></linearGradient></defs>
+</svg>

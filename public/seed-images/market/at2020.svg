@@ -1,0 +1,10 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#191B21"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <rect x="512" y="178" width="176" height="318" rx="88" fill="#C9D1DD"/>
+  <rect x="542" y="214" width="116" height="250" rx="58" fill="#7E8798"/>
+  <rect x="590" y="496" width="20" height="184" rx="10" fill="#D6DCE6"/>
+  <rect x="500" y="678" width="200" height="22" rx="11" fill="#EEF3FF"/>
+  <text x="166" y="182" fill="#EFF3FF" font-family="Arial, sans-serif" font-size="72" font-weight="700">AT2020</text>
+  <defs><linearGradient id="bg" x1="126" y1="90" x2="1060" y2="814"><stop stop-color="#2E3747"/><stop offset="1" stop-color="#181D25"/></linearGradient></defs>
+</svg>

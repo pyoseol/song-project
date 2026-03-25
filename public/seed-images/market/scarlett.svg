@@ -1,0 +1,11 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#191516"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <rect x="178" y="284" width="844" height="332" rx="42" fill="#A01E26"/>
+  <circle cx="350" cy="450" r="78" fill="#161616"/><circle cx="350" cy="450" r="58" stroke="#9199A4" stroke-width="8"/>
+  <circle cx="614" cy="450" r="78" fill="#161616"/><circle cx="614" cy="450" r="58" stroke="#9199A4" stroke-width="8"/>
+  <rect x="790" y="384" width="162" height="32" rx="16" fill="#EAF6BE"/>
+  <rect x="790" y="438" width="120" height="22" rx="11" fill="#CBD3DF"/>
+  <text x="180" y="214" fill="#FFF1F2" font-family="Arial, sans-serif" font-size="72" font-weight="700">SCARLETT 2i2</text>
+  <defs><linearGradient id="bg" x1="128" y1="92" x2="1062" y2="814"><stop stop-color="#473639"/><stop offset="1" stop-color="#1E1B1C"/></linearGradient></defs>
+</svg>

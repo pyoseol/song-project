@@ -1,0 +1,24 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#171322"/>
+  <rect width="1200" height="900" fill="url(#sky)"/>
+  <circle cx="890" cy="184" r="104" fill="#FFD57C"/>
+  <path d="M0 604H1200V900H0V604Z" fill="#10131A"/>
+  <path d="M140 530H270V900H140V530Z" fill="#1F293A"/>
+  <path d="M304 424H446V900H304V424Z" fill="#20273A"/>
+  <path d="M488 338H628V900H488V338Z" fill="#25283B"/>
+  <path d="M676 468H836V900H676V468Z" fill="#1E2433"/>
+  <path d="M870 388H1034V900H870V388Z" fill="#25283B"/>
+  <g fill="#8AE4FF">
+    <rect x="174" y="570" width="18" height="18"/><rect x="206" y="570" width="18" height="18"/>
+    <rect x="340" y="476" width="20" height="20"/><rect x="374" y="476" width="20" height="20"/>
+    <rect x="538" y="394" width="22" height="22"/><rect x="576" y="394" width="22" height="22"/>
+  </g>
+  <g fill="#F7A5FF">
+    <rect x="174" y="604" width="18" height="18"/><rect x="206" y="604" width="18" height="18"/>
+    <rect x="340" y="512" width="20" height="20"/><rect x="374" y="512" width="20" height="20"/>
+    <rect x="538" y="432" width="22" height="22"/><rect x="576" y="432" width="22" height="22"/>
+  </g>
+  <text x="112" y="166" fill="#F0D9FF" font-family="Arial, sans-serif" font-size="72" font-weight="700">PLASTIC LOVE</text>
+  <text x="116" y="234" fill="#9ED9FF" font-family="Arial, sans-serif" font-size="34">Citypop bridge memo</text>
+  <defs><linearGradient id="sky" x1="600" y1="0" x2="600" y2="900"><stop stop-color="#54416D"/><stop offset="0.44" stop-color="#31375D"/><stop offset="1" stop-color="#12161E"/></linearGradient></defs>
+</svg>

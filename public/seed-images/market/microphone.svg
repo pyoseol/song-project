@@ -1,0 +1,16 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#181B20"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <rect x="476" y="170" width="248" height="338" rx="124" fill="#D2D8E4"/>
+  <rect x="520" y="226" width="160" height="226" rx="80" fill="#8A94A5"/>
+  <rect x="588" y="508" width="24" height="168" rx="12" fill="#C8CED8"/>
+  <path d="M470 596C470 668 528 726 600 726C672 726 730 668 730 596" stroke="#EEF3FF" stroke-width="26" stroke-linecap="round"/>
+  <rect x="446" y="726" width="308" height="22" rx="11" fill="#EEF3FF"/>
+  <text x="166" y="180" fill="#EEF3FF" font-family="Arial, sans-serif" font-size="72" font-weight="700">VOCAL GEAR</text>
+  <defs>
+    <linearGradient id="bg" x1="126" y1="90" x2="1054" y2="810" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#384455"/>
+      <stop offset="1" stop-color="#1A1F28"/>
+    </linearGradient>
+  </defs>
+</svg>

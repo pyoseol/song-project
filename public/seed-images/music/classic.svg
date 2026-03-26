@@ -1,0 +1,23 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#1D2028"/>
+  <rect x="54" y="54" width="1092" height="792" rx="42" fill="url(#bg)"/>
+  <circle cx="220" cy="232" r="118" fill="url(#glow)" fill-opacity="0.85"/>
+  <rect x="152" y="144" width="430" height="560" rx="28" fill="#F2E6D4" fill-opacity="0.95"/>
+  <rect x="184" y="188" width="366" height="18" rx="9" fill="#C9B7A1"/>
+  <rect x="184" y="240" width="238" height="12" rx="6" fill="#D8C8B2"/>
+  <rect x="184" y="278" width="310" height="12" rx="6" fill="#D8C8B2"/>
+  <rect x="184" y="316" width="276" height="12" rx="6" fill="#D8C8B2"/>
+  <path d="M781 214C742 214 711 245 711 284V563C691 552 666 545 640 545C579 545 530 583 530 630C530 677 579 715 640 715C701 715 750 677 750 630V381L970 335V505C950 494 925 487 899 487C838 487 789 525 789 572C789 619 838 657 899 657C960 657 1009 619 1009 572V214H781Z" fill="#F9D28B"/>
+  <text x="184" y="630" fill="#61523D" font-family="Georgia, serif" font-size="64">Canon Notes</text>
+  <text x="711" y="770" fill="#FFF4D7" font-family="Georgia, serif" font-size="54">CLASSIC</text>
+  <defs>
+    <linearGradient id="bg" x1="110" y1="86" x2="1050" y2="812" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#313748"/>
+      <stop offset="1" stop-color="#171922"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(220 232) rotate(90) scale(118)">
+      <stop stop-color="#F4D39F"/>
+      <stop offset="1" stop-color="#F4D39F" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>

@@ -1,0 +1,24 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#171415"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <rect x="176" y="274" width="848" height="344" rx="42" fill="#941C23"/>
+  <rect x="176" y="274" width="848" height="344" rx="42" fill="url(#gloss)" fill-opacity="0.38"/>
+  <circle cx="350" cy="446" r="78" fill="#161616"/>
+  <circle cx="350" cy="446" r="58" stroke="#8D939E" stroke-width="8"/>
+  <circle cx="608" cy="446" r="78" fill="#161616"/>
+  <circle cx="608" cy="446" r="58" stroke="#8D939E" stroke-width="8"/>
+  <rect x="778" y="372" width="170" height="34" rx="17" fill="#E5F6B6"/>
+  <rect x="778" y="426" width="120" height="22" rx="11" fill="#C5CEDD"/>
+  <rect x="778" y="470" width="148" height="22" rx="11" fill="#C5CEDD"/>
+  <text x="176" y="194" fill="#FFF0F1" font-family="Arial, sans-serif" font-size="72" font-weight="700">AUDIO INTERFACE</text>
+  <defs>
+    <linearGradient id="bg" x1="130" y1="92" x2="1048" y2="814" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#453539"/>
+      <stop offset="1" stop-color="#1E1B1C"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="176" y1="274" x2="176" y2="618" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#FFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+</svg>

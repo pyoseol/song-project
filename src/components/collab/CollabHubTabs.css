@@ -1,0 +1,47 @@
+.collab-hub-tabs {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(20, 22, 29, 0.88);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.16);
+}
+
+.collab-hub-tab {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(34, 37, 45, 0.96);
+  color: #e8edf9;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease;
+}
+
+.collab-hub-tab:hover {
+  transform: translateY(-1px);
+  border-color: rgba(120, 142, 255, 0.28);
+}
+
+.collab-hub-tab.is-active {
+  border-color: rgba(120, 142, 255, 0.34);
+  background: linear-gradient(135deg, rgba(79, 91, 255, 0.94), rgba(112, 126, 255, 0.88));
+  color: #fff;
+}
+
+@media (max-width: 720px) {
+  .collab-hub-tabs {
+    display: grid;
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+}

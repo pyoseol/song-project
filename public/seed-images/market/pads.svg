@@ -1,0 +1,22 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#141820"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <rect x="170" y="178" width="860" height="544" rx="40" fill="#171C25" stroke="#44506A" stroke-width="2"/>
+  <g>
+    <rect x="286" y="280" width="138" height="138" rx="20" fill="#7FB5FF"/>
+    <rect x="448" y="280" width="138" height="138" rx="20" fill="#FF9AC2"/>
+    <rect x="610" y="280" width="138" height="138" rx="20" fill="#FFD26E"/>
+    <rect x="772" y="280" width="138" height="138" rx="20" fill="#8CF0D3"/>
+    <rect x="286" y="442" width="138" height="138" rx="20" fill="#C8B2FF"/>
+    <rect x="448" y="442" width="138" height="138" rx="20" fill="#8CF0D3"/>
+    <rect x="610" y="442" width="138" height="138" rx="20" fill="#7FB5FF"/>
+    <rect x="772" y="442" width="138" height="138" rx="20" fill="#FF9AC2"/>
+  </g>
+  <text x="170" y="146" fill="#EFF3FF" font-family="Arial, sans-serif" font-size="72" font-weight="700">MIDI CONTROLLER</text>
+  <defs>
+    <linearGradient id="bg" x1="132" y1="96" x2="1050" y2="812" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#27344A"/>
+      <stop offset="1" stop-color="#151A23"/>
+    </linearGradient>
+  </defs>
+</svg>

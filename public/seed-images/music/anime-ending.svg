@@ -1,0 +1,10 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#191725"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <circle cx="890" cy="184" r="120" fill="#FFE48F"/>
+  <path d="M146 618C270 520 388 472 498 472C622 472 728 528 856 648H146V618Z" fill="#99D5FF"/>
+  <path d="M244 648C350 560 450 520 548 520C624 520 694 550 780 612V648H244Z" fill="#F5A5C5"/>
+  <text x="126" y="182" fill="#F4EEFF" font-family="Arial, sans-serif" font-size="70" font-weight="700">ANIME ENDING</text>
+  <text x="130" y="248" fill="#C3CAE6" font-family="Arial, sans-serif" font-size="34">Soft cadence / ending mood</text>
+  <defs><linearGradient id="bg" x1="120" y1="88" x2="1060" y2="816"><stop stop-color="#45426A"/><stop offset="1" stop-color="#1A1A28"/></linearGradient></defs>
+</svg>

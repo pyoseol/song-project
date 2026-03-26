@@ -1,136 +1,2057 @@
-// src/pages/Composer.tsx
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { PianoRoll } from "../components/PianoRoll.tsx";
-import { TransportBar } from "../components/TransportBar.tsx";
-import { initTransport, playDrumPreview } from "../audio/engine.ts";
-import { useSongStore, DRUM_ROWS } from "../store/songStore.ts";
-import { useUIStore } from "../store/uiStore.ts";
+﻿import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import SiteHeader from '../components/layout/SiteHeader';
+import { PianoRoll } from '../components/PianoRoll.tsx';
+import { TransportBar } from '../components/TransportBar.tsx';
+import { initTransport, playBassPreview, playDrumPreview } from '../audio/engine.ts';
+import {
+  COMPOSER_GUIDE_STEPS,
+  type ComposerGuideFocus,
+} from '../constants/composerGuide.ts';
+import {
+  COMPOSER_TUTORIAL_BASS_TARGETS,
+  COMPOSER_TUTORIAL_BAR_LENGTH,
+  COMPOSER_TUTORIAL_CHORD_TARGETS,
+  COMPOSER_TUTORIAL_DRUM_TARGETS,
+  COMPOSER_TUTORIAL_MELODY_TARGETS,
+  type ComposerTutorialCellTarget,
+  type ComposerTutorialChordTarget,
+  type ComposerTutorialNoteTarget,
+} from '../constants/composerTutorialGame.ts';
+import { BASS_CHORD_MAP, BASS_NOTES, DRUM_STEP_WIDTH } from '../constants/composer.ts';
+import { useAuthStore } from '../store/authStore.ts';
+import {
+  COLLAB_PRESENCE_PING_INTERVAL_MS,
+  CollabRequestError,
+  COLLAB_SESSION_ID,
+  type CollabComposerHistoryEntry,
+  type CollabComposerInstrument,
+  type CollabComposerOperation,
+  useCollabStore,
+} from '../store/collabStore.ts';
+import {
+  DRUM_ROWS,
+  buildSongProjectSnapshot,
+  type InstrumentKey,
+  useSongStore,
+} from '../store/songStore.ts';
+import { useUIStore } from '../store/uiStore.ts';
+import './Composer.css';
 
-// 💡 App.tsx 에러가 나지 않도록 default 없이 내보냅니다!
+type ComposerTab = 'melody' | 'drums' | 'bass';
+
+const chordOptions = ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const;
+
+const tabLabels: Record<ComposerTab, string> = {
+  melody: 'MELODY',
+  drums: 'DRUMS',
+  bass: 'BASS',
+};
+
+const tabOrder: ComposerTab[] = ['melody', 'drums', 'bass'];
+const COLLAB_BAR_LENGTH = 16;
+
+function clampGuideStepIndex(value: number) {
+  const safeValue = Number.isFinite(value) ? Math.floor(value) : 0;
+  return Math.min(COMPOSER_GUIDE_STEPS.length - 1, Math.max(0, safeValue));
+}
+
+function findMelodyNoteForTutorial(
+  melodyRow: boolean[],
+  melodyLengthRow: number[],
+  col: number
+) {
+  for (let start = 0; start <= col; start += 1) {
+    if (!melodyRow[start]) {
+      continue;
+    }
+
+    const length = Math.max(1, melodyLengthRow[start] ?? 1);
+    if (col < start + length) {
+      return { start, length };
+    }
+  }
+
+  return null;
+}
+
+function countMatchedChordTargets(
+  melody: boolean[][],
+  targets: ComposerTutorialChordTarget[]
+) {
+  return targets.filter((target) => target.rows.every((row) => melody[row]?.[target.col])).length;
+}
+
+function countMatchedMelodyTargets(
+  melody: boolean[][],
+  melodyLengths: number[][],
+  targets: ComposerTutorialNoteTarget[]
+) {
+  return targets.filter((target) => {
+    const noteInfo = findMelodyNoteForTutorial(
+      melody[target.row] ?? [],
+      melodyLengths[target.row] ?? [],
+      target.col
+    );
+
+    return Boolean(noteInfo && noteInfo.start === target.col && noteInfo.length >= target.length);
+  }).length;
+}
+
+function countMatchedCellTargets(grid: boolean[][], targets: ComposerTutorialCellTarget[]) {
+  return targets.filter((target) => grid[target.row]?.[target.col]).length;
+}
+
+const chordMeta = {
+  melody: {
+    label: 'Piano Chords',
+    description: '코드를 드래그해서 피아노 롤 위에 바로 올려보세요.',
+  },
+  bass: {
+    label: 'Bass Roots',
+    description: '루트 음을 베이스 라인처럼 빠르게 찍어볼 수 있습니다.',
+  },
+} as const;
+
+const drumTracks = [
+  { name: 'Kick', hint: 'Low-end pulse', tone: 'kick' },
+  { name: 'Snare', hint: 'Backbeat snap', tone: 'snare' },
+  { name: 'Hi-Hat', hint: 'Fast groove', tone: 'hat' },
+  { name: 'Clap', hint: 'Accent layer', tone: 'clap' },
+] as const;
+
+const bassLaneColors = [
+  '#fb7185',
+  '#f59e0b',
+  '#4ade80',
+  '#22d3ee',
+  '#818cf8',
+  '#c084fc',
+  '#38bdf8',
+  '#f97316',
+  '#34d399',
+  '#facc15',
+] as const;
+
+const MIXER_ITEMS = [
+  { key: 'melody', label: 'Melody' },
+  { key: 'drums', label: 'Drums' },
+  { key: 'bass', label: 'Bass' },
+] as const;
+
+function getSubdivisionClassName(col: number) {
+  return `${col % 2 === 0 ? ' is-eighth' : ''}${col % 4 === 0 ? ' is-quarter' : ''}${
+    col % 8 === 0 ? ' is-half' : ''
+  }${col % 16 === 0 ? ' is-bar' : ''}`;
+}
+
 export function Composer() {
-  const { steps, drums, toggleDrum } = useSongStore();
-  const { activeTab, setActiveTab } = useUIStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const user = useAuthStore((state) => state.user);
+  const tutorialCompletedByEmail = useAuthStore(
+    (state) => state.profilesByEmail[user?.email ?? '']?.composerTutorialCompleted ?? false
+  );
+  const markComposerTutorialCompleted = useAuthStore((state) => state.markComposerTutorialCompleted);
+  const {
+    bpm,
+    steps,
+    melody,
+    melodyLengths,
+    drums,
+    bass,
+    volumes,
+    setInstrumentVolume,
+    toggleDrum,
+    toggleBass,
+    applyChord,
+    currentStep,
+    clear,
+    setSteps,
+    setCurrentStep,
+    loopRange,
+    setLoopRange,
+    loadProject,
+    applyRemoteProject,
+  } = useSongStore();
+  const { activeTab, setActiveTab } = useUIStore();
+  const projects = useCollabStore((state) => state.projects);
+  const connectionStatus = useCollabStore((state) => state.connectionStatus);
+  const connectionError = useCollabStore((state) => state.connectionError);
+  const initializeRealtime = useCollabStore((state) => state.initializeRealtime);
+  const updateComposerSnapshot = useCollabStore((state) => state.updateComposerSnapshot);
+  const applyComposerOperation = useCollabStore((state) => state.applyComposerOperation);
+  const setComposerLock = useCollabStore((state) => state.setComposerLock);
+  const touchPresence = useCollabStore((state) => state.touchPresence);
+  const leavePresence = useCollabStore((state) => state.leavePresence);
+  const presenceByProject = useCollabStore((state) => state.presenceByProject);
+  const composerLocksByProject = useCollabStore((state) => state.composerLocksByProject);
+  const composerHistoryByProject = useCollabStore((state) => state.composerHistoryByProject);
+  const collabId = searchParams.get('collab');
+  const tutorialRequested = searchParams.get('tutorial') === '1';
+  const requestedGuideStep = Number(searchParams.get('guideStep') ?? '0');
+  const collabProject = useMemo(
+    () => (collabId ? projects.find((project) => project.id === collabId) ?? null : null),
+    [collabId, projects]
+  );
+  const collabMember = useMemo(
+    () =>
+      collabProject && user
+        ? collabProject.members.find((member) => member.email === user.email) ?? null
+        : null,
+    [collabProject, user]
+  );
+  const canSyncCollab = Boolean(collabMember && collabMember.role !== 'viewer');
+  const lastAppliedRevisionRef = useRef(0);
+  const lastSentSignatureRef = useRef('');
+  const hasLoadedCollabRef = useRef(false);
+  const isApplyingRemoteRef = useRef(false);
+  const syncTimeoutRef = useRef<number | null>(null);
+  const conflictTimeoutRef = useRef<number | null>(null);
+  const pendingOperationSignatureRef = useRef<string | null>(null);
+  const operationQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const heldBarLocksRef = useRef(new Set<string>());
+  const [conflictNotice, setConflictNotice] = useState('');
+  const [collabSyncTick, setCollabSyncTick] = useState(0);
+  const tutorialCompleted = Boolean(user?.email && tutorialCompletedByEmail);
+  const isGuideOpen = tutorialRequested && !tutorialCompleted;
+  const guideStepIndex = clampGuideStepIndex(
+    Number.isFinite(requestedGuideStep) ? requestedGuideStep : 0
+  );
+  const [visitedTabs, setVisitedTabs] = useState<ComposerTab[]>(() => [activeTab]);
+  const [openTabsState, setOpenTabsState] = useState<ComposerTab[]>(['melody']);
+  const [isTabPickerOpen, setIsTabPickerOpen] = useState(false);
+  const [playedTutorialOnce, setPlayedTutorialOnce] = useState(false);
+  const tutorialAdvanceTimeoutRef = useRef<number | null>(null);
+  const lastAutoAdvancedStepRef = useRef<number | null>(null);
+  const tutorialCameraTimeoutRef = useRef<number | null>(null);
+  const tabStripRef = useRef<HTMLDivElement | null>(null);
+  const tabPickerRef = useRef<HTMLDivElement | null>(null);
+  const mixerStripRef = useRef<HTMLDivElement | null>(null);
+  const mainViewportRef = useRef<HTMLElement | null>(null);
+  const melodyChordBarRef = useRef<HTMLElement | null>(null);
+  const melodyRollRef = useRef<HTMLElement | null>(null);
+  const drumShellRef = useRef<HTMLElement | null>(null);
+  const bassShellRef = useRef<HTMLElement | null>(null);
+  const footerRef = useRef<HTMLElement | null>(null);
+  const openTabs = useMemo(() => {
+    if (tutorialRequested) {
+      return [...tabOrder];
+    }
+
+    return tabOrder.filter((tab) => openTabsState.includes(tab) || tab === activeTab);
+  }, [activeTab, openTabsState, tutorialRequested]);
+  const closedTabs = useMemo(
+    () => tabOrder.filter((tab) => !openTabs.includes(tab)),
+    [openTabs]
+  );
+
+  const projectSnapshot = useMemo(
+    () =>
+      buildSongProjectSnapshot({
+        bpm,
+        steps,
+        volumes,
+        melody,
+        melodyLengths,
+        drums,
+        bass,
+      }),
+    [bass, bpm, drums, melody, melodyLengths, steps, volumes]
+  );
+  const projectSignature = useMemo(() => JSON.stringify(projectSnapshot), [projectSnapshot]);
+
+  const collabStatusLabel = useMemo(() => {
+    if (!collabId) {
+      return '';
+    }
+
+    if (connectionStatus === 'connected') {
+      return canSyncCollab ? '실시간 공동 편집 연결됨' : '작업방 읽기 전용으로 연결됨';
+    }
+
+    if (connectionStatus === 'connecting') {
+      return '실시간 작업 서버에 연결 중입니다.';
+    }
+
+    if (connectionStatus === 'error') {
+      return connectionError || '작업 서버 연결을 확인해 주세요.';
+    }
+
+    return '작업방 연결을 준비하고 있습니다.';
+  }, [canSyncCollab, collabId, connectionError, connectionStatus]);
+  const activeEditorsLabel = useMemo(() => {
+    if (!collabId || !user) {
+      return '';
+    }
+
+    const entries = presenceByProject[collabId] ?? [];
+    const activeEditors = entries
+      .filter((entry) => entry.email !== user.email && entry.focus)
+      .map((entry) => `${entry.name} - ${entry.focus}`);
+
+    return activeEditors.join(', ');
+  }, [collabId, presenceByProject, user]);
+  const activeComposerLocks = useMemo(
+    () => (collabId ? composerLocksByProject[collabId] ?? [] : []),
+    [collabId, composerLocksByProject]
+  );
+  const currentTabLockMap = useMemo(() => {
+    return activeComposerLocks.reduce<Record<number, { mine: boolean; name: string }>>(
+      (map, lock) => {
+        if (lock.instrument !== activeTab) {
+          return map;
+        }
+
+        map[lock.barIndex] = {
+          mine: lock.sessionId === COLLAB_SESSION_ID,
+          name: lock.name,
+        };
+        return map;
+      },
+      {}
+    );
+  }, [activeComposerLocks, activeTab]);
+  const visibleComposerLocks = useMemo(
+    () =>
+      activeComposerLocks
+        .filter((lock) => lock.sessionId !== COLLAB_SESSION_ID)
+        .slice(0, 4),
+    [activeComposerLocks]
+  );
+  const recentComposerHistory = useMemo<CollabComposerHistoryEntry[]>(
+    () => (collabId ? (composerHistoryByProject[collabId] ?? []).slice(0, 4) : []),
+    [collabId, composerHistoryByProject]
+  );
+  const activeGuideStep = COMPOSER_GUIDE_STEPS[guideStepIndex];
+  const matchedChordTargets = useMemo(
+    () => countMatchedChordTargets(melody, COMPOSER_TUTORIAL_CHORD_TARGETS),
+    [melody]
+  );
+  const matchedMelodyTargets = useMemo(
+    () => countMatchedMelodyTargets(melody, melodyLengths, COMPOSER_TUTORIAL_MELODY_TARGETS),
+    [melody, melodyLengths]
+  );
+  const matchedDrumTargets = useMemo(
+    () => countMatchedCellTargets(drums, COMPOSER_TUTORIAL_DRUM_TARGETS),
+    [drums]
+  );
+  const matchedBassTargets = useMemo(
+    () => countMatchedCellTargets(bass, COMPOSER_TUTORIAL_BASS_TARGETS),
+    [bass]
+  );
+  const melodyNoteCount = useMemo(
+    () => melody.reduce((sum, row) => sum + row.filter(Boolean).length, 0),
+    [melody]
+  );
+  const melodyLongNoteCount = useMemo(
+    () =>
+      melodyLengths.reduce(
+        (sum, row) => sum + row.filter((length) => Number(length) > 1).length,
+        0
+      ),
+    [melodyLengths]
+  );
+  const melodyChordColumnCount = useMemo(() => {
+    const columns = new Set<number>();
+
+    for (let col = 0; col < steps; col += 1) {
+      let activeInColumn = 0;
+
+      for (let row = 0; row < melody.length; row += 1) {
+        if (melody[row]?.[col]) {
+          activeInColumn += 1;
+        }
+      }
+
+      if (activeInColumn >= 3) {
+        columns.add(col);
+      }
+    }
+
+    return columns.size;
+  }, [melody, steps]);
+  const drumHitCount = useMemo(
+    () => drums.reduce((sum, row) => sum + row.filter(Boolean).length, 0),
+    [drums]
+  );
+  const kickHitCount = drums[0]?.filter(Boolean).length ?? 0;
+  const snareHitCount = drums[1]?.filter(Boolean).length ?? 0;
+  const bassHitCount = useMemo(
+    () => bass.reduce((sum, row) => sum + row.filter(Boolean).length, 0),
+    [bass]
+  );
+  const tutorialQuests = useMemo(
+    () => [
+      {
+        id: 'tabs',
+        stepIndex: 0,
+        title: '탭 둘러보기',
+        goal: '멜로디, 드럼, 베이스 탭을 한 번씩 열어보세요.',
+        done: visitedTabs.length >= 3,
+        progress: `${visitedTabs.length}/3 탭 확인`,
+      },
+      {
+        id: 'melody-chords',
+        stepIndex: 1,
+        title: '코드 놓기',
+        goal: '코드 칩으로 멜로디 영역에 첫 진행을 만들어보세요.',
+        done: melodyChordColumnCount >= 1,
+        progress:
+          melodyChordColumnCount >= 1
+            ? `${melodyChordColumnCount}개 코드 시작점 생성`
+            : '아직 코드 음이 없습니다.',
+      },
+      {
+        id: 'melody-roll',
+        stepIndex: 2,
+        title: '멜로디 만들기',
+        goal: '멜로디 음을 4개 이상 찍고, 긴 음도 1개 이상 만들어보세요.',
+        done: melodyNoteCount >= 4 && melodyLongNoteCount >= 1,
+        progress: `음 ${melodyNoteCount}개 · 긴 음 ${melodyLongNoteCount}개`,
+      },
+      {
+        id: 'drums-grid',
+        stepIndex: 3,
+        title: '드럼 채우기',
+        goal: '킥과 스네어를 포함해서 드럼 히트를 6개 이상 넣어보세요.',
+        done: drumHitCount >= 6 && kickHitCount >= 1 && snareHitCount >= 1,
+        progress: `전체 ${drumHitCount}개 · 킥 ${kickHitCount}개 · 스네어 ${snareHitCount}개`,
+      },
+      {
+        id: 'bass-grid',
+        stepIndex: 4,
+        title: '베이스 루트 넣기',
+        goal: '베이스 음을 2개 이상 넣어서 곡의 바닥을 만들어보세요.',
+        done: bassHitCount >= 2,
+        progress: `베이스 음 ${bassHitCount}개`,
+      },
+      {
+        id: 'transport',
+        stepIndex: 5,
+        title: '곡 들어보기',
+        goal: '재생 버튼을 눌러 지금 만든 곡을 직접 들어보세요.',
+        done: playedTutorialOnce,
+        progress: playedTutorialOnce ? '재생 확인 완료' : '아직 재생 전입니다.',
+      },
+    ],
+    [
+      bassHitCount,
+      drumHitCount,
+      kickHitCount,
+      melodyChordColumnCount,
+      melodyLongNoteCount,
+      melodyNoteCount,
+      playedTutorialOnce,
+      snareHitCount,
+      visitedTabs.length,
+    ]
+  );
+  const liveTutorialQuests = useMemo(
+    () => [
+      {
+        id: 'tabs',
+        stepIndex: 0,
+        title: '탭부터 둘러보기',
+        goal: '위 탭에서 MELODY, DRUMS, BASS를 한 번씩 눌러보세요.',
+        done: visitedTabs.length >= 3,
+        progress: `${visitedTabs.length}/3 탭 확인`,
+        pattern: ['MELODY 탭 누르기', 'DRUMS 탭 누르기', 'BASS 탭 누르기'],
+      },
+      {
+        id: 'melody-chords',
+        stepIndex: 1,
+        title: '코드 뼈대 놓기',
+        goal: '코드 칩을 드래그해서 1마디 진행을 먼저 맞춰보세요.',
+        done: matchedChordTargets === COMPOSER_TUTORIAL_CHORD_TARGETS.length,
+        progress: `${matchedChordTargets}/${COMPOSER_TUTORIAL_CHORD_TARGETS.length} 코드 위치 맞춤`,
+        pattern: COMPOSER_TUTORIAL_CHORD_TARGETS.map((target) => target.label),
+      },
+      {
+        id: 'melody-roll',
+        stepIndex: 2,
+        title: '멜로디 따라 찍기',
+        goal: '보이는 가이드 블록대로 첫 1마디 멜로디를 찍어보세요.',
+        done: matchedMelodyTargets === COMPOSER_TUTORIAL_MELODY_TARGETS.length,
+        progress: `${matchedMelodyTargets}/${COMPOSER_TUTORIAL_MELODY_TARGETS.length} 멜로디 맞춤`,
+        pattern: COMPOSER_TUTORIAL_MELODY_TARGETS.map((target) => target.label),
+      },
+      {
+        id: 'drums-grid',
+        stepIndex: 3,
+        title: '드럼 박자 복사하기',
+        goal: '킥, 스네어, 하이햇 위치를 그대로 채워서 리듬을 완성해보세요.',
+        done: matchedDrumTargets === COMPOSER_TUTORIAL_DRUM_TARGETS.length,
+        progress: `${matchedDrumTargets}/${COMPOSER_TUTORIAL_DRUM_TARGETS.length} 드럼 칸 맞춤`,
+        pattern: [
+          'Kick: 1칸, 9칸',
+          'Snare: 5칸, 13칸',
+          'Hi-Hat: 1, 3, 5, 7, 9, 11, 13, 15칸',
+        ],
+      },
+      {
+        id: 'bass-grid',
+        stepIndex: 4,
+        title: '베이스 루트 넣기',
+        goal: '코드 아래에 맞는 루트 음을 찍어 곡의 바닥을 완성해보세요.',
+        done: matchedBassTargets === COMPOSER_TUTORIAL_BASS_TARGETS.length,
+        progress: `${matchedBassTargets}/${COMPOSER_TUTORIAL_BASS_TARGETS.length} 베이스 칸 맞춤`,
+        pattern: COMPOSER_TUTORIAL_BASS_TARGETS.map((target) => target.label),
+      },
+      {
+        id: 'transport',
+        stepIndex: 5,
+        title: '곡 들어보기',
+        goal: '재생 버튼을 눌러 방금 만든 1마디 곡이 실제로 들리는지 확인해보세요.',
+        done: playedTutorialOnce,
+        progress: playedTutorialOnce ? '재생 확인 완료' : '아직 재생 전입니다.',
+        pattern: ['하단 재생 버튼 누르기', '소리 확인하기'],
+      },
+    ],
+    [
+      matchedBassTargets,
+      matchedChordTargets,
+      matchedDrumTargets,
+      matchedMelodyTargets,
+      playedTutorialOnce,
+      visitedTabs.length,
+    ]
+  );
+  const liveCompletedQuestCount = liveTutorialQuests.filter((quest) => quest.done).length;
+  const liveTutorialProgress = Math.round((liveCompletedQuestCount / tutorialQuests.length) * 100);
+  const liveRecommendedQuest =
+    liveTutorialQuests.find((quest) => !quest.done) ?? liveTutorialQuests.at(-1);
+  const activeGuideQuest = liveTutorialQuests[guideStepIndex] ?? liveTutorialQuests[0];
+  const nextChordTutorialTarget = useMemo(
+    () =>
+      COMPOSER_TUTORIAL_CHORD_TARGETS.find(
+        (target) => !target.rows.every((row) => Boolean(melody[row]?.[target.col]))
+      ) ?? null,
+    [melody]
+  );
+  const nextMelodyTutorialTarget = useMemo(
+    () =>
+      COMPOSER_TUTORIAL_MELODY_TARGETS.find((target) => {
+        const noteInfo = findMelodyNoteForTutorial(
+          melody[target.row] ?? [],
+          melodyLengths[target.row] ?? [],
+          target.col
+        );
+
+        return !(noteInfo && noteInfo.start === target.col && noteInfo.length >= target.length);
+      }) ?? null,
+    [melody, melodyLengths]
+  );
+  const nextDrumTutorialTarget = useMemo(
+    () => COMPOSER_TUTORIAL_DRUM_TARGETS.find((target) => !drums[target.row]?.[target.col]) ?? null,
+    [drums]
+  );
+  const nextBassTutorialTarget = useMemo(
+    () => COMPOSER_TUTORIAL_BASS_TARGETS.find((target) => !bass[target.row]?.[target.col]) ?? null,
+    [bass]
+  );
+  const melodyTutorialGhostNotes = useMemo(() => {
+    if (!isGuideOpen || activeTab !== 'melody') {
+      return [];
+    }
+
+    if (guideStepIndex === 1) {
+      return COMPOSER_TUTORIAL_CHORD_TARGETS.flatMap((target) =>
+        target.rows.map((row, index) => ({
+          row,
+          col: target.col,
+          length: 1,
+          completed: Boolean(melody[row]?.[target.col]),
+          highlight: nextChordTutorialTarget?.chord === target.chord && nextChordTutorialTarget.col === target.col,
+          label:
+            nextChordTutorialTarget?.chord === target.chord &&
+            nextChordTutorialTarget.col === target.col &&
+            index === 0
+              ? `${target.chord} 코드 놓기`
+              : undefined,
+        }))
+      );
+    }
+
+    if (guideStepIndex === 2) {
+      return COMPOSER_TUTORIAL_MELODY_TARGETS.map((target) => {
+        const noteInfo = findMelodyNoteForTutorial(
+          melody[target.row] ?? [],
+          melodyLengths[target.row] ?? [],
+          target.col
+        );
+
+        return {
+          row: target.row,
+          col: target.col,
+          length: target.length,
+          completed: Boolean(
+            noteInfo && noteInfo.start === target.col && noteInfo.length >= target.length
+          ),
+          highlight:
+            nextMelodyTutorialTarget?.row === target.row &&
+            nextMelodyTutorialTarget.col === target.col,
+          label:
+            nextMelodyTutorialTarget?.row === target.row &&
+            nextMelodyTutorialTarget.col === target.col
+              ? '멜로디 찍기'
+              : undefined,
+        };
+      });
+    }
+
+    return [];
+  }, [
+    activeTab,
+    guideStepIndex,
+    isGuideOpen,
+    melody,
+    melodyLengths,
+    nextChordTutorialTarget,
+    nextMelodyTutorialTarget,
+  ]);
+  const drumTutorialTargetMap = useMemo(
+    () =>
+      guideStepIndex === 3 && isGuideOpen
+        ? COMPOSER_TUTORIAL_DRUM_TARGETS.reduce<Record<string, boolean>>((map, target) => {
+            map[`${target.row}-${target.col}`] = Boolean(drums[target.row]?.[target.col]);
+            return map;
+          }, {})
+        : {},
+    [drums, guideStepIndex, isGuideOpen]
+  );
+  const bassTutorialTargetMap = useMemo(
+    () =>
+      guideStepIndex === 4 && isGuideOpen
+        ? COMPOSER_TUTORIAL_BASS_TARGETS.reduce<Record<string, boolean>>((map, target) => {
+            map[`${target.row}-${target.col}`] = Boolean(bass[target.row]?.[target.col]);
+            return map;
+          }, {})
+        : {},
+    [bass, guideStepIndex, isGuideOpen]
+  );
+  const getGuideHighlightClass = (...focuses: ComposerGuideFocus[]) =>
+    isGuideOpen && activeGuideStep && focuses.includes(activeGuideStep.focus)
+      ? ' composer-guide-highlight'
+      : '';
+  const getGuideFocusElement = useCallback(() => {
+    if (!isGuideOpen || !activeGuideStep) {
+      return null;
+    }
+
+    switch (activeGuideStep.focus) {
+      case 'tabs':
+        return tabStripRef.current;
+      case 'mixer':
+        return mixerStripRef.current;
+      case 'melody-chords':
+        return melodyChordBarRef.current;
+      case 'melody-roll':
+        return melodyRollRef.current;
+      case 'drums-grid':
+        return drumShellRef.current;
+      case 'bass-grid':
+        return bassShellRef.current;
+      case 'transport':
+        return footerRef.current;
+      default:
+        return null;
+    }
+  }, [activeGuideStep, isGuideOpen]);
+
+  const showCollabNotice = (message: string) => {
+    setConflictNotice(message);
+
+    if (conflictTimeoutRef.current) {
+      window.clearTimeout(conflictTimeoutRef.current);
+    }
+
+    conflictTimeoutRef.current = window.setTimeout(() => {
+      setConflictNotice('');
+      conflictTimeoutRef.current = null;
+    }, 4000);
+  };
+
+  const markVisitedTab = useCallback((tab: ComposerTab) => {
+    setVisitedTabs((current) => (current.includes(tab) ? current : [...current, tab]));
+  }, []);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!tabPickerRef.current) {
+        return;
+      }
+
+      if (!tabPickerRef.current.contains(event.target as Node)) {
+        setIsTabPickerOpen(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handlePointerDown);
+    return () => {
+      window.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, []);
+
+  const syncGuideQuery = useCallback(
+    (open: boolean, stepIndex = guideStepIndex) => {
+      const nextParams = new URLSearchParams(searchParams);
+
+      if (open) {
+        nextParams.set('tutorial', '1');
+        nextParams.set('guideStep', String(clampGuideStepIndex(stepIndex)));
+      } else {
+        nextParams.delete('tutorial');
+        nextParams.delete('guideStep');
+      }
+
+      navigate(
+        {
+          pathname: '/composer',
+          search: nextParams.toString() ? `?${nextParams.toString()}` : '',
+        },
+        { replace: true }
+      );
+    },
+    [guideStepIndex, navigate, searchParams]
+  );
+
+  const openGuideAt = useCallback(
+    (stepIndex: number) => {
+      const nextStepIndex = clampGuideStepIndex(stepIndex);
+      const stepTab = COMPOSER_GUIDE_STEPS[nextStepIndex]?.tab;
+      if (stepTab) {
+        markVisitedTab(stepTab);
+        setActiveTab(stepTab);
+      }
+      syncGuideQuery(true, nextStepIndex);
+    },
+    [markVisitedTab, setActiveTab, syncGuideQuery]
+  );
+
+  const closeGuide = useCallback(() => {
+    syncGuideQuery(false);
+  }, [syncGuideQuery]);
+
+  const moveGuideStep = useCallback(
+    (direction: -1 | 1) => {
+      openGuideAt(guideStepIndex + direction);
+    },
+    [guideStepIndex, openGuideAt]
+  );
+
+  useEffect(() => {
+    if (!tutorialCompleted || !tutorialRequested) {
+      return;
+    }
+
+    syncGuideQuery(false);
+  }, [syncGuideQuery, tutorialCompleted, tutorialRequested]);
+
+  const handleTabPickerToggle = useCallback(() => {
+    const nextTab = closedTabs[0];
+
+    if (!nextTab) {
+      return;
+    }
+
+    setOpenTabsState((current) =>
+      tabOrder.filter((candidate) => candidate === nextTab || current.includes(candidate))
+    );
+    markVisitedTab(nextTab);
+    setActiveTab(nextTab);
+    setIsTabPickerOpen(false);
+  }, [closedTabs, markVisitedTab, setActiveTab]);
+
+  const handleOpenTab = useCallback(
+    (tab: ComposerTab) => {
+      setOpenTabsState((current) =>
+        tabOrder.filter((candidate) => candidate === tab || current.includes(candidate))
+      );
+      markVisitedTab(tab);
+      setActiveTab(tab);
+      setIsTabPickerOpen(false);
+    },
+    [markVisitedTab, setActiveTab]
+  );
+
+  const handleCloseTab = useCallback(
+    (tab: ComposerTab) => {
+      if (tab === 'melody') {
+        return;
+      }
+
+      const remainingTabs = tabOrder.filter(
+        (candidate) => candidate !== tab && (openTabsState.includes(candidate) || candidate === 'melody')
+      );
+
+      setOpenTabsState(remainingTabs);
+      setIsTabPickerOpen(false);
+
+      if (activeTab === tab) {
+        const fallbackTab = [...remainingTabs].reverse().find((candidate) => candidate !== tab) ?? 'melody';
+        setActiveTab(fallbackTab);
+      }
+    },
+    [activeTab, openTabsState, setActiveTab]
+  );
+
+  const handleStepLoopSelect = useCallback(
+    (col: number) => {
+      const sameLoop = loopRange?.start === 0 && loopRange.end === col;
+      setLoopRange(sameLoop ? null : { start: 0, end: col });
+      setCurrentStep(0);
+    },
+    [loopRange, setCurrentStep, setLoopRange]
+  );
+
+  const startTutorialSong = () => {
+    const store = useSongStore.getState();
+
+    if (store.steps !== COMPOSER_TUTORIAL_BAR_LENGTH) {
+      setSteps(COMPOSER_TUTORIAL_BAR_LENGTH);
+    } else {
+      clear();
+    }
+
+    setCurrentStep(0);
+    setPlayedTutorialOnce(false);
+    setVisitedTabs(['melody']);
+    setOpenTabsState([...tabOrder]);
+    setIsTabPickerOpen(false);
+    setActiveTab('melody');
+    openGuideAt(0);
+  };
+
+  const getDrumTutorialCellClass = (row: number, col: number) => {
+    if (
+      nextDrumTutorialTarget &&
+      nextDrumTutorialTarget.row === row &&
+      nextDrumTutorialTarget.col === col
+    ) {
+      return ' is-tutorial-next';
+    }
+
+    const targetState = drumTutorialTargetMap[`${row}-${col}`];
+
+    if (typeof targetState !== 'boolean') {
+      return '';
+    }
+
+    return targetState ? ' is-tutorial-complete' : ' is-tutorial-target';
+  };
+
+  const getBassTutorialCellClass = (row: number, col: number) => {
+    if (
+      nextBassTutorialTarget &&
+      nextBassTutorialTarget.row === row &&
+      nextBassTutorialTarget.col === col
+    ) {
+      return ' is-tutorial-next';
+    }
+
+    const targetState = bassTutorialTargetMap[`${row}-${col}`];
+
+    if (typeof targetState !== 'boolean') {
+      return '';
+    }
+
+    return targetState ? ' is-tutorial-complete' : ' is-tutorial-target';
+  };
+
+  const getDrumTutorialCellGuideLabel = (row: number, col: number) =>
+    nextDrumTutorialTarget &&
+    nextDrumTutorialTarget.row === row &&
+    nextDrumTutorialTarget.col === col
+      ? '여기'
+      : '';
+
+  const getBassTutorialCellGuideLabel = (row: number, col: number) =>
+    nextBassTutorialTarget &&
+    nextBassTutorialTarget.row === row &&
+    nextBassTutorialTarget.col === col
+      ? '여기'
+      : '';
+
+  const getTutorialTabClass = (tab: ComposerTab) => {
+    if (!isGuideOpen || guideStepIndex !== 0) {
+      return '';
+    }
+
+    if (!visitedTabs.includes(tab)) {
+      return ' is-tutorial-target';
+    }
+
+    return ' is-tutorial-complete';
+  };
+
+  const getProjectSignatureFromStore = () =>
+    JSON.stringify(
+      buildSongProjectSnapshot({
+        bpm: useSongStore.getState().bpm,
+        steps: useSongStore.getState().steps,
+        volumes: useSongStore.getState().volumes,
+        melody: useSongStore.getState().melody,
+        melodyLengths: useSongStore.getState().melodyLengths,
+        drums: useSongStore.getState().drums,
+        bass: useSongStore.getState().bass,
+      })
+    );
+
+  const getLockKey = (instrument: CollabComposerInstrument, barIndex: number) =>
+    `${instrument}:${barIndex}`;
+
+  const requestComposerBarLock = async (
+    instrument: CollabComposerInstrument,
+    barIndex: number
+  ) => {
+    if (!collabId || !user || !canSyncCollab) {
+      return !collabId;
+    }
+
+    const key = getLockKey(instrument, barIndex);
+    if (heldBarLocksRef.current.has(key)) {
+      return true;
+    }
+
+    const existingLock = activeComposerLocks.find(
+      (lock) =>
+        lock.instrument === instrument &&
+        lock.barIndex === barIndex &&
+        lock.sessionId !== COLLAB_SESSION_ID
+    );
+
+    if (existingLock) {
+      showCollabNotice(
+        `${existingLock.name}님이 ${
+          instrument === 'melody' ? '멜로디' : instrument === 'drums' ? '드럼' : '베이스'
+        } ${barIndex + 1}마디를 편집 중입니다.`
+      );
+      return false;
+    }
+
+    try {
+      await setComposerLock(collabId, {
+        instrument,
+        barIndex,
+        email: user.email,
+        name: user.name,
+        sessionId: COLLAB_SESSION_ID,
+        lock: true,
+      });
+      heldBarLocksRef.current.add(key);
+      return true;
+    } catch (error) {
+      if (error instanceof Error) {
+        showCollabNotice(error.message);
+      }
+      return false;
+    }
+  };
+
+  const releaseComposerBarLock = (instrument: CollabComposerInstrument, barIndex: number) => {
+    if (!collabId) {
+      return;
+    }
+
+    const key = getLockKey(instrument, barIndex);
+    if (!heldBarLocksRef.current.has(key)) {
+      return;
+    }
+
+    heldBarLocksRef.current.delete(key);
+    void setComposerLock(collabId, {
+      instrument,
+      barIndex,
+      sessionId: COLLAB_SESSION_ID,
+      lock: false,
+    }).catch((error) => {
+      console.error(error);
+    });
+  };
+
+  const queueComposerOperation = (operation: CollabComposerOperation) => {
+    if (!collabId || !user || !canSyncCollab) {
+      return;
+    }
+
+    pendingOperationSignatureRef.current = getProjectSignatureFromStore();
+
+    operationQueueRef.current = operationQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        try {
+          const revision = await applyComposerOperation(collabId, {
+            operation,
+            email: user.email,
+            name: user.name,
+            sessionId: COLLAB_SESSION_ID,
+            baseRevision: lastAppliedRevisionRef.current,
+          });
+          lastAppliedRevisionRef.current = Math.max(lastAppliedRevisionRef.current, revision);
+          setConflictNotice('');
+        } catch (error) {
+          console.error(error);
+          pendingOperationSignatureRef.current = null;
+
+          if (error instanceof CollabRequestError && error.statusCode === 409) {
+            showCollabNotice(error.message);
+          } else if (error instanceof Error) {
+            showCollabNotice(error.message);
+          }
+
+          setCollabSyncTick((tick) => tick + 1);
+          throw error;
+        }
+      });
+  };
 
   useEffect(() => {
     initTransport();
   }, []);
 
+  useEffect(() => {
+    if (!isGuideOpen || !activeGuideStep?.tab || activeTab === activeGuideStep.tab) {
+      return;
+    }
+
+    setActiveTab(activeGuideStep.tab);
+  }, [activeGuideStep, activeTab, isGuideOpen, setActiveTab]);
+
+  useEffect(() => {
+    if (tutorialCameraTimeoutRef.current) {
+      window.clearTimeout(tutorialCameraTimeoutRef.current);
+      tutorialCameraTimeoutRef.current = null;
+    }
+
+    if (!isGuideOpen) {
+      return;
+    }
+
+    tutorialCameraTimeoutRef.current = window.setTimeout(() => {
+      const target = getGuideFocusElement();
+      const mainViewport = mainViewportRef.current;
+
+      if (
+        target &&
+        mainViewport &&
+        mainViewport.contains(target) &&
+        activeGuideStep?.focus !== 'transport'
+      ) {
+        const targetRect = target.getBoundingClientRect();
+        const mainRect = mainViewport.getBoundingClientRect();
+        const nextTop = mainViewport.scrollTop + (targetRect.top - mainRect.top) - 12;
+
+        mainViewport.scrollTo({
+          top: Math.max(0, nextTop),
+          behavior: 'smooth',
+        });
+      } else {
+        target?.scrollIntoView({
+          behavior: 'smooth',
+          block: activeGuideStep?.focus === 'transport' ? 'end' : 'nearest',
+          inline: 'center',
+        });
+      }
+      tutorialCameraTimeoutRef.current = null;
+    }, 180);
+
+    return () => {
+      if (tutorialCameraTimeoutRef.current) {
+        window.clearTimeout(tutorialCameraTimeoutRef.current);
+        tutorialCameraTimeoutRef.current = null;
+      }
+    };
+  }, [activeGuideStep?.focus, activeTab, getGuideFocusElement, isGuideOpen]);
+
+  useEffect(() => {
+    if (tutorialAdvanceTimeoutRef.current) {
+      window.clearTimeout(tutorialAdvanceTimeoutRef.current);
+      tutorialAdvanceTimeoutRef.current = null;
+    }
+
+    if (!isGuideOpen || !activeGuideQuest?.done) {
+      return;
+    }
+
+    if (guideStepIndex >= liveTutorialQuests.length - 1) {
+      return;
+    }
+
+    if (lastAutoAdvancedStepRef.current === guideStepIndex) {
+      return;
+    }
+
+    lastAutoAdvancedStepRef.current = guideStepIndex;
+    tutorialAdvanceTimeoutRef.current = window.setTimeout(() => {
+      openGuideAt(guideStepIndex + 1);
+      tutorialAdvanceTimeoutRef.current = null;
+    }, 850);
+
+    return () => {
+      if (tutorialAdvanceTimeoutRef.current) {
+        window.clearTimeout(tutorialAdvanceTimeoutRef.current);
+        tutorialAdvanceTimeoutRef.current = null;
+      }
+    };
+  }, [activeGuideQuest?.done, guideStepIndex, isGuideOpen, liveTutorialQuests.length, openGuideAt]);
+
+  useEffect(() => {
+    if (!user?.email || tutorialCompleted || liveTutorialProgress < 100) {
+      return;
+    }
+
+    markComposerTutorialCompleted(user.email);
+    syncGuideQuery(false);
+  }, [
+    liveTutorialProgress,
+    markComposerTutorialCompleted,
+    syncGuideQuery,
+    tutorialCompleted,
+    user?.email,
+  ]);
+
+  useEffect(() => {
+    if (!collabId) {
+      hasLoadedCollabRef.current = false;
+      lastAppliedRevisionRef.current = 0;
+      lastSentSignatureRef.current = '';
+      pendingOperationSignatureRef.current = null;
+      if (syncTimeoutRef.current) {
+        window.clearTimeout(syncTimeoutRef.current);
+        syncTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    void initializeRealtime().catch((error) => {
+      console.error(error);
+    });
+  }, [collabId, initializeRealtime]);
+
+  useEffect(() => {
+    if (!collabId || !collabProject?.snapshot) {
+      return;
+    }
+
+    const incomingRevision = collabProject.snapshotRevision ?? 0;
+    const incomingSignature = JSON.stringify(collabProject.snapshot);
+
+    if (!hasLoadedCollabRef.current) {
+      hasLoadedCollabRef.current = true;
+      lastAppliedRevisionRef.current = incomingRevision;
+      lastSentSignatureRef.current = incomingSignature;
+      isApplyingRemoteRef.current = true;
+      loadProject(collabProject.snapshot);
+      window.setTimeout(() => {
+        isApplyingRemoteRef.current = false;
+      }, 0);
+      return;
+    }
+
+    if (incomingRevision <= lastAppliedRevisionRef.current) {
+      return;
+    }
+
+    lastAppliedRevisionRef.current = incomingRevision;
+    lastSentSignatureRef.current = incomingSignature;
+    if (pendingOperationSignatureRef.current === incomingSignature) {
+      pendingOperationSignatureRef.current = null;
+    }
+
+    if (collabProject.snapshotUpdatedBySessionId === COLLAB_SESSION_ID) {
+      return;
+    }
+
+    isApplyingRemoteRef.current = true;
+    applyRemoteProject(collabProject.snapshot);
+    window.setTimeout(() => {
+      isApplyingRemoteRef.current = false;
+    }, 0);
+  }, [applyRemoteProject, collabId, collabProject, loadProject]);
+
+  useEffect(() => {
+    if (!collabId || !collabProject || !user || !canSyncCollab || !hasLoadedCollabRef.current) {
+      return;
+    }
+
+    if (
+      isApplyingRemoteRef.current ||
+      projectSignature === lastSentSignatureRef.current ||
+      pendingOperationSignatureRef.current === projectSignature
+    ) {
+      return;
+    }
+
+    if (syncTimeoutRef.current) {
+      window.clearTimeout(syncTimeoutRef.current);
+    }
+
+    syncTimeoutRef.current = window.setTimeout(() => {
+      void updateComposerSnapshot(collabId, {
+        snapshot: projectSnapshot,
+        email: user.email,
+        name: user.name,
+        sessionId: COLLAB_SESSION_ID,
+        baseRevision: lastAppliedRevisionRef.current,
+      })
+        .then((revision) => {
+          lastAppliedRevisionRef.current = Math.max(lastAppliedRevisionRef.current, revision);
+          lastSentSignatureRef.current = projectSignature;
+          setConflictNotice('');
+        })
+        .catch((error) => {
+          console.error(error);
+          if (error instanceof CollabRequestError && error.statusCode === 409) {
+            setConflictNotice(
+              '다른 사용자의 최신 변경이 먼저 저장되어 최신 버전으로 다시 맞췄습니다.'
+            );
+
+            if (conflictTimeoutRef.current) {
+              window.clearTimeout(conflictTimeoutRef.current);
+            }
+
+            conflictTimeoutRef.current = window.setTimeout(() => {
+              setConflictNotice('');
+              conflictTimeoutRef.current = null;
+            }, 4000);
+          }
+        });
+    }, 400);
+
+    return () => {
+      if (syncTimeoutRef.current) {
+        window.clearTimeout(syncTimeoutRef.current);
+        syncTimeoutRef.current = null;
+      }
+    };
+  }, [
+    canSyncCollab,
+    collabId,
+    collabProject,
+    projectSignature,
+    projectSnapshot,
+    updateComposerSnapshot,
+    user,
+    collabSyncTick,
+  ]);
+
+  useEffect(
+    () => () => {
+      if (syncTimeoutRef.current) {
+        window.clearTimeout(syncTimeoutRef.current);
+      }
+      if (conflictTimeoutRef.current) {
+        window.clearTimeout(conflictTimeoutRef.current);
+      }
+    },
+    []
+  );
+
+  useEffect(
+    () => () => {
+      if (!collabId || !heldBarLocksRef.current.size) {
+        return;
+      }
+
+      const heldLocks = [...heldBarLocksRef.current];
+      heldBarLocksRef.current.clear();
+
+      heldLocks.forEach((entry) => {
+        const [instrument, barIndexValue] = entry.split(':');
+        void setComposerLock(collabId, {
+          instrument: instrument as CollabComposerInstrument,
+          barIndex: Number(barIndexValue),
+          sessionId: COLLAB_SESSION_ID,
+          lock: false,
+        }).catch((error) => {
+          console.error(error);
+        });
+      });
+    },
+    [collabId, setComposerLock]
+  );
+
+  useEffect(() => {
+    if (!collabId || !user) {
+      return;
+    }
+
+    const focus = `composer:${activeTab}`;
+
+    void touchPresence(collabId, {
+      email: user.email,
+      name: user.name,
+      focus,
+    }).catch((error) => {
+      console.error(error);
+    });
+
+    const timer = window.setInterval(() => {
+      void touchPresence(collabId, {
+        email: user.email,
+        name: user.name,
+        focus,
+      }).catch((error) => {
+        console.error(error);
+      });
+    }, COLLAB_PRESENCE_PING_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(timer);
+      void leavePresence(collabId).catch((error) => {
+        console.error(error);
+      });
+    };
+  }, [activeTab, collabId, leavePresence, touchPresence, user]);
+
+  const handleMixerChange = (instrument: InstrumentKey, volume: number) => {
+    setInstrumentVolume(instrument, volume);
+
+    if (!collabId || !canSyncCollab) {
+      return;
+    }
+
+    queueComposerOperation({
+      type: 'set-volume',
+      instrument,
+      volume,
+    });
+  };
+
+  const handleMelodyOperationCommit = (payload: {
+    row: number;
+    col: number;
+    length: number;
+    barIndex: number;
+  }) => {
+    queueComposerOperation({
+      type: 'set-melody-note',
+      ...payload,
+    });
+  };
+
+  const handleChordOperationCommit = (payload: {
+    chord: string;
+    col: number;
+    isBass: boolean;
+    rows: number[];
+    barIndex: number;
+  }) => {
+    if (!payload.chord) {
+      return;
+    }
+
+    queueComposerOperation({
+      type: 'apply-chord',
+      ...payload,
+    });
+  };
+
+  const handleBassCellToggle = async (row: number, col: number) => {
+    const barIndex = Math.floor(col / COLLAB_BAR_LENGTH);
+    if (!(await requestComposerBarLock('bass', barIndex))) {
+      return;
+    }
+
+    const nextValue = !(useSongStore.getState().bass[row]?.[col] ?? false);
+    toggleBass(row, col);
+    void playBassPreview(row);
+    queueComposerOperation({
+      type: 'toggle-bass-step',
+      row,
+      col,
+      nextValue,
+      barIndex,
+    });
+    releaseComposerBarLock('bass', barIndex);
+  };
+
+  const handleBassChordDrop = async (chord: string, col: number) => {
+    const barIndex = Math.floor(col / COLLAB_BAR_LENGTH);
+    if (!(await requestComposerBarLock('bass', barIndex))) {
+      return;
+    }
+
+    applyChord(chord, col, true);
+    queueComposerOperation({
+      type: 'apply-chord',
+      chord,
+      col,
+      isBass: true,
+      rows: [...(BASS_CHORD_MAP[chord] ?? [])],
+      barIndex,
+    });
+    releaseComposerBarLock('bass', barIndex);
+  };
+
+  const handleDrumCellToggle = async (row: number, col: number) => {
+    const barIndex = Math.floor(col / COLLAB_BAR_LENGTH);
+    if (!(await requestComposerBarLock('drums', barIndex))) {
+      return;
+    }
+
+    const nextValue = !(useSongStore.getState().drums[row]?.[col] ?? false);
+    toggleDrum(row, col);
+    void playDrumPreview(row);
+    queueComposerOperation({
+      type: 'toggle-drum-step',
+      row,
+      col,
+      nextValue,
+      barIndex,
+    });
+    releaseComposerBarLock('drums', barIndex);
+  };
+
   return (
-    <div style={{ 
-      display: 'flex', flexDirection: 'column', height: '100vh', 
-      width: '100vw', overflow: 'hidden', background: '#121212' 
-    }}>
+    <div
+      className={`composer-page composer-page--${activeTab}${
+        isGuideOpen ? ' composer-page--guide-open' : ''
+      }`}
+    >
+      <SiteHeader activeSection="composer" />
 
-      {/* 💡 상단 네비게이션 바 (로고 - 탭 - 커뮤니티) */}
-      <nav style={{ 
-        height: '60px', display: 'flex', alignItems: 'flex-end', 
-        background: '#000', padding: '0 20px', borderBottom: '1px solid #333' 
-      }}>
-        {/* 1. 왼쪽 로고 영역 */}
-        <div style={{ flex: 1, paddingBottom: '15px', color: '#fff', fontSize: '18px', fontWeight: 'bold' }}>
-          Composer
-        </div>
+      {!tutorialCompleted ? (
+        <button
+          type="button"
+          className={`composer-guide-shortcut composer-guide-corner-shortcut${
+            isGuideOpen ? ' is-active' : ''
+          }`}
+          onClick={() => {
+            if (isGuideOpen) {
+              closeGuide();
+              return;
+            }
 
-        {/* 2. 중앙 탭 영역 */}
-        <div style={{ display: 'flex', gap: '5px', height: '100%' }}>
-          <button onClick={() => setActiveTab("melody")} style={{
-            padding: '0 40px', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer',
-            background: activeTab === "melody" ? "#333" : "transparent",
-            color: activeTab === "melody" ? "#4ade80" : "#666",
-            fontWeight: 'bold', fontSize: '16px'
-          }}> MELODY</button>
-          
-          <button onClick={() => setActiveTab("drums")} style={{
-            padding: '0 40px', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer',
-            background: activeTab === "drums" ? "#333" : "transparent",
-            color: activeTab === "drums" ? "#f97316" : "#666",
-            fontWeight: 'bold', fontSize: '16px'
-          }}> DRUMS</button>
+            openGuideAt(guideStepIndex);
+          }}
+        >
+          {isGuideOpen ? '튜토리얼 숨기기' : '튜토리얼 시작'}
+        </button>
+      ) : null}
 
-          <button onClick={() => setActiveTab("bass")} style={{
-            padding: '0 40px', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer',
-            background: activeTab === "bass" ? "#333" : "transparent",
-            color: activeTab === "bass" ? "#c084fc" : "#666",
-            fontWeight: 'bold', fontSize: '16px'
-          }}> BASS</button>
-        </div>
-
-        {/* 3. 오른쪽 버튼 영역 */}
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', paddingBottom: '10px' }}>
-          <button 
-            onClick={() => navigate('/community')}
-            style={{
-              padding: '8px 16px', borderRadius: '20px', border: '1px solid #444',
-              background: '#222', color: '#fff', cursor: 'pointer', fontSize: '14px',
-              display: 'flex', alignItems: 'center', gap: '6px'
-            }}
-            onMouseOver={(e) => e.currentTarget.style.background = '#333'}
-            onMouseOut={(e) => e.currentTarget.style.background = '#222'}
+      <div className="composer-workbar">
+        <div className="composer-workbar-controls">
+          <div
+            ref={tabStripRef}
+            className={`composer-tab-strip${getGuideHighlightClass('tabs')}`}
+            role="tablist"
+            aria-label="악기 탭"
           >
-            💬 커뮤니티
-          </button>
-        </div>
-      </nav>
-
-      <main style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-        
-        {(activeTab === "melody" || activeTab === "bass") && (
-          <div style={{ 
-            display: 'flex', gap: '10px', padding: '10px 20px', 
-            background: '#1a1a1a', borderBottom: '1px solid #333' 
-          }}>
-            <span style={{ color: '#888', alignSelf: 'center', marginRight: '10px' }}>Chords (Drag & Drop):</span>
-            {["C", "D", "E", "F", "G", "A"].map(chord => (
-              <div
-                key={chord}
-                draggable // 👈 이걸 쓰면 마우스로 끌 수 있습니다!
-                onDragStart={(e) => {
-                  // 💡 드래그 시작할 때 "나 C코드야!" 하고 데이터를 쥐여줍니다.
-                  e.dataTransfer.setData("text/plain", chord);
+            {openTabs.map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                className={`composer-tab-button is-${tab}${
+                  activeTab === tab ? ' is-active' : ''
+                }${getTutorialTabClass(tab)}`}
+                onClick={() => {
+                  markVisitedTab(tab);
+                  setActiveTab(tab);
                 }}
-                style={{
-                  padding: '8px 16px', background: '#333', color: '#fff', 
-                  borderRadius: '4px', cursor: 'grab', fontWeight: 'bold',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.5)'
-                }}
+                aria-pressed={activeTab === tab}
               >
-                {chord}
+                <span className="composer-tab-button-inner">
+                  <span className="composer-tab-label">{tabLabels[tab]}</span>
+                  {tab !== 'melody' && !tutorialRequested ? (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      className="composer-tab-close"
+                      aria-label={`${tabLabels[tab]} 닫기`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleCloseTab(tab);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          handleCloseTab(tab);
+                        }
+                      }}
+                    >
+                      ×
+                    </span>
+                  ) : null}
+                </span>
+              </button>
+            ))}
+
+            {closedTabs.length ? (
+              <div ref={tabPickerRef} className="composer-tab-picker">
+                <button
+                  type="button"
+                  className={`composer-tab-add-button${isTabPickerOpen ? ' is-open' : ''}`}
+                  onClick={handleTabPickerToggle}
+                  aria-label="악기 탭 추가"
+                  aria-expanded={isTabPickerOpen}
+                  aria-haspopup="menu"
+                >
+                  +
+                </button>
+
+                {isTabPickerOpen ? (
+                  <div className="composer-tab-picker-menu" role="menu" aria-label="열 수 있는 악기">
+                    {closedTabs.map((tab) => (
+                      <button
+                        key={tab}
+                        type="button"
+                        className={`composer-tab-picker-item is-${tab}`}
+                        onClick={() => handleOpenTab(tab)}
+                      >
+                        {tabLabels[tab]}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
+            ) : null}
+
+            <button
+              type="button"
+              hidden
+              style={{ display: 'none' }}
+              aria-hidden="true"
+              tabIndex={-1}
+              className={`composer-guide-toggle${isGuideOpen ? ' is-active' : ''}`}
+              onClick={() => {
+                if (isGuideOpen) {
+                  closeGuide();
+                  return;
+                }
+
+                openGuideAt(guideStepIndex);
+              }}
+            >
+              {isGuideOpen ? '튜토리얼 숨기기' : '튜토리얼 보기'}
+            </button>
+          </div>
+
+          <div
+            ref={mixerStripRef}
+            className={`composer-mixer-strip${getGuideHighlightClass('mixer')}`}
+            aria-label="악기별 볼륨 조절"
+          >
+            {MIXER_ITEMS.map((item) => (
+              <label key={item.key} className="composer-mixer-item">
+                <span className="composer-mixer-label">{item.label}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={volumes[item.key]}
+                  onChange={(event) => handleMixerChange(item.key, Number(event.target.value))}
+                  className="composer-mixer-range"
+                />
+                <strong className="composer-mixer-value">{volumes[item.key]}</strong>
+              </label>
             ))}
           </div>
-        )}
-        
-        {(activeTab === "melody" || activeTab === "bass") && <PianoRoll />}
-        
-        {activeTab === "drums" && (
-          <div style={{ height: '100%', overflow: 'auto', padding: '40px' }}>
-            <div style={{ 
-              display: 'grid', gridTemplateColumns: `repeat(${steps}, 80px)`, 
-              gridAutoRows: '80px', gap: '8px', width: 'max-content', margin: '0 auto' 
-            }}>
-              {Array.from({ length: DRUM_ROWS }).map((_, row) =>
-                Array.from({ length: steps }).map((_, col) => {
-                  const active = drums[row]?.[col];
-                  const colors = ['#f97316', '#38bdf8', '#fbbf24', '#fcd34d'];
-                  const bgColor = active ? colors[row] : '#222';
-                  
-                  return (
-                    <button key={`${row}-${col}`} onClick={() => { toggleDrum(row, col); playDrumPreview(row); }}
-                      style={{ background: bgColor, border: '1px solid #333', borderRadius: '4px', cursor: 'pointer' }}
-                    />
-                  );
-                })
-              )}
+        </div>
+      </div>
+
+      {isGuideOpen ? (
+        <section className="composer-guide-shell" aria-label="작곡 튜토리얼">
+          <div className="composer-guide-copy">
+            <div className="composer-guide-head">
+              <span className="composer-guide-eyebrow">작곡 튜토리얼</span>
+              <button
+                type="button"
+                className="composer-guide-close"
+                onClick={closeGuide}
+              >
+                닫기
+              </button>
+              <strong>{activeGuideStep.title}</strong>
+              <span className="composer-guide-focus">지금 보고 있는 곳 {activeGuideStep.focusLabel}</span>
+            </div>
+
+            <div className="composer-guide-progress-panel">
+              <div className="composer-guide-progress-copy">
+                <strong>간단한 곡 만들기 미션</strong>
+                <span>
+                  {liveCompletedQuestCount}/{liveTutorialQuests.length} 완료 · {liveTutorialProgress}% 진행
+                </span>
+              </div>
+              <div className="composer-guide-progress-track" aria-hidden="true">
+                <span
+                  className="composer-guide-progress-fill"
+                  style={{ width: `${liveTutorialProgress}%` }}
+                />
+              </div>
+            </div>
+
+            <p className="composer-guide-summary">{activeGuideStep.summary}</p>
+
+            <div className="composer-guide-note">
+              <strong>화면 보면서 따라하기</strong>
+              <p>{activeGuideStep.detail}</p>
+            </div>
+
+            <div className="composer-guide-tip">
+              <span>TIP</span>
+              <p>{activeGuideStep.tip}</p>
+            </div>
+
+            {liveRecommendedQuest ? (
+              <div className="composer-guide-mission-card">
+                <span className="composer-guide-mission-kicker">현재 추천 미션</span>
+                <strong>{liveRecommendedQuest.title}</strong>
+                <p>{liveRecommendedQuest.goal}</p>
+                <small>{liveRecommendedQuest.progress}</small>
+                {liveRecommendedQuest.stepIndex !== guideStepIndex ? (
+                  <button
+                    type="button"
+                    className="composer-guide-button"
+                    onClick={() => openGuideAt(liveRecommendedQuest.stepIndex)}
+                  >
+                    이 미션으로 이동
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="composer-guide-pattern">
+              <strong>지금 따라 찍을 패턴</strong>
+              <div className="composer-guide-pattern-grid">
+                {activeGuideQuest.pattern.map((item) => (
+                  <span key={item} className="composer-guide-pattern-item">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="composer-guide-actions">
+              <button
+                type="button"
+                className="composer-guide-button"
+                onClick={() => moveGuideStep(-1)}
+                disabled={guideStepIndex === 0}
+              >
+                이전
+              </button>
+              <button
+                type="button"
+                className="composer-guide-button is-primary"
+                onClick={() => moveGuideStep(1)}
+                disabled={guideStepIndex === COMPOSER_GUIDE_STEPS.length - 1}
+              >
+                다음
+              </button>
+              <button
+                type="button"
+                className="composer-guide-button"
+                onClick={() => openGuideAt(0)}
+              >
+                처음부터 다시 보기
+              </button>
+              <button
+                type="button"
+                className="composer-guide-button"
+                onClick={startTutorialSong}
+              >
+                튜토리얼 곡 새로 시작
+              </button>
             </div>
           </div>
+
+          <div className="composer-guide-step-list">
+            {liveTutorialQuests.map((quest, index) => (
+              <button
+                key={quest.id}
+                type="button"
+                className={`composer-guide-step${
+                  guideStepIndex === index ? ' is-active' : ''
+                }${quest.done ? ' is-complete' : ''}`}
+                onClick={() => openGuideAt(index)}
+              >
+                <span>STEP {String(index + 1).padStart(2, '0')}</span>
+                <strong>{quest.title}</strong>
+                <small>{quest.progress}</small>
+                <em className={`composer-guide-step-status${quest.done ? ' is-complete' : ''}`}>
+                  {quest.done ? '완료' : '진행 중'}
+                </em>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {collabId ? (
+        <section className={`composer-collab-banner is-${connectionStatus}`}>
+          <div className="composer-collab-copy">
+            <strong>{collabProject?.title ?? '작업 프로젝트 불러오는 중'}</strong>
+            <span>{collabStatusLabel}</span>
+          </div>
+
+          <div className="composer-collab-side">
+            <div className="composer-collab-actions">
+            <span className="composer-collab-chip">
+              {canSyncCollab ? '공동 편집' : '읽기 전용'}
+            </span>
+            {activeEditorsLabel ? (
+              <span className="composer-collab-chip">{activeEditorsLabel}</span>
+            ) : null}
+            {visibleComposerLocks.map((lock) => (
+              <span
+                key={`${lock.instrument}-${lock.barIndex}-${lock.sessionId}`}
+                className="composer-collab-chip composer-collab-chip--lock"
+              >
+                {lock.name} -{' '}
+                {lock.instrument === 'melody'
+                  ? '멜로디'
+                  : lock.instrument === 'drums'
+                    ? '드럼'
+                    : '베이스'}{' '}
+                {lock.barIndex + 1}마디
+              </span>
+            ))}
+            {conflictNotice ? (
+              <span className="composer-collab-chip composer-collab-chip--warning">
+                {conflictNotice}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              className="composer-collab-button"
+              onClick={() => navigate(collabProject ? `/collab/${collabProject.id}` : '/collab')}
+            >
+              작업방으로
+            </button>
+          </div>
+            {recentComposerHistory.length ? (
+              <div className="composer-collab-history">
+                {recentComposerHistory.map((entry) => (
+                  <span key={entry.id} className="composer-collab-history-item">
+                    <strong>{entry.authorName}</strong>
+                    <span>{entry.summary}</span>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      <main ref={mainViewportRef} className={`composer-main composer-main--${activeTab}`}>
+        {activeTab === 'melody' && (
+          <>
+            <section
+              ref={melodyChordBarRef}
+              className={`composer-chord-bar composer-chord-bar--melody${getGuideHighlightClass(
+                'melody-chords'
+              )}`}
+            >
+              <div className="composer-chord-copy">
+                <span className="composer-chord-label">{chordMeta.melody.label}</span>
+                <p className="composer-chord-description">{chordMeta.melody.description}</p>
+              </div>
+
+              <div className="composer-chord-list">
+                {chordOptions.map((chord) => (
+                  <div
+                    key={chord}
+                    className={`composer-chord-chip${
+                      guideStepIndex === 1 && nextChordTutorialTarget?.chord === chord
+                        ? ' is-tutorial-target'
+                        : ''
+                    }`}
+                    draggable
+                    onDragStart={(event) => {
+                      event.dataTransfer.setData('text/plain', chord);
+                    }}
+                  >
+                    {chord}
+                    {guideStepIndex === 1 && nextChordTutorialTarget?.chord === chord ? (
+                      <span className="composer-chord-chip-guide">
+                        {nextChordTutorialTarget.col + 1}칸
+                      </span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section
+              ref={melodyRollRef}
+              className={`composer-roll-shell composer-roll-shell--melody${getGuideHighlightClass(
+                'melody-roll'
+              )}`}
+            >
+              <PianoRoll
+                loopRange={loopRange}
+                onStepHeaderSelect={handleStepLoopSelect}
+                collabBarLocks={currentTabLockMap}
+                canEditCollab={!collabId || canSyncCollab}
+                requestCollabBarLock={requestComposerBarLock}
+                releaseCollabBarLock={releaseComposerBarLock}
+                onCommitMelodyOperation={handleMelodyOperationCommit}
+                onCommitChordOperation={handleChordOperationCommit}
+                tutorialGhostNotes={melodyTutorialGhostNotes}
+              />
+            </section>
+          </>
+        )}
+
+        {activeTab === 'bass' && (
+          <>
+            <section
+              className={`composer-chord-bar composer-chord-bar--bass${getGuideHighlightClass(
+                'bass-grid'
+              )}`}
+            >
+              <div className="composer-chord-copy">
+                <span className="composer-chord-label">{chordMeta.bass.label}</span>
+                <p className="composer-chord-description">{chordMeta.bass.description}</p>
+              </div>
+
+              <div className="composer-chord-list">
+                {chordOptions.map((chord) => (
+                  <div
+                    key={chord}
+                    className="composer-chord-chip"
+                    draggable
+                    onDragStart={(event) => {
+                      event.dataTransfer.setData('text/plain', chord);
+                    }}
+                  >
+                    {chord}
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section
+              ref={bassShellRef}
+              className={`composer-bass-shell${getGuideHighlightClass('bass-grid')}`}
+            >
+              <div className="composer-drum-panel composer-drum-panel--bass">
+                <div className="composer-drums-wrap">
+                  <div className="composer-sequencer-body">
+                    <div className="composer-sequencer-header composer-sequencer-header--bass">
+                      <div className="composer-drum-step-spacer">Bass Note</div>
+
+                      <div
+                        className="composer-step-grid composer-step-grid--bass"
+                        style={{
+                          gridTemplateColumns: `repeat(${steps}, ${DRUM_STEP_WIDTH}px)`,
+                          ['--sequencer-step-span' as string]: `calc(${DRUM_STEP_WIDTH}px + 10px)`,
+                        }}
+                        >
+                          {Array.from({ length: steps }).map((_, col) => (
+                          <button
+                            key={`bass-header-${col}`}
+                            type="button"
+                          className={`composer-drum-step-number composer-drum-step-number--bass${
+                              col === currentStep ? ' is-current' : ''
+                            }${getSubdivisionClassName(col)}${
+                              loopRange && col >= loopRange.start && col <= loopRange.end
+                                ? ' is-loop-active'
+                                : ''
+                            }${loopRange?.end === col ? ' is-loop-end' : ''}`}
+                            onClick={() => handleStepLoopSelect(col)}
+                            aria-label={`${col + 1}번 위치까지 반복`}
+                            title={`${col + 1}번 위치까지 반복`}
+                          >
+                            <span className="sr-only">{col + 1}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="composer-sequencer-rows">
+                      {BASS_NOTES.map((note, row) => {
+                        const bassAccent = bassLaneColors[row % bassLaneColors.length];
+                        const bassAccentStyle = {
+                          '--bass-accent': bassAccent,
+                        } as CSSProperties;
+
+                        return (
+                          <div key={note} className="composer-drum-row composer-drum-row--bass">
+                            <div
+                              className="composer-drum-track composer-drum-track--bass"
+                              style={bassAccentStyle}
+                            >
+                              <strong>{note}</strong>
+                              <span>Bass lane</span>
+                            </div>
+
+                            <div
+                              className="composer-drum-row-grid composer-drum-row-grid--bass"
+                              style={{
+                                gridTemplateColumns: `repeat(${steps}, ${DRUM_STEP_WIDTH}px)`,
+                                ['--sequencer-step-span' as string]: `calc(${DRUM_STEP_WIDTH}px + 10px)`,
+                              }}
+                            >
+                              {Array.from({ length: steps }).map((_, col) => {
+                                const active = bass[row]?.[col];
+                                const isCurrent = col === currentStep;
+
+                                return (
+                                  <button
+                                    key={`${note}-${col}`}
+                                    type="button"
+                                    className={`composer-drum-cell composer-drum-cell--bass${
+                                      active ? ' is-active' : ''
+                                    }${isCurrent ? ' is-current' : ''}${
+                                      getSubdivisionClassName(col)
+                                    }${getBassTutorialCellClass(row, col)}${
+                                      currentTabLockMap[Math.floor(col / COLLAB_BAR_LENGTH)]?.mine
+                                        ? ' is-own-locked'
+                                        : currentTabLockMap[Math.floor(col / COLLAB_BAR_LENGTH)]
+                                          ? ' is-locked'
+                                          : ''
+                                    }`}
+                                    style={bassAccentStyle}
+                                    onClick={() => {
+                                      void handleBassCellToggle(row, col);
+                                    }}
+                                    onDragOver={(event) => event.preventDefault()}
+                                    onDrop={async (event) => {
+                                      event.preventDefault();
+                                      const chord = event.dataTransfer.getData('text/plain');
+                                      if (chord) {
+                                        await handleBassChordDrop(chord, col);
+                                      }
+                                    }}
+                                    disabled={
+                                      Boolean(
+                                        currentTabLockMap[Math.floor(col / COLLAB_BAR_LENGTH)] &&
+                                          !currentTabLockMap[Math.floor(col / COLLAB_BAR_LENGTH)]
+                                            .mine
+                                      ) || Boolean(collabId && !canSyncCollab)
+                                    }
+                                  >
+                                    {getBassTutorialCellGuideLabel(row, col) ? (
+                                      <span className="composer-cell-guide-pill">
+                                        {getBassTutorialCellGuideLabel(row, col)}
+                                      </span>
+                                    ) : null}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </>
+        )}
+
+        {activeTab === 'drums' && (
+          <section
+            ref={drumShellRef}
+            className={`composer-drum-shell${getGuideHighlightClass('drums-grid')}`}
+          >
+            <div className="composer-drum-panel">
+              <div className="composer-drums-wrap">
+                <div className="composer-sequencer-body">
+                  <div className="composer-sequencer-header">
+                    <div className="composer-drum-step-spacer">Pattern</div>
+
+                    <div
+                      className="composer-step-grid"
+                      style={{
+                        gridTemplateColumns: `repeat(${steps}, ${DRUM_STEP_WIDTH}px)`,
+                        ['--sequencer-step-span' as string]: `calc(${DRUM_STEP_WIDTH}px + 10px)`,
+                      }}
+                      >
+                        {Array.from({ length: steps }).map((_, col) => (
+                        <button
+                          key={`drum-header-${col}`}
+                          type="button"
+                          className={`composer-drum-step-number${
+                            col === currentStep ? ' is-current' : ''
+                          }${getSubdivisionClassName(col)}${
+                            loopRange && col >= loopRange.start && col <= loopRange.end
+                              ? ' is-loop-active'
+                              : ''
+                          }${loopRange?.end === col ? ' is-loop-end' : ''}`}
+                          onClick={() => handleStepLoopSelect(col)}
+                          aria-label={`${col + 1}번 위치까지 반복`}
+                          title={`${col + 1}번 위치까지 반복`}
+                        >
+                          <span className="sr-only">{col + 1}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="composer-sequencer-rows">
+                    {drumTracks.slice(0, DRUM_ROWS).map((track, row) => (
+                      <div key={track.name} className="composer-drum-row">
+                        <div className={`composer-drum-track is-${track.tone}`}>
+                          <strong>{track.name}</strong>
+                          <span>{track.hint}</span>
+                        </div>
+
+                        <div
+                          className="composer-drum-row-grid"
+                          style={{
+                            gridTemplateColumns: `repeat(${steps}, ${DRUM_STEP_WIDTH}px)`,
+                            ['--sequencer-step-span' as string]: `calc(${DRUM_STEP_WIDTH}px + 10px)`,
+                          }}
+                        >
+                          {Array.from({ length: steps }).map((_, col) => {
+                            const active = drums[row]?.[col];
+                            const isCurrent = col === currentStep;
+
+                            return (
+                              <button
+                                key={`${track.name}-${col}`}
+                                type="button"
+                                className={`composer-drum-cell is-${track.tone}${
+                                  active ? ' is-active' : ''
+                                }${isCurrent ? ' is-current' : ''}${getSubdivisionClassName(
+                                  col
+                                )}${getDrumTutorialCellClass(row, col)}${
+                                  currentTabLockMap[Math.floor(col / COLLAB_BAR_LENGTH)]?.mine
+                                    ? ' is-own-locked'
+                                    : currentTabLockMap[Math.floor(col / COLLAB_BAR_LENGTH)]
+                                      ? ' is-locked'
+                                      : ''
+                                }`}
+                                onClick={() => {
+                                  void handleDrumCellToggle(row, col);
+                                }}
+                                disabled={
+                                  Boolean(
+                                    currentTabLockMap[Math.floor(col / COLLAB_BAR_LENGTH)] &&
+                                      !currentTabLockMap[Math.floor(col / COLLAB_BAR_LENGTH)].mine
+                                  ) || Boolean(collabId && !canSyncCollab)
+                                }
+                              >
+                                {getDrumTutorialCellGuideLabel(row, col) ? (
+                                  <span className="composer-cell-guide-pill">
+                                    {getDrumTutorialCellGuideLabel(row, col)}
+                                  </span>
+                                ) : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
         )}
       </main>
 
-      <footer style={{ height: '80px', borderTop: '1px solid #333', background: '#111' }}>
-        <TransportBar />
+      <footer ref={footerRef} className={`composer-footer${getGuideHighlightClass('transport')}`}>
+        <TransportBar onPlayStarted={() => setPlayedTutorialOnce(true)} />
       </footer>
     </div>
   );
 }
+
+

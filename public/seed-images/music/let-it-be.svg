@@ -1,0 +1,16 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#131821"/>
+  <rect width="1200" height="900" fill="url(#g)"/>
+  <circle cx="242" cy="210" r="130" fill="#7FAAFF" fill-opacity="0.38"/>
+  <circle cx="978" cy="704" r="160" fill="#FF8AB1" fill-opacity="0.24"/>
+  <rect x="132" y="136" width="936" height="628" rx="36" fill="#10141C" fill-opacity="0.62" stroke="#384155" stroke-width="2"/>
+  <path d="M236 510C313 392 394 338 486 338C580 338 661 391 730 510H236Z" fill="#FF9CBC"/>
+  <circle cx="388" cy="298" r="46" fill="#EAF0FF"/>
+  <circle cx="580" cy="286" r="36" fill="#EAF0FF"/>
+  <path d="M838 258H986V552H838V258Z" fill="#1A2433"/>
+  <rect x="864" y="282" width="30" height="240" rx="15" fill="#A8C3FF"/>
+  <rect x="916" y="332" width="30" height="190" rx="15" fill="#FFABC6"/>
+  <text x="176" y="640" fill="#F4F7FF" font-family="Arial, sans-serif" font-size="78" font-weight="700">LET IT BE</text>
+  <text x="178" y="706" fill="#9FB3DA" font-family="Arial, sans-serif" font-size="34">Beat progression memo</text>
+  <defs><linearGradient id="g" x1="120" y1="80" x2="1060" y2="820"><stop stop-color="#263147"/><stop offset="1" stop-color="#171C26"/></linearGradient></defs>
+</svg>

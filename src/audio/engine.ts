@@ -1,38 +1,8 @@
 ﻿// src/audio/engine.ts
 import * as Tone from "tone";
 import { melodySynth, kickSynth, snareSynth } from "./instruments.ts";
-import { useSongStore } from "../store/songStore.ts";
-
-// 12칸 멜로디를 특정 음계로 고정 매핑
-const MELODY_SCALE_MIDI: number[] = [
-  84, // row 0: C6
-  81, // row 1: A5
-  79, // row 2: G5
-  76, // row 3: E5
-  74, // row 4: D5
-  72, // row 5: C5
-  69, // row 6: A4
-  67, // row 7: G4
-  64, // row 8: E4
-  62, // row 9: D4
-  60, // row10: C4
-  57, // row11: A3
-];
-
-const BASS_SCALE_MIDI: number[] = [
-  72, // C5
-  69, // A4
-  67, // G4
-  64, // E4
-  62, // D4
-  60, // C4
-  57, // A3
-  55, // G3
-  52, // E3
-  50, // D3
-  48, // C3
-  45, // A2 (작은 스피커의 마지노선)<--
-];
+import { useSongStore, type InstrumentVolumes } from "../store/songStore.ts";
+import { BASS_MIDI, MELODY_MIDI } from "../constants/composer.ts";
 
 // 💡 추가 악기들 설정 (frequency 속성 제거)
 const hihatClosedSynth = new Tone.MetalSynth({
@@ -56,8 +26,6 @@ const bassSynth = new Tone.Synth({
   envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.5 },
 }).toDestination();
 
-bassSynth.volume.value = 2;
-
 let loopId: number | null = null;
 
 const PIANO_SAMPLE_URLS: Record<string, string> = {
@@ -78,6 +46,47 @@ const PIANO_SAMPLE_URLS: Record<string, string> = {
 
 let cachedPianoBuffers: Record<string, AudioBuffer> | null = null;
 let lameLoadPromise: Promise<void> | null = null;
+
+function volumeToDb(volume: number) {
+  if (volume <= 0) {
+    return -60;
+  }
+
+  return Tone.gainToDb(volume / 100);
+}
+
+function applyLiveVolumes(volumes: InstrumentVolumes) {
+  const melodyDb = volumeToDb(volumes.melody);
+  const drumsDb = volumeToDb(volumes.drums);
+  const bassDb = volumeToDb(volumes.bass);
+
+  melodySynth.volume.value = melodyDb;
+  kickSynth.volume.value = drumsDb;
+  snareSynth.volume.value = drumsDb;
+  hihatClosedSynth.volume.value = drumsDb - 2;
+  hihatOpenSynth.volume.value = drumsDb - 1;
+  bassSynth.volume.value = bassDb;
+}
+
+function getSixteenthDurationSeconds(bpm: number) {
+  return (60 / bpm) / 4;
+}
+
+function getMelodyGateSeconds(durationSteps: number, bpm: number) {
+  return getSixteenthDurationSeconds(bpm) * Math.max(1, durationSteps);
+}
+
+function getMelodyVelocity(durationSteps: number) {
+  void durationSteps;
+  return 1;
+}
+
+export async function preparePlaybackEngine() {
+  await Tone.start();
+  await Tone.loaded();
+  initTransport();
+  applyLiveVolumes(useSongStore.getState().volumes);
+}
 
 async function loadPianoBuffers(): Promise<Record<string, AudioBuffer>> {
   if (cachedPianoBuffers) return cachedPianoBuffers;
@@ -117,68 +126,98 @@ async function loadPianoBuffers(): Promise<Record<string, AudioBuffer>> {
 }
 
 export function initTransport() {
-  if (loopId !== null) return;
+  if (loopId !== null) {
+    Tone.Transport.clear(loopId);
+    loopId = null;
+  }
+
   Tone.Transport.cancel();
 
   loopId = Tone.Transport.scheduleRepeat((time) => {
     const {
       melody,
+      melodyLengths,
       drums,
       bass,
       currentStep,
       steps,
       bpm,
+      loopRange,
+      volumes,
       setCurrentStep,
     } = useSongStore.getState();
 
     Tone.Transport.bpm.value = bpm;
+    applyLiveVolumes(volumes);
 
-    // 1. 멜로디 재생
-    melody.forEach((rowArr, rowIndex) => {
-      if (!rowArr[currentStep]) return;
-      const midi = MELODY_SCALE_MIDI[rowIndex] ?? MELODY_SCALE_MIDI[MELODY_SCALE_MIDI.length - 1];
-      const note = Tone.Frequency(midi, "midi").toNote();
-      melodySynth.triggerAttackRelease(note, "8n", time);
-    });
+    try {
+      // 1. 멜로디 재생
+      melody.forEach((rowArr, rowIndex) => {
+        if (!rowArr[currentStep]) return;
+        const midi = MELODY_MIDI[rowIndex] ?? MELODY_MIDI[MELODY_MIDI.length - 1];
+        const note = Tone.Frequency(midi, "midi").toNote();
+        const durationSteps = Math.max(1, melodyLengths[rowIndex]?.[currentStep] ?? 1);
+        melodySynth.triggerAttackRelease(
+          note,
+          getMelodyGateSeconds(durationSteps, bpm),
+          time,
+          getMelodyVelocity(durationSteps)
+        );
+      });
 
-    // 2. 베이스 재생
-    bass.forEach((rowArr, rowIndex) => {
-      if (!rowArr[currentStep]) return;
-      const midi = BASS_SCALE_MIDI[rowIndex] ?? BASS_SCALE_MIDI[BASS_SCALE_MIDI.length - 1];
-      const note = Tone.Frequency(midi, "midi").toNote();
-      bassSynth.triggerAttackRelease(note, "8n", time);
-    });
+      // 2. 베이스 재생
+      bass.forEach((rowArr, rowIndex) => {
+        if (!rowArr[currentStep]) return;
+        const midi = BASS_MIDI[rowIndex] ?? BASS_MIDI[BASS_MIDI.length - 1];
+        const note = Tone.Frequency(midi, "midi").toNote();
+        bassSynth.triggerAttackRelease(note, "8n", time);
+      });
 
-    // 3. 드럼 재생 (💡 하이햇 재생 시 주파수 200을 첫 번째 인자로 전달)
-    if (drums[0]?.[currentStep]) {
-      kickSynth.triggerAttackRelease("C2", "8n", time);
+      // 3. 드럼 재생
+      if (drums[0]?.[currentStep]) {
+        kickSynth.triggerAttackRelease("C2", "8n", time);
+      }
+      if (drums[1]?.[currentStep]) {
+        snareSynth.triggerAttackRelease("16n", time);
+      }
+      if (drums[2]?.[currentStep]) {
+        hihatClosedSynth.triggerAttackRelease(200, "32n", time);
+      }
+      if (drums[3]?.[currentStep]) {
+        hihatOpenSynth.triggerAttackRelease(200, "8n", time);
+      }
+    } catch (error) {
+      console.error("Playback tick failed:", error);
+    } finally {
+      const nextStep = loopRange
+        ? currentStep >= loopRange.end
+          ? loopRange.start
+          : currentStep + 1
+        : (currentStep + 1) % steps;
+      setCurrentStep(nextStep);
     }
-    if (drums[1]?.[currentStep]) {
-      snareSynth.triggerAttackRelease("16n", time);
-    }
-    if (drums[2]?.[currentStep]) {
-      hihatClosedSynth.triggerAttackRelease(200, "32n", time);
-    }
-    if (drums[3]?.[currentStep]) {
-      hihatOpenSynth.triggerAttackRelease(200, "8n", time);
-    }
-
-    const nextStep = (currentStep + 1) % steps;
-    setCurrentStep(nextStep);
   }, "16n");
 
   Tone.Transport.position = 0;
 }
 
-export async function playMelodyPreview(row: number): Promise<void> {
+export async function playMelodyPreview(row: number, durationSteps = 1): Promise<void> {
   await Tone.start();
-  const midi = MELODY_SCALE_MIDI[row] ?? MELODY_SCALE_MIDI[MELODY_SCALE_MIDI.length - 1];
+  applyLiveVolumes(useSongStore.getState().volumes);
+  const bpm = useSongStore.getState().bpm;
+  const midi = MELODY_MIDI[row] ?? MELODY_MIDI[MELODY_MIDI.length - 1];
   const note = Tone.Frequency(midi, "midi").toNote();
-  melodySynth.triggerAttackRelease(note, "8n");
+  melodySynth.triggerAttackRelease(
+    note,
+    getMelodyGateSeconds(durationSteps, bpm),
+    Tone.now(),
+    getMelodyVelocity(durationSteps)
+  );
 }
 
 export async function playDrumPreview(row: number): Promise<void> {
   await Tone.start();
+  applyLiveVolumes(useSongStore.getState().volumes);
   if (row === 0) {
     kickSynth.triggerAttackRelease("C2", "8n");
     return;
@@ -198,13 +237,13 @@ export async function playDrumPreview(row: number): Promise<void> {
   }
 }
 
-export async function exportSongAsMp3(): Promise<Blob> {
+async function renderSongBuffer(): Promise<AudioBuffer> {
   await Tone.start();
   await loadLame();
-  const { melody, drums, bass, steps, bpm } = useSongStore.getState();
+  const { melody, melodyLengths, drums, bass, steps, bpm, volumes } = useSongStore.getState();
   const pianoBuffers = await loadPianoBuffers();
 
-  const sixteenthSeconds = (60 / bpm) / 4;
+  const sixteenthSeconds = getSixteenthDurationSeconds(bpm);
   const durationSeconds = steps * sixteenthSeconds + 1.0;
 
   const rendered = await Tone.Offline(async ({ transport }) => {
@@ -249,6 +288,17 @@ export async function exportSongAsMp3(): Promise<Blob> {
       modulationEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.1 },
     }).toDestination();
 
+    const melodyDb = volumeToDb(volumes.melody);
+    const drumsDb = volumeToDb(volumes.drums);
+    const bassDb = volumeToDb(volumes.bass);
+
+    sampler.volume.value = melodyDb;
+    kick.volume.value = drumsDb;
+    snare.volume.value = drumsDb;
+    hihatC.volume.value = drumsDb - 2;
+    hihatO.volume.value = drumsDb - 1;
+    bSynth.volume.value = bassDb;
+
     transport.bpm.value = bpm;
 
     for (let col = 0; col < steps; col += 1) {
@@ -256,14 +306,20 @@ export async function exportSongAsMp3(): Promise<Blob> {
 
       for (let row = 0; row < melody.length; row += 1) {
         if (!melody[row]?.[col]) continue;
-        const midi = MELODY_SCALE_MIDI[row] ?? MELODY_SCALE_MIDI[MELODY_SCALE_MIDI.length - 1];
+        const midi = MELODY_MIDI[row] ?? MELODY_MIDI[MELODY_MIDI.length - 1];
         const note = Tone.Frequency(midi, "midi").toNote();
-        sampler.triggerAttackRelease(note, "8n", time);
+        const durationSteps = Math.max(1, melodyLengths[row]?.[col] ?? 1);
+        sampler.triggerAttackRelease(
+          note,
+          getMelodyGateSeconds(durationSteps, bpm),
+          time,
+          getMelodyVelocity(durationSteps)
+        );
       }
 
       for (let row = 0; row < bass.length; row += 1) {
         if (!bass[row]?.[col]) continue;
-        const midi = BASS_SCALE_MIDI[row] ?? BASS_SCALE_MIDI[BASS_SCALE_MIDI.length - 1];
+        const midi = BASS_MIDI[row] ?? BASS_MIDI[BASS_MIDI.length - 1];
         const note = Tone.Frequency(midi, "midi").toNote();
         bSynth.triggerAttackRelease(note, "8n", time);
       }
@@ -284,7 +340,54 @@ export async function exportSongAsMp3(): Promise<Blob> {
     throw new Error("Failed to render audio buffer");
   }
 
+  return buffer;
+}
+
+export async function exportSongAsMp3(): Promise<Blob> {
+  const buffer = await renderSongBuffer();
   return audioBufferToMp3(buffer);
+}
+
+export async function exportSongAsWav(): Promise<Blob> {
+  const buffer = await renderSongBuffer();
+  return audioBufferToWav(buffer);
+}
+
+function audioBufferToWav(buffer: AudioBuffer): Blob {
+  const channels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const bitDepth = 16;
+  const blockAlign = channels * (bitDepth / 8);
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = buffer.length * blockAlign;
+  const wavBuffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(wavBuffer);
+
+  writeAsciiString(view, 0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeAsciiString(view, 8, "WAVE");
+  writeAsciiString(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitDepth, true);
+  writeAsciiString(view, 36, "data");
+  view.setUint32(40, dataSize, true);
+
+  let offset = 44;
+  for (let sampleIndex = 0; sampleIndex < buffer.length; sampleIndex += 1) {
+    for (let channelIndex = 0; channelIndex < channels; channelIndex += 1) {
+      const sample = buffer.getChannelData(channelIndex)[sampleIndex] ?? 0;
+      const value = Math.max(-1, Math.min(1, sample));
+      view.setInt16(offset, value < 0 ? value * 0x8000 : value * 0x7fff, true);
+      offset += 2;
+    }
+  }
+
+  return new Blob([wavBuffer], { type: "audio/wav" });
 }
 
 function audioBufferToMp3(buffer: AudioBuffer): Blob {
@@ -339,6 +442,12 @@ function floatToInt16(input: Float32Array): Int16Array {
     output[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
   }
   return output;
+}
+
+function writeAsciiString(view: DataView, offset: number, value: string) {
+  for (let index = 0; index < value.length; index += 1) {
+    view.setUint8(offset + index, value.charCodeAt(index));
+  }
 }
 
 function getOrigin(): string {
@@ -403,7 +512,8 @@ function loadLame(): Promise<void> {
 
 export async function playBassPreview(row: number): Promise<void> {
   await Tone.start();
-  const midi = BASS_SCALE_MIDI[row] ?? BASS_SCALE_MIDI[BASS_SCALE_MIDI.length - 1];
+  applyLiveVolumes(useSongStore.getState().volumes);
+  const midi = BASS_MIDI[row] ?? BASS_MIDI[BASS_MIDI.length - 1];
   const note = Tone.Frequency(midi, "midi").toNote();
   bassSynth.triggerAttackRelease(note, "8n");
 }

@@ -1,0 +1,10 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#1A1718"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <rect x="230" y="204" width="286" height="454" rx="34" fill="#1A1D23"/>
+  <rect x="684" y="204" width="286" height="454" rx="34" fill="#1A1D23"/>
+  <circle cx="373" cy="390" r="88" fill="#DDE4F1"/><circle cx="373" cy="540" r="40" fill="#DDE4F1"/>
+  <circle cx="827" cy="390" r="88" fill="#DDE4F1"/><circle cx="827" cy="540" r="40" fill="#DDE4F1"/>
+  <text x="166" y="162" fill="#FFF4E8" font-family="Arial, sans-serif" font-size="72" font-weight="700">YAMAHA HS5</text>
+  <defs><linearGradient id="bg" x1="120" y1="88" x2="1054" y2="814"><stop stop-color="#4B3E40"/><stop offset="1" stop-color="#1D1A1B"/></linearGradient></defs>
+</svg>

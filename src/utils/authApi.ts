@@ -1,0 +1,82 @@
+import { getStoredSessionToken } from './authSession';
+
+export type AuthApiUser = {
+  id: string;
+  email: string;
+  name: string;
+  avatarUrl?: string;
+  createdAt: number;
+};
+
+export type AuthSessionResponse = {
+  user: AuthApiUser;
+  sessionToken: string;
+};
+
+const DEFAULT_AUTH_SERVER_URL =
+  typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.hostname}:8788`
+    : 'http://localhost:8788';
+
+const AUTH_SERVER_URL =
+  (import.meta.env.VITE_AUTH_SERVER_URL as string | undefined) ??
+  (import.meta.env.VITE_COLLAB_SERVER_URL as string | undefined) ??
+  DEFAULT_AUTH_SERVER_URL;
+
+async function fetchAuthJson<T>(path: string, init?: RequestInit) {
+  let response: Response;
+
+  try {
+    const sessionToken = getStoredSessionToken();
+    response = await fetch(`${AUTH_SERVER_URL}${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        ...(init?.headers ?? {}),
+      },
+    });
+  } catch {
+    throw new Error(
+      '인증 서버에 연결하지 못했습니다. `npm.cmd run dev`가 실행 중인지 확인해주세요.'
+    );
+  }
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error || '인증 요청에 실패했습니다.');
+  }
+
+  return (await response.json()) as T;
+}
+
+export function signupWithServer(payload: { email: string; password: string; name: string }) {
+  return fetchAuthJson<AuthSessionResponse>('/api/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function loginWithServer(payload: { email: string; password: string }) {
+  return fetchAuthJson<AuthSessionResponse>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function requestPasswordReset(payload: { email: string }) {
+  return fetchAuthJson<{ ok: true; message: string }>('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function restoreSessionFromServer() {
+  return fetchAuthJson<AuthSessionResponse>('/api/auth/session');
+}
+
+export function logoutOnServer() {
+  return fetchAuthJson<{ ok: true }>('/api/auth/logout', {
+    method: 'POST',
+  });
+}

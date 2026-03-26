@@ -1,13 +1,24 @@
-// src/types/community.ts
-
 export interface Post {
   id: string;
   title: string;
-  content: string; // 혹은 에디터 데이터
+  content: string;
   authorId: string;
   authorName: string;
-  createdAt: number; // Timestamp
+  createdAt: number;
   likeCount: number;
+  category?: string;
+  commentCount?: number;
+  viewCount?: number;
+  isHot?: boolean;
+  tags?: string[];
+}
+
+export interface CommunityTrack {
+  id: string;
+  title: string;
+  progression: string;
+  mood: string;
+  palette: string;
 }
 
 export interface Comment {
@@ -15,5 +26,8 @@ export interface Comment {
   postId: string;
   content: string;
   authorName: string;
+  authorEmail?: string;
   createdAt: number;
+  likeCount?: number;
+  parentId?: string | null;
 }

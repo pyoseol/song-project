@@ -1,0 +1,11 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#181B20"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <rect x="488" y="170" width="224" height="308" rx="112" fill="#D3D9E4"/>
+  <rect x="528" y="224" width="144" height="212" rx="72" fill="#8892A2"/>
+  <rect x="588" y="478" width="24" height="176" rx="12" fill="#C8CFD9"/>
+  <path d="M472 580C472 651 530 708 600 708C670 708 728 651 728 580" stroke="#EFF3FF" stroke-width="24" stroke-linecap="round"/>
+  <rect x="454" y="708" width="292" height="22" rx="11" fill="#EFF3FF"/>
+  <text x="172" y="178" fill="#EEF3FF" font-family="Arial, sans-serif" font-size="72" font-weight="700">SHURE SM58</text>
+  <defs><linearGradient id="bg" x1="126" y1="92" x2="1056" y2="812"><stop stop-color="#374354"/><stop offset="1" stop-color="#1A1F28"/></linearGradient></defs>
+</svg>

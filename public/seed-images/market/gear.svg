@@ -1,0 +1,15 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#171A20"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <rect x="154" y="240" width="892" height="420" rx="40" fill="#1C232E" stroke="#46526A" stroke-width="2"/>
+  <path d="M336 560L472 356L584 470L724 300L864 560H336Z" fill="#89AFFF"/>
+  <circle cx="720" cy="386" r="38" fill="#FFE184"/>
+  <path d="M262 662H938" stroke="#EEF3FF" stroke-width="16" stroke-linecap="round"/>
+  <text x="154" y="174" fill="#EEF3FF" font-family="Arial, sans-serif" font-size="72" font-weight="700">STUDIO GEAR</text>
+  <defs>
+    <linearGradient id="bg" x1="124" y1="96" x2="1052" y2="814" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2D3C52"/>
+      <stop offset="1" stop-color="#171C24"/>
+    </linearGradient>
+  </defs>
+</svg>

@@ -1,7 +1,13 @@
-import { fetchServerJson } from './serverApi';
+import { 
+  collection, getDocs, doc, setDoc, deleteDoc, addDoc, updateDoc, increment, arrayUnion, arrayRemove, getDoc, query, orderBy 
+} from 'firebase/firestore';
+import { db } from '../firebase'; // ★ 주의: 실제 firebase.ts 경로에 맞게 수정하세요!
 
+// ============================================================================
+// 1. 타입 정의
+// ============================================================================
 export type ComposerLibrarySnapshot = {
-  projects: unknown[];
+  projects: any[];
   favoriteTrackIdsByUser: Record<string, string[]>;
 };
 
@@ -18,135 +24,237 @@ export type MusicShareSnapshot = {
     creatorName: string;
     creatorEmail?: string;
     imageUrl?: string;
+    likeCount?: number;
+    viewCount?: number;
+    downloadCount?: number;
   }>;
   likedTrackIdsByUser: Record<string, string[]>;
   recentOpenedTrackIdsByUser: Record<string, string[]>;
-  trackMetricsById: Record<
-    string,
-    {
-      likeCount: number;
-      viewCount: number;
-      downloadCount: number;
-    }
-  >;
-  comments: unknown[];
+  trackMetricsById: Record<string, { likeCount: number; viewCount: number; downloadCount: number }>;
+  comments: any[];
 };
 
-export function fetchComposerLibraryBootstrap() {
-  return fetchServerJson<ComposerLibrarySnapshot>('/api/composer-library');
+export type ComposerMagicSnapshot = ComposerLibrarySnapshot & {
+  composer: ComposerLibrarySnapshot;
+  share: MusicShareSnapshot;
+};
+
+// ============================================================================
+// 🔥 2. 파이어베이스 2차원 배열 에러 방지용 "마법의 번역기"
+// ============================================================================
+
+// 저장할 때: 2차원 배열을 만나면 몰래 문자열(JSON)로 변환해서 포장합니다.
+function sanitizeForFirestore(data: any): any {
+  if (Array.isArray(data)) {
+    if (data.some(Array.isArray)) {
+      return { _isSerializedArray: true, data: JSON.stringify(data) };
+    }
+    return data.map(sanitizeForFirestore);
+  } else if (data !== null && typeof data === 'object') {
+    const res: any = {};
+    for (const key of Object.keys(data)) {
+      res[key] = sanitizeForFirestore(data[key]);
+    }
+    return res;
+  }
+  return data;
 }
 
-export function saveComposerProjectOnServer(payload: Record<string, unknown>) {
-  return fetchServerJson<{ projectId: string; snapshot: ComposerLibrarySnapshot }>(
-    '/api/composer-library/projects/save',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload),
+// 꺼낼 때: 포장된 문자열을 발견하면 원래의 2차원 배열로 완벽하게 복구합니다.
+function restoreFromFirestore(data: any): any {
+  if (data !== null && typeof data === 'object') {
+    if (data._isSerializedArray) {
+      try {
+        return JSON.parse(data.data);
+      } catch (e) {
+        return [];
+      }
     }
-  );
+    const res: any = {};
+    for (const key of Object.keys(data)) {
+      res[key] = restoreFromFirestore(data[key]);
+    }
+    return res;
+  } else if (Array.isArray(data)) {
+    return data.map(restoreFromFirestore);
+  }
+  return data;
 }
 
-export function shareComposerProjectOnServer(payload: Record<string, unknown>) {
-  return fetchServerJson<{ projectId: string; snapshot: ComposerLibrarySnapshot }>(
-    '/api/composer-library/projects/share',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }
-  );
+// ============================================================================
+// 🔥 3. 메타 데이터 도우미 함수
+// ============================================================================
+async function fetchLibraryUserMetas() {
+  const metaSnap = await getDocs(collection(db, 'library_user_meta'));
+  const favoriteTrackIdsByUser: Record<string, string[]> = {};
+  const likedTrackIdsByUser: Record<string, string[]> = {};
+  const recentOpenedTrackIdsByUser: Record<string, string[]> = {};
+
+  metaSnap.forEach(docSnap => {
+    const email = docSnap.id;
+    const data = docSnap.data();
+    if (data.favoriteTrackIds) favoriteTrackIdsByUser[email] = data.favoriteTrackIds;
+    if (data.likedTrackIds) likedTrackIdsByUser[email] = data.likedTrackIds;
+    if (data.recentOpenedTrackIds) recentOpenedTrackIdsByUser[email] = data.recentOpenedTrackIds;
+  });
+
+  return { favoriteTrackIdsByUser, likedTrackIdsByUser, recentOpenedTrackIdsByUser };
 }
 
-export async function uploadMusicShareCoverOnServer(file: File) {
-  const { APP_SERVER_URL } = await import('./serverApi');
-  const { getStoredSessionToken } = await import('./authSession');
-  const { useAuthStore } = await import('../store/authStore');
+// ============================================================================
+// 🔥 4. 작곡 라이브러리 (내 프로젝트) API
+// ============================================================================
+export async function fetchComposerLibraryBootstrap(): Promise<ComposerLibrarySnapshot> {
+  const projectsSnap = await getDocs(collection(db, 'composer_projects'));
+  // 꺼낼 때 번역기를 거쳐서 원래 배열로 복구!
+  const projects = projectsSnap.docs.map(doc => restoreFromFirestore({ id: doc.id, ...doc.data() }));
+  const metas = await fetchLibraryUserMetas();
 
-  const userEmail = useAuthStore.getState().user?.email ?? '';
-  const persistedSessionToken = useAuthStore.getState().sessionToken;
-  const sessionToken = getStoredSessionToken() ?? persistedSessionToken;
-  const response = await fetch(
-    `${APP_SERVER_URL}/api/music-share/upload?fileName=${encodeURIComponent(file.name)}&creatorEmail=${encodeURIComponent(userEmail)}`,
-    {
-      method: 'POST',
-      headers: sessionToken ? { Authorization: `Bearer ${sessionToken}` } : undefined,
-      body: file,
-    }
-  );
+  return { projects, favoriteTrackIdsByUser: metas.favoriteTrackIdsByUser };
+}
 
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(payload?.error || '음악 공유 이미지를 업로드하지 못했습니다.');
+async function getComposerMagicSnapshot(): Promise<ComposerMagicSnapshot> {
+  const composer = await fetchComposerLibraryBootstrap();
+  const share = await fetchMusicShareBootstrap();
+  return { ...composer, composer, share };
+}
+
+export async function saveComposerProjectOnServer(payload: Record<string, any>): Promise<{ projectId: string; snapshot: ComposerMagicSnapshot }> {
+  const projectId = (payload.id as string) || doc(collection(db, 'composer_projects')).id;
+  const projectRef = doc(db, 'composer_projects', projectId);
+  
+  // 저장할 때 번역기를 거쳐서 2차원 배열 에러를 방지!
+  const safePayload = sanitizeForFirestore(payload);
+  
+  await setDoc(projectRef, {
+    ...safePayload,
+    id: projectId,
+    updatedAt: Date.now()
+  }, { merge: true });
+
+  return { projectId, snapshot: await getComposerMagicSnapshot() };
+}
+
+export async function deleteComposerProjectOnServer(payload: { projectId: string; userEmail: string }): Promise<{ snapshot: ComposerMagicSnapshot }> {
+  await deleteDoc(doc(db, 'composer_projects', payload.projectId));
+  return { snapshot: await getComposerMagicSnapshot() };
+}
+
+export async function toggleFavoriteTrackOnServer(payload: { trackId: string; userEmail: string }): Promise<{ snapshot: ComposerMagicSnapshot }> {
+  const userMetaRef = doc(db, 'library_user_meta', payload.userEmail);
+  const userMetaSnap = await getDoc(userMetaRef);
+  let isFavorite = false;
+  
+  if (userMetaSnap.exists()) {
+    isFavorite = userMetaSnap.data().favoriteTrackIds?.includes(payload.trackId);
   }
 
-  return (await response.json()) as {
-    imageUrl: string;
-    imageStorageKey: string;
-    imageFileName: string;
-  };
+  if (isFavorite) {
+    await setDoc(userMetaRef, { favoriteTrackIds: arrayRemove(payload.trackId) }, { merge: true });
+  } else {
+    await setDoc(userMetaRef, { favoriteTrackIds: arrayUnion(payload.trackId) }, { merge: true });
+  }
+
+  return { snapshot: await getComposerMagicSnapshot() };
 }
 
-export function toggleFavoriteTrackOnServer(payload: { trackId: string; userEmail: string }) {
-  return fetchServerJson<{ snapshot: ComposerLibrarySnapshot }>(
-    '/api/composer-library/favorites/toggle',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }
-  );
+export async function shareComposerProjectOnServer(payload: Record<string, any>): Promise<{ projectId: string; snapshot: ComposerMagicSnapshot }> {
+  const trackId = (payload.id as string) || doc(collection(db, 'music_share_tracks')).id;
+  const trackRef = doc(db, 'music_share_tracks', trackId);
+
+  // 공유할 때도 번역기를 거쳐서 에러 방지!
+  const safePayload = sanitizeForFirestore(payload);
+
+  await setDoc(trackRef, {
+    ...safePayload,
+    id: trackId,
+    likeCount: 0,
+    viewCount: 0,
+    downloadCount: 0,
+    createdAt: Date.now()
+  }, { merge: true });
+
+  return { projectId: trackId, snapshot: await getComposerMagicSnapshot() };
 }
 
-export function deleteComposerProjectOnServer(payload: { projectId: string; userEmail: string }) {
-  return fetchServerJson<{
-    snapshot: {
-      composer: ComposerLibrarySnapshot;
-      music: MusicShareSnapshot;
+// ============================================================================
+// 🔥 5. 음악 공유 (뮤직 쉐어) API
+// ============================================================================
+export async function fetchMusicShareBootstrap(): Promise<MusicShareSnapshot> {
+  const tracksSnap = await getDocs(query(collection(db, 'music_share_tracks'), orderBy('createdAt', 'desc')));
+  const commentsSnap = await getDocs(query(collection(db, 'music_share_comments'), orderBy('createdAt', 'asc')));
+  
+  // 꺼낼 때 번역기를 거쳐서 복구!
+  const tracks = tracksSnap.docs.map(doc => restoreFromFirestore({ id: doc.id, ...doc.data() }) as any);
+  const comments = commentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const metas = await fetchLibraryUserMetas();
+
+  const trackMetricsById: Record<string, { likeCount: number; viewCount: number; downloadCount: number }> = {};
+  tracks.forEach((track: any) => {
+    trackMetricsById[track.id] = {
+      likeCount: track.likeCount || 0,
+      viewCount: track.viewCount || 0,
+      downloadCount: track.downloadCount || 0,
     };
-  }>(`/api/composer-library/projects/${payload.projectId}/delete`, {
-    method: 'POST',
-    body: JSON.stringify({ userEmail: payload.userEmail }),
   });
+
+  return { tracks, comments, likedTrackIdsByUser: metas.likedTrackIdsByUser, recentOpenedTrackIdsByUser: metas.recentOpenedTrackIdsByUser, trackMetricsById };
 }
 
-export function fetchMusicShareBootstrap() {
-  return fetchServerJson<MusicShareSnapshot>('/api/music-share');
+export async function toggleTrackLikeOnServer(payload: { trackId: string; userEmail: string }): Promise<{ liked: boolean; snapshot: MusicShareSnapshot }> {
+  const userMetaRef = doc(db, 'library_user_meta', payload.userEmail);
+  const userMetaSnap = await getDoc(userMetaRef);
+  let isLiked = false;
+  
+  if (userMetaSnap.exists()) {
+    isLiked = userMetaSnap.data().likedTrackIds?.includes(payload.trackId);
+  }
+
+  let nextLiked = false;
+  if (isLiked) {
+    await setDoc(userMetaRef, { likedTrackIds: arrayRemove(payload.trackId) }, { merge: true });
+    await updateDoc(doc(db, 'music_share_tracks', payload.trackId), { likeCount: increment(-1) });
+    nextLiked = false;
+  } else {
+    await setDoc(userMetaRef, { likedTrackIds: arrayUnion(payload.trackId) }, { merge: true });
+    await updateDoc(doc(db, 'music_share_tracks', payload.trackId), { likeCount: increment(1) });
+    nextLiked = true;
+  }
+
+  return { liked: nextLiked, snapshot: await fetchMusicShareBootstrap() };
 }
 
-export function toggleTrackLikeOnServer(payload: { trackId: string; userEmail: string }) {
-  return fetchServerJson<{ snapshot: MusicShareSnapshot }>('/api/music-share/like', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+export async function addTrackCommentOnServer(payload: { trackId: string; authorName: string; authorEmail: string; content: string; }): Promise<{ snapshot: MusicShareSnapshot }> {
+  await addDoc(collection(db, 'music_share_comments'), { ...payload, createdAt: Date.now() });
+  return { snapshot: await fetchMusicShareBootstrap() };
 }
 
-export function addTrackCommentOnServer(payload: {
-  trackId: string;
-  authorName: string;
-  authorEmail: string;
-  content: string;
-}) {
-  return fetchServerJson<{ snapshot: MusicShareSnapshot }>('/api/music-share/comments', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+export async function recordTrackViewOnServer(payload: { trackId: string; userEmail?: string }): Promise<{ snapshot: MusicShareSnapshot }> {
+  await updateDoc(doc(db, 'music_share_tracks', payload.trackId), { viewCount: increment(1) });
+  return { snapshot: await fetchMusicShareBootstrap() };
 }
 
-export function recordTrackViewOnServer(payload: { trackId: string; userEmail?: string }) {
-  return fetchServerJson<{ snapshot: MusicShareSnapshot }>('/api/music-share/view', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+export async function recordTrackDownloadOnServer(payload: { trackId: string; userEmail?: string }): Promise<{ snapshot: MusicShareSnapshot }> {
+  await updateDoc(doc(db, 'music_share_tracks', payload.trackId), { downloadCount: increment(1) });
+  return { snapshot: await fetchMusicShareBootstrap() };
 }
 
-export function recordTrackDownloadOnServer(payload: { trackId: string; userEmail?: string }) {
-  return fetchServerJson<{ snapshot: MusicShareSnapshot }>('/api/music-share/download', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+export async function recordTrackOpenOnServer(payload: { trackId: string; userEmail: string }): Promise<{ snapshot: MusicShareSnapshot }> {
+  const userMetaRef = doc(db, 'library_user_meta', payload.userEmail);
+  const userMetaSnap = await getDoc(userMetaRef);
+  
+  let recents = userMetaSnap.exists() ? (userMetaSnap.data().recentOpenedTrackIds || []) : [];
+  recents = [payload.trackId, ...recents.filter((id: string) => id !== payload.trackId)].slice(0, 10);
+  
+  await setDoc(userMetaRef, { recentOpenedTrackIds: recents }, { merge: true });
+  return { snapshot: await fetchMusicShareBootstrap() };
 }
 
-export function recordTrackOpenOnServer(payload: { trackId: string; userEmail: string }) {
-  return fetchServerJson<{ snapshot: MusicShareSnapshot }>('/api/music-share/open', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+export async function uploadMusicShareCoverOnServer(payload: any): Promise<{ imageUrl: string; imageStorageKey: string; imageFileName: string; }> {
+  console.log("업로드 요청 데이터:", payload); 
+  return {
+    imageUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&q=80",
+    imageStorageKey: "temp-cover-key", 
+    imageFileName: "temp-cover.jpg",
+  };
 }

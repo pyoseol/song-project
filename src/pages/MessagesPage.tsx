@@ -48,7 +48,7 @@ export default function MessagesPage() {
   const seedInbox = useMessageStore((state) => state.seedInbox);
   const addFriend = useMessageStore((state) => state.addFriend);
   const removeFriend = useMessageStore((state) => state.removeFriend);
-  const createThread = useMessageStore((state) => state.createThread);
+  const createDirectThread = useMessageStore((state) => state.createDirectThread);
   const createGroupThread = useMessageStore((state) => state.createGroupThread);
   const sendMessage = useMessageStore((state) => state.sendMessage);
   const markThreadRead = useMessageStore((state) => state.markThreadRead);
@@ -184,7 +184,7 @@ export default function MessagesPage() {
     }
 
     try {
-      const threadId = await createThread({
+      const threadId = await createDirectThread({
         ownerEmail: user.email,
         ownerName: user.name,
         participantName: friend.name,

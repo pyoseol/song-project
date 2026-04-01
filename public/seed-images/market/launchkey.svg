@@ -1,0 +1,12 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#1A1D22"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <rect x="118" y="218" width="964" height="420" rx="34" fill="#101319" stroke="#404856" stroke-width="2"/>
+  <rect x="182" y="286" width="836" height="204" rx="24" fill="#242933"/>
+  <g fill="#F5F8FF">
+    <rect x="214" y="314" width="76" height="148" rx="10"/><rect x="302" y="314" width="76" height="148" rx="10"/><rect x="390" y="314" width="76" height="148" rx="10"/><rect x="478" y="314" width="76" height="148" rx="10"/><rect x="566" y="314" width="76" height="148" rx="10"/><rect x="654" y="314" width="76" height="148" rx="10"/><rect x="742" y="314" width="76" height="148" rx="10"/><rect x="830" y="314" width="76" height="148" rx="10"/>
+  </g>
+  <g fill="#11161E"><rect x="266" y="314" width="50" height="96" rx="8"/><rect x="354" y="314" width="50" height="96" rx="8"/><rect x="530" y="314" width="50" height="96" rx="8"/><rect x="618" y="314" width="50" height="96" rx="8"/><rect x="706" y="314" width="50" height="96" rx="8"/><rect x="882" y="314" width="50" height="96" rx="8"/></g>
+  <text x="120" y="164" fill="#EEF3FF" font-family="Arial, sans-serif" font-size="70" font-weight="700">LAUNCHKEY 61</text>
+  <defs><linearGradient id="bg" x1="128" y1="92" x2="1048" y2="812"><stop stop-color="#3C4555"/><stop offset="1" stop-color="#1B2029"/></linearGradient></defs>
+</svg>

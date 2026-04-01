@@ -1,127 +1,593 @@
-﻿// src/components/PianoRoll.tsx
-import { useState } from "react";
-import { playMelodyPreview, playBassPreview } from "../audio/engine.ts";
-import { useSongStore, MELODY_ROWS } from "../store/songStore.ts";
-import { useUIStore } from "../store/uiStore.ts";
+import type { CSSProperties } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { playBassPreview, playMelodyPreview } from '../audio/engine.ts';
+import {
+  BASS_CHORD_MAP,
+  BASS_NOTES,
+  MELODY_CHORD_MAP,
+  MELODY_NOTES,
+  PIANO_ROW_HEIGHT,
+  PIANO_STEP_WIDTH,
+} from '../constants/composer.ts';
+import { useSongStore } from '../store/songStore.ts';
+import { useUIStore } from '../store/uiStore.ts';
+import './PianoRoll.css';
 
-const COLORS = ["#E74C3C", "#E67E22", "#F1C40F", "#2ECC71", "#1ABC9C", "#3498DB", "#9B59B6", "#34495E", "#16A085", "#27AE60", "#2980B9", "#8E44AD"];
+const MELODY_ACCENTS = [
+  '#7dff12',
+  '#6ff40e',
+  '#68e6d7',
+  '#7dff12',
+  '#6be0cf',
+  '#7dff12',
+  '#68e6d7',
+  '#6ff40e',
+];
 
-// 💡 왼쪽 사이드바에 표시할 음표 이름 목록
-const MELODY_LABELS = ["C6", "A5", "G5", "E5", "D5", "C5", "A4", "G4", "E4", "D4", "C4", "A3"];
-const BASS_LABELS = ["C5", "A4", "G4", "E4", "D4", "C4", "A3", "G3", "E3", "D3", "C3", "A2"];
+const BASS_ACCENTS = ['#f6d28a', '#e7b869', '#d49a58', '#b37b43'];
+const PIANO_GRID_GAP = 8;
+const PIANO_HEADER_HEIGHT = 36;
+const PIANO_HEADER_MARGIN = 12;
+const PIANO_BODY_TOP_PADDING = 12;
+const MELODY_CONTROL_BAR_HEIGHT = 34;
 
-export const PianoRoll = () => {
+const MELODY_NOTE_LENGTH_OPTIONS = [
+  { label: '1/16', steps: 1 },
+  { label: '1/8', steps: 2 },
+  { label: '1/4', steps: 4 },
+  { label: '1/2', steps: 8 },
+  { label: '1 Bar', steps: 16 },
+] as const;
+
+type MelodyNoteLengthSteps = (typeof MELODY_NOTE_LENGTH_OPTIONS)[number]['steps'];
+
+type CollabBarLockState = {
+  mine: boolean;
+  name: string;
+};
+
+type PianoRollProps = {
+  loopRange?: { start: number; end: number } | null;
+  onStepHeaderSelect?: (col: number) => void;
+  collabBarLocks?: Record<number, CollabBarLockState>;
+  canEditCollab?: boolean;
+  requestCollabBarLock?: (instrument: 'melody' | 'bass', barIndex: number) => Promise<boolean>;
+  releaseCollabBarLock?: (instrument: 'melody' | 'bass', barIndex: number) => void;
+  onCommitMelodyOperation?: (payload: {
+    row: number;
+    col: number;
+    length: number;
+    barIndex: number;
+  }) => void;
+  onCommitChordOperation?: (payload: {
+    chord: string;
+    col: number;
+    isBass: boolean;
+    rows: number[];
+    barIndex: number;
+  }) => void;
+  tutorialGhostNotes?: Array<{
+    row: number;
+    col: number;
+    length: number;
+    completed?: boolean;
+    highlight?: boolean;
+    label?: string;
+  }>;
+};
+
+function getSubdivisionClassName(col: number) {
+  return `${col % 2 === 0 ? ' is-eighth' : ''}${col % 4 === 0 ? ' is-quarter' : ''}${
+    col % 8 === 0 ? ' is-half' : ''
+  }${col % 16 === 0 ? ' is-bar' : ''}`;
+}
+
+function getAccentColor(index: number, isBass: boolean) {
+  const palette = isBass ? BASS_ACCENTS : MELODY_ACCENTS;
+  return palette[index % palette.length];
+}
+
+function isSharpNote(note: string) {
+  return note.includes('#');
+}
+
+function findMelodyNoteInfo(melodyRow: boolean[], melodyLengthRow: number[], col: number) {
+  for (let start = 0; start <= col; start += 1) {
+    if (!melodyRow[start]) {
+      continue;
+    }
+
+    const length = Math.max(1, melodyLengthRow[start] ?? 1);
+    if (col < start + length) {
+      return { start, length };
+    }
+  }
+
+  return null;
+}
+
+export const PianoRoll = ({
+  loopRange = null,
+  onStepHeaderSelect,
+  collabBarLocks = {},
+  canEditCollab = true,
+  requestCollabBarLock,
+  releaseCollabBarLock,
+  onCommitMelodyOperation,
+  onCommitChordOperation,
+  tutorialGhostNotes = [],
+}: PianoRollProps) => {
   const { activeTab } = useUIStore();
-  const isBass = activeTab === "bass";
+  const isBass = activeTab === 'bass';
+  const { melody, melodyLengths, bass, steps, toggleMelody, toggleBass, applyChord, currentStep } =
+    useSongStore();
 
-  // 💡 드래그 앤 드롭을 위한 applyChord 함수도 가져옵니다.
-  const { melody, bass, steps, toggleMelody, toggleBass, applyChord, currentStep } = useSongStore();
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawValue, setDrawValue] = useState<boolean | null>(null);
+  const [dragMelodyOrigin, setDragMelodyOrigin] = useState<{ row: number; col: number } | null>(
+    null
+  );
+  const [melodyNoteLengthSteps, setMelodyNoteLengthSteps] =
+    useState<MelodyNoteLengthSteps>(4);
+  const [melodyScrollLeft, setMelodyScrollLeft] = useState(0);
+
+  const pendingMelodyCommitRef = useRef<{ row: number; col: number; barIndex: number } | null>(
+    null
+  );
+  const activeLockRef = useRef<{ instrument: 'melody' | 'bass'; barIndex: number } | null>(null);
+
+  const tutorialGhostNoteMap = useMemo(
+    () =>
+      tutorialGhostNotes.reduce<
+        Record<
+          string,
+          {
+            row: number;
+            col: number;
+            length: number;
+            completed?: boolean;
+            highlight?: boolean;
+            label?: string;
+          }
+        >
+      >((map, note) => {
+        map[`${note.row}-${note.col}`] = note;
+        return map;
+      }, {}),
+    [tutorialGhostNotes]
+  );
 
   const currentGrid = isBass ? bass : melody;
-  const currentToggle = isBass ? toggleBass : toggleMelody;
-  const currentPreview = isBass ? playBassPreview : playMelodyPreview;
-  const currentLabels = isBass ? BASS_LABELS : MELODY_LABELS;
+  const currentLabels = isBass ? BASS_NOTES : MELODY_NOTES;
+  const modeClass = isBass ? 'bass' : 'melody';
+  const rowCount = currentGrid.length;
+  const gridGap = isBass ? PIANO_GRID_GAP : 2;
+  const rowHeight = isBass ? PIANO_ROW_HEIGHT : 20;
+  const stepWidth = isBass ? PIANO_STEP_WIDTH : 56;
+  const headerHeight = isBass ? PIANO_HEADER_HEIGHT : 24;
+  const headerMargin = isBass ? PIANO_HEADER_MARGIN : 8;
+  const bodyTopPadding = isBass ? PIANO_BODY_TOP_PADDING : 8;
+  const controlBarHeight = isBass ? 0 : MELODY_CONTROL_BAR_HEIGHT;
+  const sidebarTopOffset = bodyTopPadding + controlBarHeight + headerHeight + headerMargin;
 
-  return (
-    <div 
-      style={{ 
-        width: '100%', 
-        height: '100%', 
-        overflow: 'auto', // 💡 핵심: 상하좌우 스크롤 모두 켜기!
-        background: '#1a1a1a',
-        display: 'flex',
-        position: 'relative'
-      }}
-      onMouseUp={() => { setIsDrawing(false); setDrawValue(null); }}
-      onMouseLeave={() => { setIsDrawing(false); setDrawValue(null); }}
-    >
-      
-      {/* 💡 1. 왼쪽 고정 사이드바 (음표 이름 표시) */}
-      <div style={{
-        position: 'sticky', // 💡 가로 스크롤 시에도 화면 왼쪽에 착! 달라붙게 만듭니다.
-        left: 0,
-        zIndex: 10,
-        display: "grid",
-        gridTemplateRows: `repeat(${MELODY_ROWS}, 40px)`, // 💡 절대 어긋나지 않게 높이 40px로 고정
-        gap: '4px', // 오른쪽 그리드와 동일한 간격
-        width: '60px',
-        padding: '10px 0', // 위아래 여백을 오른쪽 그리드와 일치
-        background: '#111',
-        borderRight: '1px solid #333',
-      }}>
-        {Array.from({ length: MELODY_ROWS }).map((_, row) => (
-          <div key={row} style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#888', fontSize: '12px', fontWeight: 'bold'
-          }}>
-            {currentLabels[row]}
-          </div>
-        ))}
+  const releaseActiveLock = () => {
+    if (!activeLockRef.current) {
+      return;
+    }
+
+    releaseCollabBarLock?.(activeLockRef.current.instrument, activeLockRef.current.barIndex);
+    activeLockRef.current = null;
+  };
+
+  const finalizeMelodyDraw = () => {
+    if (!pendingMelodyCommitRef.current) {
+      setIsDrawing(false);
+      setDrawValue(null);
+      setDragMelodyOrigin(null);
+      releaseActiveLock();
+      return;
+    }
+
+    const { row, col, barIndex } = pendingMelodyCommitRef.current;
+    const liveMelody = useSongStore.getState().melody;
+    const liveMelodyLengths = useSongStore.getState().melodyLengths;
+    const noteInfo = findMelodyNoteInfo(liveMelody[row] ?? [], liveMelodyLengths[row] ?? [], col);
+
+    onCommitMelodyOperation?.({
+      row,
+      col,
+      length: noteInfo?.start === col ? noteInfo.length : 0,
+      barIndex,
+    });
+
+    pendingMelodyCommitRef.current = null;
+    setIsDrawing(false);
+    setDrawValue(null);
+    setDragMelodyOrigin(null);
+    releaseActiveLock();
+  };
+
+  const handleCellChange = (row: number, col: number, nextValue: boolean) => {
+    if (isBass) {
+      const liveGrid = useSongStore.getState().bass;
+      if (liveGrid[row]?.[col] === nextValue) {
+        return;
+      }
+
+      toggleBass(row, col);
+      if (nextValue) {
+        void playBassPreview(row);
+      }
+      return;
+    }
+
+    const liveMelody = useSongStore.getState().melody;
+    const liveMelodyLengths = useSongStore.getState().melodyLengths;
+    const noteInfo = findMelodyNoteInfo(liveMelody[row] ?? [], liveMelodyLengths[row] ?? [], col);
+    const sourceCol = noteInfo?.start ?? col;
+
+    if (!nextValue && !noteInfo && !liveMelody[row]?.[sourceCol]) {
+      return;
+    }
+
+    toggleMelody(row, sourceCol, nextValue ? melodyNoteLengthSteps : 1);
+
+    if (nextValue) {
+      void playMelodyPreview(row, melodyNoteLengthSteps);
+    }
+  };
+
+  const pianoRollStyle = {
+    '--piano-grid-gap': `${gridGap}px`,
+    '--piano-header-height': `${headerHeight}px`,
+    '--piano-header-margin': `${headerMargin}px`,
+    '--piano-body-top-padding': `${bodyTopPadding}px`,
+    '--piano-control-bar-height': `${controlBarHeight}px`,
+    '--piano-step-width': `${stepWidth}px`,
+    '--piano-step-span': `calc(${stepWidth}px + ${gridGap}px)`,
+    '--piano-row-height': `${rowHeight}px`,
+    '--piano-row-span': `calc(${rowHeight}px + ${gridGap}px)`,
+    '--piano-row-count': `${rowCount}`,
+    '--piano-sidebar-offset': `${sidebarTopOffset}px`,
+    '--piano-sidebar-width': `${isBass ? 102 : 60}px`,
+  } as CSSProperties;
+
+  const sidebarNotes = currentLabels.map((note, row) => {
+    const noteStyle = {
+      '--key-accent': getAccentColor(row, isBass),
+    } as CSSProperties;
+
+    return (
+      <div
+        key={`label-${modeClass}-${note}`}
+        className={`piano-roll-key is-${modeClass}${
+          !isBass && isSharpNote(note) ? ' is-sharp' : ' is-natural'
+        }`}
+        style={noteStyle}
+      >
+        {note}
       </div>
+    );
+  });
 
-      {/* 💡 2. 오른쪽 실제 악보(그리드) 영역 */}
-      <div style={{ padding: '10px' }}> {/* 사이드바의 위아래 패딩(10px)과 완벽하게 맞춤 */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${steps}, 80px)`,
-          gridTemplateRows: `repeat(${MELODY_ROWS}, 40px)`, // 💡 사이드바와 동일하게 40px로 고정!
-          gap: '4px',
-          width: 'max-content',
-        }}>
-          {Array.from({ length: MELODY_ROWS }).map((_, row) =>
-            Array.from({ length: steps }).map((_, col) => {
-              const active = currentGrid[row]?.[col];
-              const isBar = col % 4 === 0;
-              const isCurrent = col === currentStep;
+  const stepHeaderButtons = Array.from({ length: steps }).map((_, col) => {
+    const barLock = collabBarLocks[Math.floor(col / 16)];
+    const isLocked = Boolean(barLock && !barLock.mine);
 
-              return (
-                <button
-                  key={`${isBass ? 'bass' : 'melody'}-${row}-${col}`}
-                  onMouseDown={() => {
-                    const target = !active;
-                    currentToggle(row, col); 
-                    currentPreview(row);     
-                    setIsDrawing(true);
-                    setDrawValue(target);
-                  }}
-                  onMouseEnter={() => {
-                    if (isDrawing && drawValue !== null && currentGrid[row][col] !== drawValue) {
-                      currentToggle(row, col);
-                    }
-                  }}
-                  
-                  // 💡 화음 드래그 앤 드롭 기능 추가!
-                  onDragOver={(e) => e.preventDefault()} // 드롭 허용
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const chord = e.dataTransfer.getData("text/plain"); 
-                    if (chord && applyChord) {
-                      applyChord(chord, col, isBass); // 마우스를 놓은 세로줄(col)에 화음 찍기!
-                    }
-                  }}
+    return (
+      <button
+        key={`step-${col}`}
+        type="button"
+        className={`piano-roll-step-number${
+          col === currentStep ? ' is-current' : ''
+        }${getSubdivisionClassName(col)}${isLocked ? ' is-locked' : ''}${
+          loopRange && col >= loopRange.start && col <= loopRange.end ? ' is-loop-active' : ''
+        }${loopRange?.end === col ? ' is-loop-end' : ''}`}
+        onClick={() => onStepHeaderSelect?.(col)}
+        aria-label={`${col + 1}번 위치까지 반복`}
+        title={`${col + 1}번 위치까지 반복`}
+      >
+        <span className="sr-only">{col + 1}</span>
+      </button>
+    );
+  });
 
-                  style={{
-                    border: 'none',
-                    borderRadius: '2px',
-                    cursor: 'pointer',
-                    background: active 
-                      ? (isBass ? "#c084fc" : COLORS[row % COLORS.length]) 
-                      : isCurrent 
-                        ? "#444" 
-                        : isBar ? "#2d2d2d" : "#222",
-                    borderRight: isBar && !active ? '1px solid #444' : 'none',
-                    outline: isCurrent ? '2px solid #fff' : 'none',
-                    transition: 'background 0.1s'
-                  }}
-                />
-              );
-            })
-          )}
+  const gridCells = Array.from({ length: rowCount }).flatMap((_, row) =>
+    Array.from({ length: steps }).map((__, col) => {
+      const melodyNoteInfo = !isBass
+        ? findMelodyNoteInfo(melody[row] ?? [], melodyLengths[row] ?? [], col)
+        : null;
+      const isNoteStart = Boolean(melodyNoteInfo && melodyNoteInfo.start === col);
+      const isNoteTail = Boolean(melodyNoteInfo && melodyNoteInfo.start !== col);
+      const active = isBass ? bass[row]?.[col] : isNoteStart;
+      const isCurrent = col === currentStep;
+      const barIndex = Math.floor(col / 16);
+      const barLock = collabBarLocks[barIndex];
+      const isLocked = Boolean(barLock && !barLock.mine);
+      const tutorialGhostNote = !isBass ? tutorialGhostNoteMap[`${row}-${col}`] : null;
+      const cellStyle = {
+        '--cell-accent': getAccentColor(row, isBass),
+        ...(!isBass && melodyNoteInfo ? { '--note-span-steps': `${melodyNoteInfo.length}` } : {}),
+      } as CSSProperties;
+
+      return (
+        <button
+          key={`${modeClass}-${row}-${col}`}
+          type="button"
+          className={`piano-roll-cell is-${modeClass}${active ? ' is-active' : ''}${
+            isCurrent ? ' is-current' : ''
+          }${getSubdivisionClassName(col)}${
+            !isBass && isSharpNote(currentLabels[row]) ? ' is-sharp' : ''
+          }${!isBass && isNoteStart ? ' is-note-start' : ''}${
+            !isBass && isNoteTail ? ' is-note-tail' : ''
+          }${isLocked ? ' is-locked' : ''}${!canEditCollab ? ' is-readonly' : ''}`}
+          style={cellStyle}
+          disabled={isLocked || !canEditCollab}
+          onMouseDown={async () => {
+            if (isLocked || !canEditCollab) {
+              return;
+            }
+
+            if (isBass) {
+              if (!(await requestCollabBarLock?.('bass', barIndex) ?? true)) {
+                return;
+              }
+
+              activeLockRef.current = { instrument: 'bass', barIndex };
+              const target = !(useSongStore.getState().bass[row]?.[col] ?? false);
+              handleCellChange(row, col, target);
+              releaseActiveLock();
+              setIsDrawing(true);
+              setDrawValue(target);
+              return;
+            }
+
+            const liveMelody = useSongStore.getState().melody;
+            const liveMelodyLengths = useSongStore.getState().melodyLengths;
+            const existingNote = findMelodyNoteInfo(
+              liveMelody[row] ?? [],
+              liveMelodyLengths[row] ?? [],
+              col
+            );
+            const originBarIndex = Math.floor((existingNote?.start ?? col) / 16);
+
+            if (!(await requestCollabBarLock?.('melody', originBarIndex) ?? true)) {
+              return;
+            }
+
+            activeLockRef.current = { instrument: 'melody', barIndex: originBarIndex };
+
+            if (existingNote) {
+              toggleMelody(row, existingNote.start, 0);
+              onCommitMelodyOperation?.({
+                row,
+                col: existingNote.start,
+                length: 0,
+                barIndex: originBarIndex,
+              });
+              pendingMelodyCommitRef.current = null;
+              setIsDrawing(false);
+              setDrawValue(null);
+              setDragMelodyOrigin(null);
+              releaseActiveLock();
+              return;
+            }
+
+            toggleMelody(row, col, melodyNoteLengthSteps);
+            void playMelodyPreview(row, melodyNoteLengthSteps);
+            setIsDrawing(true);
+            setDrawValue(true);
+            setDragMelodyOrigin({ row, col });
+            pendingMelodyCommitRef.current = {
+              row,
+              col,
+              barIndex: originBarIndex,
+            };
+          }}
+          onMouseEnter={() => {
+            if (!isDrawing || drawValue === null) {
+              return;
+            }
+
+            if (!isBass && drawValue && dragMelodyOrigin) {
+              if (dragMelodyOrigin.row !== row || col < dragMelodyOrigin.col) {
+                return;
+              }
+
+              if (Math.floor(col / 16) !== Math.floor(dragMelodyOrigin.col / 16)) {
+                return;
+              }
+
+              toggleMelody(row, dragMelodyOrigin.col, col - dragMelodyOrigin.col + 1);
+              return;
+            }
+
+            if (isBass) {
+              handleCellChange(row, col, drawValue);
+            }
+          }}
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={async (event) => {
+            event.preventDefault();
+            if (isLocked || !canEditCollab) {
+              return;
+            }
+
+            const chord = event.dataTransfer.getData('text/plain');
+            if (!chord) {
+              return;
+            }
+
+            if (!(await requestCollabBarLock?.(isBass ? 'bass' : 'melody', barIndex) ?? true)) {
+              return;
+            }
+
+            activeLockRef.current = {
+              instrument: isBass ? 'bass' : 'melody',
+              barIndex,
+            };
+            applyChord(chord, col, isBass);
+            onCommitChordOperation?.({
+              chord,
+              col,
+              isBass,
+              rows: [...((isBass ? BASS_CHORD_MAP : MELODY_CHORD_MAP)[chord] ?? [])],
+              barIndex,
+            });
+            releaseActiveLock();
+          }}
+        >
+          {!isBass && isNoteStart ? (
+            <span className="piano-roll-note-block" aria-hidden="true" />
+          ) : null}
+          {!isBass && tutorialGhostNote ? (
+            <span
+              className={`piano-roll-ghost-note-block${
+                tutorialGhostNote.completed ? ' is-complete' : ''
+              }${tutorialGhostNote.highlight ? ' is-highlight' : ''}`}
+              style={
+                {
+                  '--note-span-steps': `${tutorialGhostNote.length}`,
+                } as CSSProperties
+              }
+              aria-hidden="true"
+            >
+              {tutorialGhostNote.label ? (
+                <span className="piano-roll-ghost-label">{tutorialGhostNote.label}</span>
+              ) : null}
+            </span>
+          ) : null}
+        </button>
+      );
+    })
+  );
+
+  if (!isBass) {
+    return (
+      <div
+        className="piano-roll piano-roll--melody piano-roll--melody-detached"
+        style={pianoRollStyle}
+        onMouseUp={finalizeMelodyDraw}
+        onMouseLeave={finalizeMelodyDraw}
+      >
+        <div className="piano-roll-melody-topbar">
+          <div className="piano-roll-melody-corner" aria-hidden="true" />
+          <div className="piano-roll-length-bar" aria-label="Melody note length">
+            {MELODY_NOTE_LENGTH_OPTIONS.map((option) => (
+              <button
+                key={option.steps}
+                type="button"
+                className={`piano-roll-length-button${
+                  melodyNoteLengthSteps === option.steps ? ' is-active' : ''
+                }`}
+                onClick={() => setMelodyNoteLengthSteps(option.steps)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="piano-roll-melody-header-row">
+          <div className="piano-roll-melody-corner piano-roll-melody-corner--header" aria-hidden="true" />
+          <div className="piano-roll-step-header-viewport">
+            <div
+              className="piano-roll-step-header piano-roll-step-header--melody"
+              style={{
+                gridTemplateColumns: `repeat(${steps}, ${stepWidth}px)`,
+                transform: `translateX(-${melodyScrollLeft}px)`,
+              }}
+            >
+              {stepHeaderButtons}
+            </div>
+          </div>
+        </div>
+
+        <div
+          className="piano-roll-melody-scroller"
+          onScroll={(event) => setMelodyScrollLeft(event.currentTarget.scrollLeft)}
+        >
+          <div className="piano-roll-sidebar">
+            <div
+              className="piano-roll-sidebar-notes"
+              style={{ gridTemplateRows: `repeat(${rowCount}, ${rowHeight}px)` }}
+            >
+              {sidebarNotes}
+            </div>
+          </div>
+
+          <div className="piano-roll-body">
+            <div className="piano-roll-content">
+              <div
+                className="piano-roll-playhead piano-roll-playhead--detached"
+                style={
+                  {
+                    '--piano-step-index': `${currentStep}`,
+                  } as CSSProperties
+                }
+              />
+
+              <div
+                className="piano-roll-grid piano-roll-grid--melody"
+                style={{
+                  gridTemplateColumns: `repeat(${steps}, ${stepWidth}px)`,
+                  gridTemplateRows: `repeat(${rowCount}, ${rowHeight}px)`,
+                }}
+              >
+                {gridCells}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      
+    );
+  }
+
+  return (
+    <div
+      className="piano-roll piano-roll--bass"
+      style={pianoRollStyle}
+      onMouseUp={finalizeMelodyDraw}
+      onMouseLeave={finalizeMelodyDraw}
+    >
+      <div className="piano-roll-sidebar">
+        <div
+          className="piano-roll-sidebar-notes"
+          style={{ gridTemplateRows: `repeat(${rowCount}, ${rowHeight}px)` }}
+        >
+          {sidebarNotes}
+        </div>
+      </div>
+
+      <div className="piano-roll-body">
+        <div className="piano-roll-content">
+          <div
+            className="piano-roll-playhead"
+            style={
+              {
+                '--piano-step-index': `${currentStep}`,
+              } as CSSProperties
+            }
+          />
+
+          <div
+            className="piano-roll-step-header piano-roll-step-header--bass"
+            style={{ gridTemplateColumns: `repeat(${steps}, ${stepWidth}px)` }}
+          >
+            {stepHeaderButtons}
+          </div>
+
+          <div
+            className="piano-roll-grid piano-roll-grid--bass"
+            style={{
+              gridTemplateColumns: `repeat(${steps}, ${stepWidth}px)`,
+              gridTemplateRows: `repeat(${rowCount}, ${rowHeight}px)`,
+            }}
+          >
+            {gridCells}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

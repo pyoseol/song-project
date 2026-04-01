@@ -1,0 +1,1886 @@
+.composer-page {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #1f1f20;
+  color: #f5f5f7;
+}
+
+.composer-topbar {
+  border-bottom: 1px solid #3a3c42;
+  background: #31323a;
+}
+
+.composer-topbar-inner {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: 18px;
+  max-width: 1240px;
+  height: 50px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.composer-logo-button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.composer-nav {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 44px;
+}
+
+.composer-nav-button {
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 0.18s ease;
+}
+
+.composer-nav-button:hover,
+.composer-nav-button.is-active {
+  color: #ffffff;
+}
+
+.composer-topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.composer-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.composer-icon-button span,
+.composer-icon-button span::before,
+.composer-icon-button span::after {
+  display: block;
+  width: 12px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  content: '';
+}
+
+.composer-icon-button span {
+  position: relative;
+}
+
+.composer-icon-button span::before {
+  position: absolute;
+  top: -5px;
+  left: 0;
+}
+
+.composer-icon-button span::after {
+  position: absolute;
+  top: 5px;
+  left: 0;
+}
+
+.composer-workbar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 14px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #313238;
+  background: #101114;
+}
+
+.composer-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.composer-title-group strong {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.composer-title-group span {
+  color: #8c8d92;
+  font-size: 13px;
+}
+
+.composer-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 0;
+}
+
+.composer-guide-shortcut {
+  padding: 7px 12px;
+  border: 1px solid rgba(159, 245, 109, 0.18);
+  border-radius: 999px;
+  background: rgba(159, 245, 109, 0.06);
+  color: #d9f9b7;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.composer-guide-shortcut.is-active {
+  background: rgba(159, 245, 109, 0.12);
+}
+
+.composer-guide-corner-shortcut {
+  position: fixed;
+  top: 14px;
+  right: 12px;
+  z-index: 45;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+}
+
+.composer-workbar-controls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+  width: 100%;
+  min-width: 0;
+}
+
+.composer-guide-toggle {
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  overflow: hidden;
+}
+
+.composer-guide-toggle.is-active {
+  background: rgba(159, 245, 109, 0.16);
+}
+
+.composer-guide-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: fixed;
+  right: 18px;
+  bottom: 88px;
+  z-index: 35;
+  width: min(340px, calc(100vw - 32px));
+  max-height: min(480px, calc(100vh - 140px));
+  padding: 14px;
+  border: 1px solid rgba(159, 245, 109, 0.16);
+  border-radius: 20px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.34);
+  background:
+    radial-gradient(circle at top left, rgba(159, 245, 109, 0.1), transparent 24%),
+    linear-gradient(180deg, rgba(18, 20, 24, 0.98), rgba(14, 15, 18, 0.96));
+}
+
+.composer-guide-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: auto;
+  overflow: visible;
+}
+
+.composer-guide-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+
+.composer-guide-eyebrow {
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(159, 245, 109, 0.14);
+  color: #c8f7a0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.composer-guide-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #e5e7eb;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.composer-guide-head strong {
+  font-size: 21px;
+  line-height: 1.2;
+  padding-right: 84px;
+}
+
+.composer-guide-focus {
+  color: #9fb0c6;
+  font-size: 13px;
+}
+
+.composer-guide-eyebrow,
+.composer-guide-focus {
+  display: none;
+}
+
+.composer-guide-summary,
+.composer-guide-note p,
+.composer-guide-tip p {
+  margin: 0;
+  color: #c2cad8;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.composer-guide-progress-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid rgba(159, 245, 109, 0.18);
+  border-radius: 18px;
+  background: rgba(159, 245, 109, 0.05);
+}
+
+.composer-guide-progress-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.composer-guide-progress-copy strong {
+  font-size: 14px;
+  color: #f8fafc;
+}
+
+.composer-guide-progress-copy span {
+  color: #d8f5b0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.composer-guide-progress-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.composer-guide-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #9ff56d, #d8f5b0);
+  box-shadow: 0 0 18px rgba(159, 245, 109, 0.24);
+}
+
+.composer-guide-note,
+.composer-guide-tip {
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.composer-guide-note strong,
+.composer-guide-tip span {
+  display: block;
+  margin-bottom: 6px;
+  color: #f7fafc;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.composer-guide-tip span {
+  color: #d8f5b0;
+}
+
+.composer-guide-mission-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  border-radius: 18px;
+  background: rgba(37, 99, 235, 0.07);
+}
+
+.composer-guide-mission-kicker {
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.composer-guide-mission-card strong {
+  color: #f8fafc;
+  font-size: 16px;
+}
+
+.composer-guide-mission-card p,
+.composer-guide-mission-card small {
+  margin: 0;
+  color: #d3dbea;
+  line-height: 1.6;
+}
+
+.composer-guide-mission-card small {
+  color: #9fb2d5;
+  font-size: 12px;
+}
+
+.composer-guide-pattern {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.composer-guide-pattern strong {
+  color: #f8fafc;
+  font-size: 14px;
+}
+
+.composer-guide-pattern-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.composer-guide-pattern-item {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 8px 12px;
+  border: 1px solid rgba(159, 245, 109, 0.18);
+  border-radius: 999px;
+  background: rgba(159, 245, 109, 0.08);
+  color: #e7f8d5;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.composer-guide-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.composer-guide-button {
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: #1b1d21;
+  color: #f4f5f6;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.composer-guide-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.composer-guide-button.is-primary {
+  border-color: rgba(159, 245, 109, 0.34);
+  background: #96f03d;
+  color: #101114;
+}
+
+.composer-guide-step-list {
+  display: grid;
+  gap: 8px;
+  min-height: 0;
+  max-height: 168px;
+  overflow: auto;
+  align-content: start;
+}
+
+.composer-guide-step {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #d4dae4;
+  text-align: left;
+  cursor: pointer;
+}
+
+.composer-guide-step span,
+.composer-guide-step small {
+  color: #8e98ab;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.composer-guide-step strong {
+  color: #f8fafc;
+  font-size: 15px;
+}
+
+.composer-guide-step em {
+  font-style: normal;
+}
+
+.composer-guide-step.is-active {
+  border-color: rgba(159, 245, 109, 0.34);
+  background: rgba(159, 245, 109, 0.1);
+}
+
+.composer-guide-step.is-complete {
+  border-color: rgba(96, 165, 250, 0.2);
+}
+
+.composer-guide-step-status {
+  color: #facc15;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.composer-guide-step-status.is-complete {
+  color: #9ff56d;
+}
+
+.composer-guide-highlight {
+  position: relative;
+  box-shadow:
+    0 0 0 1px rgba(159, 245, 109, 0.28),
+    0 0 0 6px rgba(159, 245, 109, 0.08);
+}
+
+.composer-guide-highlight::after {
+  content: none;
+}
+
+.composer-collab-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: #15161a;
+}
+
+.composer-collab-banner.is-connected {
+  background: linear-gradient(180deg, rgba(24, 35, 29, 0.96), rgba(19, 21, 25, 0.96));
+}
+
+.composer-collab-banner.is-connecting {
+  background: linear-gradient(180deg, rgba(26, 28, 35, 0.96), rgba(19, 21, 25, 0.96));
+}
+
+.composer-collab-banner.is-error {
+  background: linear-gradient(180deg, rgba(42, 24, 24, 0.96), rgba(19, 21, 25, 0.96));
+}
+
+.composer-collab-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.composer-collab-copy strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.composer-collab-copy span {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.composer-collab-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.composer-collab-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.composer-collab-chip {
+  padding: 6px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #e5e7eb;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.composer-collab-chip--lock {
+  border-color: rgba(96, 165, 250, 0.2);
+  background: rgba(59, 130, 246, 0.12);
+  color: #dbeafe;
+}
+
+.composer-collab-chip--warning {
+  border-color: rgba(251, 191, 36, 0.28);
+  background: rgba(251, 191, 36, 0.12);
+  color: #fde68a;
+}
+
+.composer-collab-button {
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: #1f2126;
+  color: #f5f5f7;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.composer-collab-history {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.composer-collab-history-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #cbd5e1;
+  font-size: 11px;
+}
+
+.composer-collab-history-item strong {
+  color: #f8fafc;
+}
+
+.composer-tab-strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  flex-wrap: nowrap;
+  flex: 1 1 420px;
+  min-width: 0;
+  padding: 0 0 0 2px;
+  border: 0;
+  border-bottom: 1px solid #313238;
+  border-radius: 0;
+  background: transparent;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.composer-tab-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.composer-mixer-strip {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.composer-mixer-item {
+  display: grid;
+  grid-template-columns: auto 88px auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: #1b1d21;
+}
+
+.composer-mixer-label {
+  color: #d1d6df;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.composer-mixer-range {
+  width: 88px;
+  cursor: pointer;
+  accent-color: #d1d5db;
+}
+
+.composer-mixer-value {
+  min-width: 24px;
+  color: #f5f7fa;
+  font-size: 12px;
+  text-align: right;
+}
+
+.composer-tab-button {
+  min-width: 122px;
+  padding: 0;
+  border: 1px solid #3d3f45;
+  border-bottom-color: transparent;
+  border-radius: 16px 16px 0 0;
+  background: linear-gradient(180deg, #262930, #1c1e24);
+  color: #8b8c91;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+  margin-bottom: -1px;
+}
+
+.composer-tab-button:hover {
+  transform: translateY(-1px);
+  color: #eff4fb;
+}
+
+.composer-tab-button.is-active {
+  background: linear-gradient(180deg, #31343c, #202329);
+  border-color: #585b63;
+  border-bottom-color: #202329;
+}
+
+.composer-tab-button.is-melody.is-active {
+  border-color: rgba(74, 222, 128, 0.5);
+  color: #4ade80;
+}
+
+.composer-tab-button.is-drums.is-active {
+  border-color: rgba(249, 115, 22, 0.5);
+  color: #f97316;
+}
+
+.composer-tab-button.is-bass.is-active {
+  border-color: rgba(245, 191, 74, 0.55);
+  color: #f7cf74;
+}
+
+.composer-tab-button.is-tutorial-target {
+  border-color: rgba(163, 230, 53, 0.48);
+  box-shadow:
+    0 0 0 1px rgba(163, 230, 53, 0.18),
+    0 0 20px rgba(163, 230, 53, 0.14);
+  color: #ecfccb;
+  animation: composerTutorialPulse 1.25s ease-in-out infinite;
+}
+
+.composer-tab-button.is-tutorial-complete {
+  border-color: rgba(96, 165, 250, 0.34);
+  color: #bfdbfe;
+}
+
+.composer-tab-button-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+}
+
+.composer-tab-label {
+  display: block;
+  white-space: nowrap;
+}
+
+.composer-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  color: #b6bdc8;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.composer-tab-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.composer-tab-add-button {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 1px;
+  border: 1px solid #3d3f45;
+  border-bottom-color: transparent;
+  border-radius: 16px 16px 0 0;
+  background: linear-gradient(180deg, #23262c, #1b1d22);
+  color: #d8dde7;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.composer-tab-picker {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.composer-tab-add-button:hover {
+  border-color: #555861;
+  background: linear-gradient(180deg, #2b2e35, #1f2127);
+}
+
+.composer-tab-add-button.is-open {
+  border-color: rgba(159, 245, 109, 0.3);
+  background: linear-gradient(180deg, rgba(159, 245, 109, 0.14), rgba(27, 29, 34, 0.98));
+  color: #ebffd2;
+}
+
+.composer-tab-picker-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 45;
+  min-width: 148px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: #15171b;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.32);
+}
+
+.composer-tab-picker-item {
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #dfe5ef;
+  padding: 10px 12px;
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.composer-tab-picker-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.composer-tab-picker-item.is-melody:hover {
+  background: rgba(52, 211, 153, 0.12);
+}
+
+.composer-tab-picker-item.is-drums:hover {
+  background: rgba(249, 115, 22, 0.12);
+}
+
+.composer-tab-picker-item.is-bass:hover {
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.composer-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  background: #16171a;
+}
+
+.composer-page--guide-open .composer-main,
+.composer-page--guide-open .composer-collab-banner {
+  margin-right: 0;
+}
+
+.composer-main--melody {
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.14), transparent 28%),
+    radial-gradient(circle at top left, rgba(45, 212, 191, 0.12), transparent 24%),
+    #15171b;
+}
+
+.composer-main--drums {
+  background:
+    radial-gradient(circle at top right, rgba(249, 115, 22, 0.16), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.12), transparent 26%),
+    #161518;
+}
+
+.composer-main--bass {
+  background:
+    radial-gradient(circle at top right, rgba(148, 163, 184, 0.1), transparent 26%),
+    radial-gradient(circle at left center, rgba(63, 63, 70, 0.14), transparent 24%),
+    #121315;
+}
+
+.composer-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: 18px;
+  padding: 22px 24px;
+  border: 1px solid #333741;
+  border-radius: 28px;
+  overflow: hidden;
+}
+
+.composer-stage--melody {
+  background:
+    linear-gradient(135deg, rgba(17, 24, 39, 0.96), rgba(15, 23, 42, 0.88)),
+    #12161d;
+  border-color: rgba(96, 165, 250, 0.18);
+}
+
+.composer-stage--drums {
+  background:
+    linear-gradient(135deg, rgba(30, 20, 14, 0.96), rgba(17, 24, 39, 0.88)),
+    #141315;
+  border-color: rgba(249, 115, 22, 0.18);
+}
+
+.composer-stage--bass {
+  background:
+    linear-gradient(135deg, rgba(38, 24, 14, 0.96), rgba(22, 15, 10, 0.88)),
+    #18120d;
+  border-color: rgba(245, 191, 74, 0.18);
+}
+
+.composer-stage-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+}
+
+.composer-stage-eyebrow {
+  width: fit-content;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.composer-stage-title {
+  margin: 0;
+  font-size: clamp(28px, 3vw, 38px);
+  line-height: 1.14;
+}
+
+.composer-stage-description {
+  margin: 0;
+  max-width: 620px;
+  color: #b7bcc7;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.composer-stage-stats {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.composer-stage-stat {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #eef1f4;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.composer-stage-visual {
+  min-height: 180px;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.composer-stage-visual--melody {
+  display: flex;
+  align-items: flex-end;
+  padding: 18px;
+  background:
+    radial-gradient(circle at top center, rgba(34, 211, 238, 0.2), transparent 36%),
+    linear-gradient(180deg, rgba(7, 11, 18, 0.98), rgba(16, 19, 28, 0.96));
+}
+
+.composer-keyboard-visual {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  align-items: end;
+}
+
+.composer-key {
+  border-radius: 14px 14px 18px 18px;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24);
+}
+
+.composer-key.is-white {
+  min-height: 146px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: linear-gradient(180deg, #f9fbff, #dbe3ee);
+}
+
+.composer-key.is-black {
+  min-height: 98px;
+  margin: 0 6px;
+  background: linear-gradient(180deg, #161a21, #090b10);
+  box-shadow:
+    0 16px 22px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.composer-stage-visual--drums {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at top center, rgba(248, 113, 113, 0.16), transparent 38%),
+    linear-gradient(180deg, rgba(18, 19, 22, 0.98), rgba(30, 17, 8, 0.96));
+}
+
+.composer-drum-visual-pad {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.composer-drum-visual-pad strong {
+  font-size: 16px;
+}
+
+.composer-drum-visual-pad span {
+  color: #bcc3cf;
+  font-size: 12px;
+}
+
+.composer-drum-visual-pad.is-kick {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(249, 115, 22, 0.18);
+}
+
+.composer-drum-visual-pad.is-snare {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(56, 189, 248, 0.18);
+}
+
+.composer-drum-visual-pad.is-hat {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(250, 204, 21, 0.18);
+}
+
+.composer-drum-visual-pad.is-clap {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(251, 191, 36, 0.18);
+}
+
+.composer-stage-visual--bass {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  background:
+    linear-gradient(135deg, rgba(78, 44, 18, 0.92), rgba(38, 22, 11, 0.98)),
+    #24170d;
+}
+
+.composer-bass-head {
+  flex: 0 0 46px;
+  height: 122px;
+  border-radius: 24px 16px 16px 24px;
+  background: linear-gradient(180deg, #4a2b12, #241208);
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.composer-bass-neck {
+  position: relative;
+  flex: 1;
+  min-height: 122px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(108, 67, 29, 0.58), rgba(58, 34, 15, 0.9)),
+    #3c2412;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.composer-bass-string,
+.composer-bass-fret {
+  position: absolute;
+  display: block;
+}
+
+.composer-bass-string {
+  left: 16px;
+  right: 16px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #f6d59a, transparent);
+  opacity: 0.8;
+}
+
+.composer-bass-fret {
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: rgba(255, 244, 214, 0.38);
+}
+
+.composer-chord-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border: 1px solid #333741;
+  border-radius: 22px;
+}
+
+.composer-chord-bar--melody {
+  background: rgba(13, 19, 29, 0.82);
+  border-color: rgba(59, 130, 246, 0.18);
+}
+
+.composer-chord-bar--bass {
+  background: rgba(13, 14, 17, 0.9);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.composer-chord-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.composer-chord-label {
+  color: #eef2f7;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.composer-chord-description {
+  margin: 0;
+  color: #97a0af;
+  font-size: 13px;
+}
+
+.composer-chord-list {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.composer-chord-list::-webkit-scrollbar {
+  height: 6px;
+}
+
+.composer-chord-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.composer-chord-chip {
+  position: relative;
+  flex: 0 0 auto;
+  padding: 9px 16px;
+  border: 1px solid #3b3d42;
+  border-radius: 12px;
+  background: #2a2b30;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: grab;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.composer-chord-chip.is-tutorial-target {
+  border-color: rgba(163, 230, 53, 0.56);
+  box-shadow:
+    0 0 0 1px rgba(163, 230, 53, 0.18),
+    0 0 18px rgba(163, 230, 53, 0.14);
+  animation: composerTutorialPulse 1.2s ease-in-out infinite;
+}
+
+.composer-chord-chip-guide {
+  position: absolute;
+  top: -12px;
+  right: -6px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(163, 230, 53, 0.94);
+  color: #172d07;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.composer-chord-bar--melody .composer-chord-chip {
+  background: linear-gradient(180deg, #1d2534, #161d2a);
+  border-color: rgba(96, 165, 250, 0.26);
+}
+
+.composer-chord-bar--bass .composer-chord-chip {
+  background: linear-gradient(180deg, #1b1d21, #0f1012);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.composer-roll-shell,
+.composer-drum-panel {
+  flex: 1;
+  min-height: 0;
+  border-radius: 22px;
+  overflow: hidden;
+}
+
+.composer-roll-shell--melody {
+  border: 1px solid rgba(96, 165, 250, 0.16);
+  background: rgba(11, 15, 22, 0.78);
+}
+
+.composer-roll-shell--bass {
+  border: 1px solid rgba(245, 191, 74, 0.14);
+  background: rgba(24, 14, 8, 0.84);
+}
+
+.composer-drum-shell {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.composer-bass-shell {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.composer-drum-panel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(249, 115, 22, 0.16);
+  background:
+    radial-gradient(circle at top right, rgba(249, 115, 22, 0.08), transparent 28%),
+    rgba(14, 15, 18, 0.92);
+}
+
+.composer-drum-panel--bass {
+  border-color: rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top right, rgba(148, 163, 184, 0.06), transparent 28%),
+    rgba(13, 14, 17, 0.94);
+}
+
+.composer-sequencer-header {
+  display: grid;
+  grid-template-columns: 160px max-content;
+  gap: 12px;
+  width: max-content;
+  min-width: 100%;
+  padding: 18px 0 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.composer-step-grid {
+  display: grid;
+  gap: 10px;
+  width: max-content;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      transparent 0 calc(var(--sequencer-step-span) * 2 - 1px),
+      rgba(255, 255, 255, 0.05) calc(var(--sequencer-step-span) * 2 - 1px) calc(var(--sequencer-step-span) * 2 + 1px)
+    ),
+    repeating-linear-gradient(
+      to right,
+      transparent 0 calc(var(--sequencer-step-span) * 4 - 1px),
+      rgba(96, 165, 250, 0.1) calc(var(--sequencer-step-span) * 4 - 1px) calc(var(--sequencer-step-span) * 4 + 1px)
+    ),
+    repeating-linear-gradient(
+      to right,
+      transparent 0 calc(var(--sequencer-step-span) * 8 - 1px),
+      rgba(251, 191, 36, 0.12) calc(var(--sequencer-step-span) * 8 - 1px) calc(var(--sequencer-step-span) * 8 + 1px)
+    ),
+    repeating-linear-gradient(
+      to right,
+      transparent 0 calc(var(--sequencer-step-span) * 16 - 1px),
+      rgba(255, 255, 255, 0.16) calc(var(--sequencer-step-span) * 16 - 1px) calc(var(--sequencer-step-span) * 16 + 1px)
+    );
+}
+
+.composer-drum-step-spacer {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #98a1af;
+}
+
+.composer-drum-step-number {
+  appearance: none;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: transparent;
+  font-size: 0;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.composer-drum-step-number.is-current {
+  background: rgba(249, 115, 22, 0.2);
+  color: #fff1dc;
+}
+
+.composer-drum-step-number.is-loop-active {
+  background: rgba(163, 230, 53, 0.14);
+  color: #efffd9;
+}
+
+.composer-drum-step-number.is-loop-end {
+  box-shadow:
+    inset -2px 0 0 rgba(163, 230, 53, 0.88),
+    inset 0 0 0 1px rgba(163, 230, 53, 0.18);
+}
+
+.composer-drum-step-number.is-eighth {
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.composer-drum-step-number.is-quarter {
+  border-left: 1px solid rgba(96, 165, 250, 0.18);
+}
+
+.composer-drum-step-number.is-half {
+  border-left: 1px solid rgba(251, 191, 36, 0.24);
+}
+
+.composer-drum-step-number--bass.is-current {
+  background: rgba(156, 163, 175, 0.24);
+  color: #f5f5f5;
+}
+
+.composer-drums-wrap {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: auto;
+  scrollbar-color: rgba(148, 163, 184, 0.72) rgba(255, 255, 255, 0.06);
+  padding: 0 18px 18px;
+}
+
+.composer-drums-wrap::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+.composer-drums-wrap::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+}
+
+.composer-drums-wrap::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.72);
+  background-clip: padding-box;
+}
+
+.composer-drums-wrap::-webkit-scrollbar-corner {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.composer-sequencer-body {
+  min-width: 100%;
+  width: max-content;
+}
+
+.composer-sequencer-rows {
+  padding-bottom: 6px;
+}
+
+.composer-drum-row {
+  display: grid;
+  grid-template-columns: 160px max-content;
+  gap: 12px;
+  align-items: center;
+  width: max-content;
+  min-width: 100%;
+  margin-top: 12px;
+}
+
+.composer-drum-track {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.composer-drum-track strong {
+  font-size: 15px;
+}
+
+.composer-drum-track span {
+  color: #a6adba;
+  font-size: 12px;
+}
+
+.composer-drum-track.is-kick {
+  border-color: rgba(249, 115, 22, 0.24);
+}
+
+.composer-drum-track.is-snare {
+  border-color: rgba(56, 189, 248, 0.22);
+}
+
+.composer-drum-track.is-hat {
+  border-color: rgba(250, 204, 21, 0.22);
+}
+
+.composer-drum-track.is-clap {
+  border-color: rgba(251, 191, 36, 0.22);
+}
+
+.composer-drum-track--bass {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 4px 0 0 var(--bass-accent, #9ca3af);
+}
+
+.composer-drum-track--bass strong {
+  color: #f3f4f6;
+}
+
+.composer-drum-track--bass span {
+  color: #a1a1aa;
+}
+
+.composer-drum-row-grid {
+  display: grid;
+  gap: 10px;
+  width: max-content;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      transparent 0 calc(var(--sequencer-step-span) * 2 - 1px),
+      rgba(255, 255, 255, 0.05) calc(var(--sequencer-step-span) * 2 - 1px) calc(var(--sequencer-step-span) * 2 + 1px)
+    ),
+    repeating-linear-gradient(
+      to right,
+      transparent 0 calc(var(--sequencer-step-span) * 4 - 1px),
+      rgba(96, 165, 250, 0.1) calc(var(--sequencer-step-span) * 4 - 1px) calc(var(--sequencer-step-span) * 4 + 1px)
+    ),
+    repeating-linear-gradient(
+      to right,
+      transparent 0 calc(var(--sequencer-step-span) * 8 - 1px),
+      rgba(251, 191, 36, 0.12) calc(var(--sequencer-step-span) * 8 - 1px) calc(var(--sequencer-step-span) * 8 + 1px)
+    ),
+    repeating-linear-gradient(
+      to right,
+      transparent 0 calc(var(--sequencer-step-span) * 16 - 1px),
+      rgba(255, 255, 255, 0.16) calc(var(--sequencer-step-span) * 16 - 1px) calc(var(--sequencer-step-span) * 16 + 1px)
+    );
+}
+
+.composer-drum-cell {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(34, 37, 44, 0.98), rgba(18, 20, 24, 0.98));
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease,
+    background 0.12s ease;
+}
+
+.composer-drum-cell:hover {
+  transform: translateY(-1px);
+}
+
+.composer-drum-cell.is-locked {
+  cursor: not-allowed;
+  opacity: 0.42;
+  box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.18);
+}
+
+.composer-drum-cell.is-own-locked {
+  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.28);
+}
+
+.composer-drum-cell.is-bar {
+  box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.18);
+}
+
+.composer-drum-cell.is-half::before,
+.composer-drum-cell.is-quarter::before,
+.composer-drum-cell.is-eighth::before {
+  position: absolute;
+  left: -6px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  content: '';
+}
+
+.composer-drum-cell.is-eighth::before {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.composer-drum-cell.is-quarter::before {
+  background: rgba(96, 165, 250, 0.18);
+}
+
+.composer-drum-cell.is-half::before {
+  background: rgba(251, 191, 36, 0.24);
+}
+
+.composer-drum-cell.is-current {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.composer-drum-cell.is-tutorial-next {
+  box-shadow:
+    inset 0 0 0 1px rgba(163, 230, 53, 0.3),
+    0 0 0 1px rgba(163, 230, 53, 0.18),
+    0 0 16px rgba(163, 230, 53, 0.18);
+  animation: composerTutorialPulse 1.2s ease-in-out infinite;
+}
+
+.composer-drum-cell.is-tutorial-target::after,
+.composer-drum-cell.is-tutorial-complete::after {
+  position: absolute;
+  inset: 8px;
+  border-radius: 14px;
+  border: 1px dashed rgba(159, 245, 109, 0.42);
+  content: '';
+  pointer-events: none;
+}
+
+.composer-drum-cell.is-tutorial-target::after {
+  background: rgba(159, 245, 109, 0.06);
+}
+
+.composer-drum-cell.is-tutorial-complete::after {
+  border-color: rgba(96, 165, 250, 0.38);
+  background: rgba(96, 165, 250, 0.08);
+}
+
+.composer-drum-cell.is-active.is-kick {
+  background: linear-gradient(180deg, #fb923c, #f97316);
+  box-shadow: 0 10px 22px rgba(249, 115, 22, 0.24);
+}
+
+.composer-drum-cell.is-active.is-snare {
+  background: linear-gradient(180deg, #7dd3fc, #38bdf8);
+  box-shadow: 0 10px 22px rgba(56, 189, 248, 0.22);
+}
+
+.composer-drum-cell.is-active.is-hat {
+  background: linear-gradient(180deg, #fde047, #facc15);
+  box-shadow: 0 10px 22px rgba(250, 204, 21, 0.22);
+}
+
+.composer-drum-cell.is-active.is-clap {
+  background: linear-gradient(180deg, #fcd34d, #fbbf24);
+  box-shadow: 0 10px 22px rgba(251, 191, 36, 0.22);
+}
+
+.composer-drum-cell--bass {
+  background: linear-gradient(180deg, rgba(30, 32, 36, 0.98), rgba(12, 13, 16, 0.98));
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.composer-drum-cell--bass.is-current {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.composer-drum-cell--bass.is-active {
+  border-color: var(--bass-accent, #9ca3af);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03)),
+    var(--bass-accent, #9ca3af);
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+.composer-cell-guide-pill {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(163, 230, 53, 0.94);
+  color: #172d07;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+@keyframes composerTutorialPulse {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-1px);
+  }
+}
+
+.composer-footer {
+  height: 80px;
+  border-top: 1px solid #333;
+  background: #111;
+}
+
+@media (max-width: 1320px) {
+  .composer-page--guide-open .composer-main,
+  .composer-page--guide-open .composer-collab-banner {
+    margin-right: 0;
+  }
+
+  .composer-guide-shell {
+    width: min(360px, calc(100vw - 24px));
+  }
+}
+
+@media (max-width: 1040px) {
+  .composer-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .composer-guide-shell {
+    position: static;
+    width: auto;
+    max-height: none;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    border-top: 0;
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .composer-collab-banner {
+    align-items: flex-start;
+    padding: 12px 14px;
+  }
+
+  .composer-collab-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .composer-workbar,
+  .composer-chord-bar {
+    align-items: flex-start;
+  }
+
+  .composer-workbar-controls {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .composer-tab-strip {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .composer-tab-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .composer-chord-list {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+
+  .composer-mixer-strip {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+}
+
+@media (max-width: 720px) {
+  .composer-guide-corner-shortcut {
+    top: 12px;
+    right: 8px;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .composer-guide-shell {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
+  .composer-guide-head strong {
+    font-size: 20px;
+    padding-right: 0;
+  }
+
+  .composer-guide-close {
+    position: static;
+    width: fit-content;
+  }
+
+  .composer-guide-step-list {
+    grid-template-columns: 1fr;
+  }
+
+  .composer-topbar-inner {
+    grid-template-columns: 40px 1fr auto;
+    gap: 10px;
+    padding: 0 12px;
+  }
+
+  .composer-nav {
+    gap: 18px;
+  }
+
+  .composer-nav-button {
+    font-size: 13px;
+  }
+
+  .composer-workbar,
+  .composer-chord-bar {
+    padding: 14px;
+  }
+
+  .composer-main {
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .composer-mixer-strip {
+    gap: 6px;
+  }
+
+  .composer-mixer-item {
+    grid-template-columns: auto 1fr auto;
+    width: 100%;
+  }
+
+  .composer-tab-button {
+    min-width: 92px;
+    padding: 9px 14px;
+    font-size: 12px;
+  }
+
+  .composer-guide-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .composer-chord-list {
+    margin-right: -2px;
+  }
+
+  .composer-drums-wrap {
+    padding: 0 12px 12px;
+  }
+
+  .composer-sequencer-header,
+  .composer-drum-row {
+    grid-template-columns: 132px max-content;
+    gap: 10px;
+  }
+
+  .composer-drum-track {
+    padding: 14px 12px;
+  }
+
+  .composer-drum-track strong {
+    font-size: 14px;
+  }
+
+  .composer-drum-track span {
+    font-size: 11px;
+  }
+
+  .composer-footer {
+    height: auto;
+    min-height: 96px;
+  }
+}
+
+@media (max-width: 560px) {
+  .composer-guide-actions {
+    flex-direction: column;
+  }
+
+  .composer-guide-button {
+    width: 100%;
+  }
+
+  .composer-workbar {
+    padding: 12px;
+  }
+
+  .composer-title-group {
+    width: 100%;
+  }
+
+  .composer-title-group strong {
+    font-size: 16px;
+  }
+
+  .composer-title-group span {
+    line-height: 1.5;
+  }
+
+  .composer-collab-banner {
+    padding: 12px;
+  }
+
+  .composer-collab-actions {
+    width: 100%;
+  }
+
+  .composer-collab-chip,
+  .composer-collab-button {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .composer-collab-chip--warning {
+    white-space: normal;
+    line-height: 1.45;
+  }
+
+  .composer-tab-strip,
+  .composer-mixer-strip {
+    gap: 8px;
+  }
+
+  .composer-mixer-item {
+    padding: 8px 10px;
+  }
+
+  .composer-chord-bar {
+    padding: 12px;
+  }
+
+  .composer-main {
+    padding: 8px;
+  }
+}

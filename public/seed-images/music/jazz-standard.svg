@@ -1,0 +1,11 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#171210"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <circle cx="948" cy="196" r="146" fill="#FFD47B" fill-opacity="0.2"/>
+  <path d="M324 682C324 542 410 372 548 278C588 250 636 234 672 234C724 234 764 268 764 320C764 374 720 424 648 470C596 504 570 544 570 590C570 644 612 678 670 678C724 678 780 650 834 592L884 646C810 724 716 764 598 764C428 764 324 734 324 682Z" fill="#E8B86A"/>
+  <path d="M854 330C854 290 884 258 924 258C964 258 994 290 994 330V598C994 638 964 670 924 670C884 670 854 638 854 598V330Z" fill="#F4E0BA"/>
+  <circle cx="924" cy="702" r="58" fill="#F4E0BA"/>
+  <text x="164" y="220" fill="#FFE9BF" font-family="Georgia, serif" font-size="58">Jazz Standard</text>
+  <text x="164" y="744" fill="#FFF5DF" font-family="Georgia, serif" font-size="72">II V I LOOP</text>
+  <defs><linearGradient id="bg" x1="128" y1="90" x2="1060" y2="816"><stop stop-color="#3C2C24"/><stop offset="1" stop-color="#1A1411"/></linearGradient></defs>
+</svg>

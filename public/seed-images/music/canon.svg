@@ -1,0 +1,14 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#1A1D25"/>
+  <rect x="70" y="70" width="1060" height="760" rx="40" fill="#2D3443"/>
+  <rect x="150" y="130" width="430" height="620" rx="28" fill="#F0E2CB"/>
+  <g fill="#C6B79F">
+    <rect x="188" y="184" width="356" height="14" rx="7"/>
+    <rect x="188" y="232" width="312" height="10" rx="5"/>
+    <rect x="188" y="268" width="280" height="10" rx="5"/>
+    <rect x="188" y="304" width="328" height="10" rx="5"/>
+  </g>
+  <path d="M810 224C768 224 734 258 734 300V564C713 552 687 545 660 545C597 545 546 583 546 630C546 677 597 715 660 715C723 715 774 677 774 630V396L1008 348V504C987 492 962 486 934 486C871 486 820 524 820 571C820 618 871 656 934 656C997 656 1048 618 1048 571V224H810Z" fill="#F5CF86"/>
+  <text x="150" y="650" fill="#5D513D" font-family="Georgia, serif" font-size="62">Canon Memo</text>
+  <text x="700" y="760" fill="#FFF1D2" font-family="Georgia, serif" font-size="50">Pachelbel</text>
+</svg>

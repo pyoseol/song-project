@@ -1,0 +1,10 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#19181D"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <path d="M178 598C178 428 322 294 504 294C650 294 770 384 814 510C736 544 634 576 520 576C398 576 282 548 178 598Z" fill="#6DA0FF"/>
+  <path d="M604 610C702 520 792 470 878 470C944 470 1000 503 1038 566V748H604V610Z" fill="#FF9ABB"/>
+  <circle cx="858" cy="372" r="70" fill="#FFD47B"/>
+  <text x="160" y="706" fill="#F8FAFF" font-family="Arial, sans-serif" font-size="74" font-weight="700">STAND BY ME</text>
+  <text x="164" y="772" fill="#B3BED6" font-family="Arial, sans-serif" font-size="34">Root motion reference</text>
+  <defs><linearGradient id="bg" x1="120" y1="88" x2="1070" y2="816"><stop stop-color="#2A2E3D"/><stop offset="1" stop-color="#1A1A20"/></linearGradient></defs>
+</svg>

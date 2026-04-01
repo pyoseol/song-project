@@ -1,0 +1,10 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#141925"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <rect x="186" y="150" width="828" height="520" rx="36" fill="#101520" stroke="#425275" stroke-width="2"/>
+  <path d="M246 530L370 438L474 474L596 336L726 426L836 354L954 430V594H246V530Z" fill="#86D6FF"/>
+  <rect x="300" y="706" width="600" height="24" rx="12" fill="#4A5D81"/>
+  <text x="184" y="760" fill="#EFF4FF" font-family="Arial, sans-serif" font-size="78" font-weight="700">GAME THEME</text>
+  <text x="188" y="222" fill="#BDD0F4" font-family="Arial, sans-serif" font-size="36">Main motif progression</text>
+  <defs><linearGradient id="bg" x1="128" y1="92" x2="1062" y2="814"><stop stop-color="#27406C"/><stop offset="1" stop-color="#151A24"/></linearGradient></defs>
+</svg>

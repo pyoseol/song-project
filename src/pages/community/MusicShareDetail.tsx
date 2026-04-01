@@ -1,0 +1,334 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import SiteHeader from '../../components/layout/SiteHeader';
+import {
+  buildSharedTrackCard,
+  type MusicShareTrackCard,
+} from '../../dummy/musicShareLibrary';
+import { useAuthStore } from '../../store/authStore';
+import { useComposerLibraryStore } from '../../store/composerLibraryStore';
+import { useMusicShareStore } from '../../store/musicShareStore';
+import { useNotificationStore } from '../../store/notificationStore';
+import { useSongStore } from '../../store/songStore';
+import './MusicShareDetail.css';
+
+function formatCount(value: number) {
+  if (value >= 10000) {
+    return `${(value / 10000).toFixed(1)}만`;
+  }
+
+  return value.toLocaleString('ko-KR');
+}
+
+function formatDate(value: number) {
+  return new Date(value).toLocaleDateString('ko-KR');
+}
+
+function sanitizeFileName(value: string) {
+  const normalized = value.trim().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '-');
+  return normalized || `track-${Date.now()}`;
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+export default function MusicShareDetail() {
+  const { trackId } = useParams<{ trackId: string }>();
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const projects = useComposerLibraryStore((state) => state.projects);
+  const favoriteTrackIdsByUser = useComposerLibraryStore((state) => state.favoriteTrackIdsByUser);
+  const toggleFavoriteTrack = useComposerLibraryStore((state) => state.toggleFavoriteTrack);
+  const seedLibrary = useComposerLibraryStore((state) => state.seedLibrary);
+  const likedTrackIdsByUser = useMusicShareStore((state) => state.likedTrackIdsByUser);
+  const serverTracks = useMusicShareStore((state) => state.tracks);
+  const trackMetricsById = useMusicShareStore((state) => state.trackMetricsById);
+  const trackComments = useMusicShareStore((state) => state.comments);
+  const toggleTrackLike = useMusicShareStore((state) => state.toggleTrackLike);
+  const addTrackComment = useMusicShareStore((state) => state.addTrackComment);
+  const recordTrackView = useMusicShareStore((state) => state.recordTrackView);
+  const recordTrackDownload = useMusicShareStore((state) => state.recordTrackDownload);
+  const recordTrackOpen = useMusicShareStore((state) => state.recordTrackOpen);
+  const seedMusicShare = useMusicShareStore((state) => state.seedMusicShare);
+  const loadProject = useSongStore((state) => state.loadProject);
+  const pushNotification = useNotificationStore((state) => state.pushNotification);
+  const [commentInput, setCommentInput] = useState('');
+
+  useEffect(() => {
+    void seedLibrary().catch((error) => {
+      console.error(error);
+    });
+    void seedMusicShare().catch((error) => {
+      console.error(error);
+    });
+  }, [seedLibrary, seedMusicShare]);
+
+  const trackLibrary = useMemo(
+    () => [
+      ...projects
+        .map((project) => buildSharedTrackCard(project))
+        .filter((track): track is MusicShareTrackCard => Boolean(track)),
+      ...serverTracks,
+    ],
+    [projects, serverTracks]
+  );
+
+  const track = trackLibrary.find((item) => item.id === trackId) ?? null;
+  const metrics = track ? trackMetricsById[track.id] ?? { likeCount: 0, viewCount: 0, downloadCount: 0 } : null;
+  const comments = useMemo(
+    () =>
+      track
+        ? trackComments
+            .filter((comment) => comment.trackId === track.id)
+            .sort((left, right) => right.createdAt - left.createdAt)
+        : [],
+    [track, trackComments]
+  );
+  const liked = !!user && !!track && (likedTrackIdsByUser[user.email] ?? []).includes(track.id);
+  const saved = !!user && !!track && (favoriteTrackIdsByUser[user.email] ?? []).includes(track.id);
+
+  useEffect(() => {
+    if (!track) {
+      return;
+    }
+
+    void recordTrackView(track.id, user?.email);
+    if (user) {
+      void recordTrackOpen(track.id, user.email);
+    }
+  }, [recordTrackOpen, recordTrackView, track, user]);
+
+  if (!track || !metrics) {
+    return (
+      <div className="music-share-detail-page">
+        <SiteHeader activeSection="community" />
+        <main className="music-share-detail-shell">
+          <section className="music-share-detail-empty">
+            <strong>선택한 공유곡을 찾을 수 없습니다.</strong>
+            <button type="button" onClick={() => navigate('/community/music')}>
+              음악 공유로 돌아가기
+            </button>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
+  const handleRequireLogin = () => {
+    navigate('/login');
+  };
+
+  const handleToggleLike = async () => {
+    if (!user) {
+      handleRequireLogin();
+      return;
+    }
+
+    await toggleTrackLike(track.id, user.email);
+    pushNotification({
+      kind: 'music',
+      title: liked ? '공유곡 좋아요 취소' : '공유곡 좋아요',
+      body: `"${track.title}" 곡을 ${liked ? '좋아요에서 뺐습니다.' : '좋아요했습니다.'}`,
+      route: `/community/music/${track.id}`,
+      actorName: user.name,
+    });
+  };
+
+  const handleToggleSave = async () => {
+    if (!user) {
+      handleRequireLogin();
+      return;
+    }
+
+    await toggleFavoriteTrack(track.id, user.email);
+  };
+
+  const handleDownload = async () => {
+    await recordTrackDownload(track.id, user?.email);
+
+    if (track.projectId) {
+      const project = projects.find((item) => item.id === track.projectId);
+      if (project) {
+        downloadBlob(
+          new Blob([JSON.stringify(project.project, null, 2)], { type: 'application/json' }),
+          `${sanitizeFileName(track.title)}.json`
+        );
+      }
+    } else {
+      downloadBlob(
+        new Blob(
+          [
+            `Title: ${track.title}\n`,
+            `Progression: ${track.progression}\n`,
+            `Reference: ${track.reference}\n`,
+            `Creator: ${track.creatorName}\n`,
+          ],
+          { type: 'text/plain;charset=utf-8' }
+        ),
+        `${sanitizeFileName(track.title)}.txt`
+      );
+    }
+  };
+
+  const handleOpenComposer = () => {
+    if (track.projectId) {
+      const project = projects.find((item) => item.id === track.projectId);
+      if (project) {
+        loadProject(project.project);
+      }
+    }
+
+    navigate('/composer');
+  };
+
+  const handleCommentSubmit = async () => {
+    if (!user) {
+      handleRequireLogin();
+      return;
+    }
+
+    const content = commentInput.trim();
+    if (!content) {
+      return;
+    }
+
+    await addTrackComment({
+      trackId: track.id,
+      authorName: user.name,
+      authorEmail: user.email,
+      content,
+    });
+    setCommentInput('');
+  };
+
+  return (
+    <div className="music-share-detail-page">
+      <SiteHeader activeSection="community" />
+
+      <main className="music-share-detail-shell">
+        <section className="music-share-detail-hero" style={{ backgroundImage: track.imageUrl ? `linear-gradient(180deg, rgba(10, 12, 16, 0.08), rgba(10, 12, 16, 0.4)), url(${track.imageUrl})` : track.palette }}>
+          <div className="music-share-detail-overlay" />
+          <div className="music-share-detail-copy">
+            <span className="music-share-detail-kicker">{track.category.toUpperCase()}</span>
+            <h1>{track.title}</h1>
+            <p>{track.reference}</p>
+            <div className="music-share-detail-meta">
+              <span>{track.creatorName}</span>
+              <span>{formatDate(track.createdAt)}</span>
+              <span>{track.progression}</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="music-share-detail-layout">
+          <article className="music-share-detail-panel">
+            <div className="music-share-detail-panel-head">
+              <strong>곡 정보</strong>
+              <span>진행과 레퍼런스를 기준으로 바로 열어볼 수 있습니다.</span>
+            </div>
+
+            <div className="music-share-detail-info-grid">
+              <div className="music-share-detail-info-card">
+                <span>조회수</span>
+                <strong>{formatCount(metrics.viewCount)}</strong>
+              </div>
+              <div className="music-share-detail-info-card">
+                <span>좋아요</span>
+                <strong>{formatCount(metrics.likeCount)}</strong>
+              </div>
+              <div className="music-share-detail-info-card">
+                <span>댓글</span>
+                <strong>{formatCount(comments.length)}</strong>
+              </div>
+              <div className="music-share-detail-info-card">
+                <span>다운로드</span>
+                <strong>{formatCount(metrics.downloadCount)}</strong>
+              </div>
+            </div>
+
+            <div className="music-share-detail-tags">
+              {track.tags.map((tag) => (
+                <span key={tag}>#{tag}</span>
+              ))}
+            </div>
+
+            <div className="music-share-detail-actions">
+              <button
+                type="button"
+                className={`music-share-detail-button${liked ? ' is-active' : ''}`}
+                onClick={handleToggleLike}
+              >
+                {liked ? '좋아요 취소' : '좋아요'}
+              </button>
+              <button
+                type="button"
+                className={`music-share-detail-button${saved ? ' is-active' : ''}`}
+                onClick={handleToggleSave}
+              >
+                {saved ? '저장 해제' : '곡 저장'}
+              </button>
+              <button
+                type="button"
+                className="music-share-detail-button"
+                onClick={handleDownload}
+              >
+                다운로드
+              </button>
+              <button
+                type="button"
+                className="music-share-detail-button is-primary"
+                onClick={handleOpenComposer}
+              >
+                작곡 화면에서 열기
+              </button>
+            </div>
+          </article>
+
+          <article className="music-share-detail-panel">
+            <div className="music-share-detail-panel-head">
+              <strong>댓글</strong>
+              <span>{comments.length}개의 반응이 이어지고 있습니다.</span>
+            </div>
+
+            <div className="music-share-detail-comment-form">
+              <textarea
+                value={commentInput}
+                onChange={(event) => setCommentInput(event.target.value)}
+                placeholder="이 곡에 대한 의견을 남겨보세요"
+              />
+              <button type="button" onClick={handleCommentSubmit}>
+                댓글 등록
+              </button>
+            </div>
+
+            <div className="music-share-detail-comment-list">
+              {comments.length ? (
+                comments.map((comment) => (
+                  <article key={comment.id} className="music-share-detail-comment-card">
+                    <div className="music-share-detail-comment-meta">
+                      <strong>{comment.authorName}</strong>
+                      <span>{formatDate(comment.createdAt)}</span>
+                    </div>
+                    <p>{comment.content}</p>
+                  </article>
+                ))
+              ) : (
+                <div className="music-share-detail-comment-empty">
+                  아직 댓글이 없습니다.
+                </div>
+              )}
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+  );
+}

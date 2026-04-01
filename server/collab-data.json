@@ -1,0 +1,143 @@
+{
+  "version": 1774255555748,
+  "projects": [
+    {
+      "id": "collab-money-hook",
+      "title": "머니코드 훅 다듬기",
+      "summary": "후렴 멜로디와 베이스 움직임을 같이 다듬는 협업 세션입니다.",
+      "genre": "Pop",
+      "bpm": 124,
+      "steps": 32,
+      "status": "working",
+      "createdAt": 1773707600996,
+      "updatedAt": 1774255555748,
+      "ownerEmail": "muse@example.com",
+      "ownerName": "muse",
+      "sourceProjectId": null,
+      "members": [
+        {
+          "email": "muse@example.com",
+          "name": "muse",
+          "role": "owner",
+          "joinedAt": 1773707600996
+        },
+        {
+          "email": "groove@example.com",
+          "name": "groove",
+          "role": "editor",
+          "joinedAt": 1773794000996
+        },
+        {
+          "email": "snowflower0537@gmail.com",
+          "name": "snowflower0537",
+          "role": "editor",
+          "joinedAt": 1774226681691
+        }
+      ],
+      "tags": [
+        "hook",
+        "money-code",
+        "topline"
+      ]
+    },
+    {
+      "id": "collab-lofi-night",
+      "title": "Lo-fi 야간 세션",
+      "summary": "드럼 텍스처와 코드 패드를 더 부드럽게 만드는 피드백 단계입니다.",
+      "genre": "Lo-fi",
+      "bpm": 88,
+      "steps": 32,
+      "status": "feedback",
+      "createdAt": 1773362000996,
+      "updatedAt": 1774197200996,
+      "ownerEmail": "nightowl@example.com",
+      "ownerName": "nightowl",
+      "sourceProjectId": null,
+      "members": [
+        {
+          "email": "nightowl@example.com",
+          "name": "nightowl",
+          "role": "owner",
+          "joinedAt": 1773362000996
+        },
+        {
+          "email": "pianofox@example.com",
+          "name": "pianofox",
+          "role": "editor",
+          "joinedAt": 1773448400996
+        },
+        {
+          "email": "mixbear@example.com",
+          "name": "mixbear",
+          "role": "viewer",
+          "joinedAt": 1773621200996
+        }
+      ],
+      "tags": [
+        "lofi",
+        "mix",
+        "feedback"
+      ]
+    }
+  ],
+  "messages": [
+    {
+      "id": "collab-message-1774226681691-u0feih",
+      "projectId": "collab-money-hook",
+      "authorEmail": "snowflower0537@gmail.com",
+      "authorName": "snowflower0537",
+      "content": "협업에 참여했어요.",
+      "createdAt": 1774226681691
+    },
+    {
+      "id": "collab-message-1",
+      "projectId": "collab-money-hook",
+      "authorEmail": "muse@example.com",
+      "authorName": "muse",
+      "content": "후렴 첫 박 멜로디 길이를 조금 더 길게 늘려보면 좋겠어요.",
+      "createdAt": 1774218800996
+    },
+    {
+      "id": "collab-message-2",
+      "projectId": "collab-money-hook",
+      "authorEmail": "groove@example.com",
+      "authorName": "groove",
+      "content": "베이스는 2마디째만 한 단계 내려가게 테스트해볼게요.",
+      "createdAt": 1774221200996
+    },
+    {
+      "id": "collab-message-3",
+      "projectId": "collab-lofi-night",
+      "authorEmail": "mixbear@example.com",
+      "authorName": "mixbear",
+      "content": "킥이 조금 센 편이라 버스 컴프 전에 볼륨만 살짝 줄이면 좋겠습니다.",
+      "createdAt": 1774208000996
+    }
+  ],
+  "tasks": [
+    {
+      "id": "collab-task-1",
+      "projectId": "collab-money-hook",
+      "content": "후렴 멜로디 길이 다시 정리",
+      "completed": false,
+      "assigneeName": "muse",
+      "createdAt": 1774139600996
+    },
+    {
+      "id": "collab-task-2",
+      "projectId": "collab-money-hook",
+      "content": "베이스 루트 2안 비교",
+      "completed": true,
+      "assigneeName": "groove",
+      "createdAt": 1774139600996
+    },
+    {
+      "id": "collab-task-3",
+      "projectId": "collab-lofi-night",
+      "content": "킥 레벨 미세조정",
+      "completed": false,
+      "assigneeName": "mixbear",
+      "createdAt": 1774053200996
+    }
+  ]
+}

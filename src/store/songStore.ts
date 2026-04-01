@@ -1,55 +1,106 @@
-// src/store/songStore.ts
-import { create } from "zustand";
-
-export const MELODY_ROWS = 12;
-export const DRUM_ROWS = 4;
-export const BASS_ROWS = 12;
+import { create } from 'zustand';
+import {
+  BASS_CHORD_MAP,
+  BASS_MIGRATION_MAP,
+  BASS_NOTE_TO_ROW,
+  BASS_ROWS,
+  DRUM_ROWS,
+  LEGACY_BASS_NOTES,
+  LEGACY_EXTENDED_BASS_NOTES,
+  LEGACY_MELODY_NOTES,
+  MELODY_CHORD_MAP,
+  MELODY_NOTE_TO_ROW,
+  MELODY_ROWS,
+} from '../constants/composer.ts';
 
 const DEFAULT_STEPS = 32;
+const BAR_LENGTH = 16;
+const MAX_HISTORY_LENGTH = 40;
+const MELODY_LENGTH_PRESETS = [1, 2, 4, 8, 16] as const;
 
-// 💡 1. 화음을 찍을 위치(줄 번호) 사전
-const CHORD_MAP: Record<string, number[]> = {
-  "C": [10, 8, 7], // C4, E4, G4
-  "D": [9, 6, 5],  // D4, A4, C5
-  "E": [8, 7, 5],  // E4, G4, C5
-  "F": [10, 6, 5], // C4, A4, C5
-  "G": [9, 7, 5],  // D4, G4, C5
-  "A": [11, 10, 8] // A3, C4, E4
+export { BASS_ROWS, DRUM_ROWS, MELODY_ROWS };
+
+type LoopRange = {
+  start: number;
+  end: number;
 };
 
-// 💡 2. 메뉴판(타입): 여기에 applyChord가 적혀있으면...
+export type InstrumentKey = 'melody' | 'drums' | 'bass';
+
+export type InstrumentVolumes = Record<InstrumentKey, number>;
+
+type BarClipboard = {
+  length: number;
+  melody: boolean[][];
+  melodyLengths: number[][];
+  drums: boolean[][];
+  bass: boolean[][];
+} | null;
+
+type SongHistorySnapshot = {
+  bpm: number;
+  steps: number;
+  currentStep: number;
+  melody: boolean[][];
+  melodyLengths: number[][];
+  drums: boolean[][];
+  bass: boolean[][];
+  loopRange: LoopRange | null;
+};
+
 export type SongState = {
   bpm: number;
   steps: number;
   currentStep: number;
   isPlaying: boolean;
-
+  volumes: InstrumentVolumes;
   melody: boolean[][];
+  melodyLengths: number[][];
   drums: boolean[][];
   bass: boolean[][];
-
-  toggleMelody: (row: number, col: number) => void;
+  loopRange: LoopRange | null;
+  barClipboard: BarClipboard;
+  historyPast: SongHistorySnapshot[];
+  historyFuture: SongHistorySnapshot[];
+  canUndo: boolean;
+  canRedo: boolean;
+  toggleMelody: (row: number, col: number, length?: number) => void;
   toggleDrum: (row: number, col: number) => void;
   toggleBass: (row: number, col: number) => void;
-  
-  applyChord: (chord: string, col: number, isBass: boolean) => void; 
-
+  applyChord: (chord: string, col: number, isBass: boolean) => void;
+  copyCurrentBar: () => void;
+  pasteCurrentBar: () => void;
+  duplicateCurrentBar: () => void;
+  clearCurrentBar: () => void;
+  toggleLoopCurrentBar: () => void;
+  setLoopRange: (range: LoopRange | null) => void;
+  undo: () => void;
+  redo: () => void;
+  setInstrumentVolume: (instrument: InstrumentKey, volume: number) => void;
   setBpm: (bpm: number) => void;
   setSteps: (steps: number) => void;
   setCurrentStep: (step: number) => void;
   setPlaying: (playing: boolean) => void;
   clear: () => void;
   loadProject: (project: SongProject) => void;
+  applyRemoteProject: (project: SongProject) => void;
 };
 
 export type SongProject = {
   version: 1;
   bpm: number;
   steps: number;
+  volumes?: Partial<InstrumentVolumes>;
   melody: boolean[][];
+  melodyLengths?: number[][];
   drums: boolean[][];
   bass?: boolean[][];
 };
+
+type SongProjectSnapshotInput = Pick<
+  SongState,
+  'bpm' | 'steps' | 'volumes' | 'melody' | 'melodyLengths' | 'drums' | 'bass'
+>;
 
 function createEmptyMatrix(rows: number, cols: number): boolean[][] {
   return Array.from({ length: rows }, () =>
@@ -57,19 +108,339 @@ function createEmptyMatrix(rows: number, cols: number): boolean[][] {
   );
 }
 
+function createEmptyLengthMatrix(rows: number, cols: number): number[][] {
+  return Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => 0)
+  );
+}
+
+function cloneMatrix(matrix: boolean[][]): boolean[][] {
+  return matrix.map((row) => [...row]);
+}
+
+function cloneLengthMatrix(matrix: number[][]): number[][] {
+  return matrix.map((row) => [...row]);
+}
+
+function clampStep(step: number, steps: number) {
+  if (steps <= 0) {
+    return 0;
+  }
+
+  return Math.min(Math.max(step, 0), steps - 1);
+}
+
+function clampVolume(volume: number) {
+  return Math.min(Math.max(Math.round(volume), 0), 100);
+}
+
+function snapMelodyLength(length: number, maxLength: number) {
+  const safeMaxLength = Math.max(1, Math.floor(maxLength));
+  const safeLength = Math.max(1, Math.floor(length));
+  const allowedPresets = MELODY_LENGTH_PRESETS.filter((preset) => preset <= safeMaxLength);
+  const fallbackPreset = allowedPresets[allowedPresets.length - 1] ?? 1;
+
+  return allowedPresets.reduce((closest, preset) => {
+    const presetDistance = Math.abs(preset - safeLength);
+    const closestDistance = Math.abs(closest - safeLength);
+
+    if (presetDistance < closestDistance) {
+      return preset;
+    }
+
+    if (presetDistance === closestDistance && preset > closest) {
+      return preset;
+    }
+
+    return closest;
+  }, fallbackPreset);
+}
+
+function normalizeLoopRange(loopRange: LoopRange | null, steps: number): LoopRange | null {
+  if (!loopRange) {
+    return null;
+  }
+
+  const start = clampStep(loopRange.start, steps);
+  const end = clampStep(loopRange.end, steps);
+
+  if (end < start) {
+    return null;
+  }
+
+  return { start, end };
+}
+
+function findMelodyNoteAt(
+  melodyRow: boolean[],
+  melodyLengthRow: number[],
+  col: number
+): { start: number; length: number } | null {
+  for (let start = 0; start <= col; start += 1) {
+    if (!melodyRow[start]) {
+      continue;
+    }
+
+    const length = Math.max(1, melodyLengthRow[start] ?? 1);
+    if (col < start + length) {
+      return { start, length };
+    }
+  }
+
+  return null;
+}
+
+function clearMelodyNote(
+  melodyRow: boolean[],
+  melodyLengthRow: number[],
+  start: number
+) {
+  if (start < 0 || start >= melodyRow.length) {
+    return;
+  }
+
+  melodyRow[start] = false;
+  melodyLengthRow[start] = 0;
+}
+
+function rangesOverlap(startA: number, lengthA: number, startB: number, lengthB: number) {
+  const endA = startA + Math.max(1, lengthA);
+  const endB = startB + Math.max(1, lengthB);
+  return startA < endB && startB < endA;
+}
+
+function createHistorySnapshot(state: Pick<
+  SongState,
+  'bpm' | 'steps' | 'currentStep' | 'melody' | 'melodyLengths' | 'drums' | 'bass' | 'loopRange'
+>): SongHistorySnapshot {
+  return {
+    bpm: state.bpm,
+    steps: state.steps,
+    currentStep: state.currentStep,
+    melody: cloneMatrix(state.melody),
+    melodyLengths: cloneLengthMatrix(state.melodyLengths),
+    drums: cloneMatrix(state.drums),
+    bass: cloneMatrix(state.bass),
+    loopRange: state.loopRange ? { ...state.loopRange } : null,
+  };
+}
+
+function getCurrentBarRange(currentStep: number, steps: number) {
+  const safeStep = clampStep(currentStep, steps);
+  const start = Math.floor(safeStep / BAR_LENGTH) * BAR_LENGTH;
+  const end = Math.min(start + BAR_LENGTH - 1, steps - 1);
+
+  return {
+    start,
+    end,
+    length: end - start + 1,
+    index: Math.floor(safeStep / BAR_LENGTH),
+  };
+}
+
+function extractBar(matrix: boolean[][], start: number, length: number): boolean[][] {
+  return matrix.map((row) => row.slice(start, start + length));
+}
+
+function extractLengthBar(matrix: number[][], start: number, length: number): number[][] {
+  return matrix.map((row) => row.slice(start, start + length));
+}
+
+function pasteBar(
+  target: boolean[][],
+  source: boolean[][],
+  start: number,
+  steps: number,
+  mode: 'replace' | 'clear'
+) {
+  const next = cloneMatrix(target);
+
+  next.forEach((row, rowIndex) => {
+    for (let offset = 0; offset < BAR_LENGTH && start + offset < steps; offset += 1) {
+      if (mode === 'clear') {
+        row[start + offset] = false;
+        continue;
+      }
+
+      row[start + offset] = Boolean(source[rowIndex]?.[offset]);
+    }
+  });
+
+  return next;
+}
+
+function pasteLengthBar(target: number[][], source: number[][], start: number, steps: number) {
+  const next = cloneLengthMatrix(target);
+
+  next.forEach((row, rowIndex) => {
+    for (let offset = 0; offset < BAR_LENGTH && start + offset < steps; offset += 1) {
+      row[start + offset] = Number(source[rowIndex]?.[offset] ?? 0);
+    }
+  });
+
+  return next;
+}
+
 function normalizeMatrix(
-  input: boolean[][],
+  input: boolean[][] | undefined,
   rows: number,
   cols: number
 ): boolean[][] {
   const matrix = createEmptyMatrix(rows, cols);
-  if (!input) return matrix;
-  for (let r = 0; r < rows; r += 1) {
-    for (let c = 0; c < cols; c += 1) {
-      matrix[r][c] = Boolean(input?.[r]?.[c]);
+  if (!input) {
+    return matrix;
+  }
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      matrix[row][col] = Boolean(input[row]?.[col]);
     }
   }
+
   return matrix;
+}
+
+function normalizeMelodyMatrix(input: boolean[][] | undefined, cols: number): boolean[][] {
+  if (!input) {
+    return createEmptyMatrix(MELODY_ROWS, cols);
+  }
+
+  if (input.length === LEGACY_MELODY_NOTES.length) {
+    const matrix = createEmptyMatrix(MELODY_ROWS, cols);
+
+    LEGACY_MELODY_NOTES.forEach((note, legacyRow) => {
+      const nextRow = MELODY_NOTE_TO_ROW[note];
+      if (typeof nextRow !== 'number') {
+        return;
+      }
+
+      for (let col = 0; col < cols; col += 1) {
+        matrix[nextRow][col] = Boolean(input[legacyRow]?.[col]);
+      }
+    });
+
+    return matrix;
+  }
+
+  return normalizeMatrix(input, MELODY_ROWS, cols);
+}
+
+function normalizeMelodyLengthMatrix(
+  input: number[][] | undefined,
+  melodyInput: boolean[][] | undefined,
+  cols: number
+): number[][] {
+  const matrix = createEmptyLengthMatrix(MELODY_ROWS, cols);
+
+  if (input) {
+    for (let row = 0; row < MELODY_ROWS; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        const rawLength = Math.max(0, Math.floor(input[row]?.[col] ?? 0));
+        matrix[row][col] =
+          rawLength > 0 ? snapMelodyLength(rawLength, cols - col) : 0;
+      }
+    }
+
+    return matrix;
+  }
+
+  const normalizedMelody = normalizeMelodyMatrix(melodyInput, cols);
+  for (let row = 0; row < MELODY_ROWS; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      if (normalizedMelody[row][col]) {
+        matrix[row][col] = 1;
+      }
+    }
+  }
+
+  return matrix;
+}
+
+function normalizeBassMatrix(input: boolean[][] | undefined, cols: number): boolean[][] {
+  if (!input) {
+    return createEmptyMatrix(BASS_ROWS, cols);
+  }
+
+  if (
+    input.length === LEGACY_BASS_NOTES.length ||
+    input.length === LEGACY_EXTENDED_BASS_NOTES.length
+  ) {
+    const matrix = createEmptyMatrix(BASS_ROWS, cols);
+    const sourceNotes =
+      input.length === LEGACY_EXTENDED_BASS_NOTES.length
+        ? LEGACY_EXTENDED_BASS_NOTES
+        : LEGACY_BASS_NOTES;
+
+    sourceNotes.forEach((note, legacyRow) => {
+      const targetNote = BASS_MIGRATION_MAP[note] ?? note;
+      const nextRow = BASS_NOTE_TO_ROW[targetNote];
+      if (typeof nextRow !== 'number') {
+        return;
+      }
+
+      for (let col = 0; col < cols; col += 1) {
+        matrix[nextRow][col] =
+          matrix[nextRow][col] || Boolean(input[legacyRow]?.[col]);
+      }
+    });
+
+    return matrix;
+  }
+
+  return normalizeMatrix(input, BASS_ROWS, cols);
+}
+
+export function buildSongProjectSnapshot(state: SongProjectSnapshotInput): SongProject {
+  return {
+    version: 1,
+    bpm: state.bpm,
+    steps: state.steps,
+    volumes: {
+      melody: clampVolume(state.volumes.melody),
+      drums: clampVolume(state.volumes.drums),
+      bass: clampVolume(state.volumes.bass),
+    },
+    melody: cloneMatrix(state.melody),
+    melodyLengths: cloneLengthMatrix(state.melodyLengths),
+    drums: cloneMatrix(state.drums),
+    bass: cloneMatrix(state.bass),
+  };
+}
+
+function buildHistoryUpdate(state: SongState, nextState: Partial<SongState>) {
+  const historyPast = [...state.historyPast, createHistorySnapshot(state)].slice(
+    -MAX_HISTORY_LENGTH
+  );
+
+  return {
+    ...nextState,
+    historyPast,
+    historyFuture: [],
+    canUndo: historyPast.length > 0,
+    canRedo: false,
+  } as Partial<SongState>;
+}
+
+function restoreHistorySnapshot(
+  snapshot: SongHistorySnapshot,
+  historyPast: SongHistorySnapshot[],
+  historyFuture: SongHistorySnapshot[]
+): Partial<SongState> {
+  return {
+    bpm: snapshot.bpm,
+    steps: snapshot.steps,
+    currentStep: clampStep(snapshot.currentStep, snapshot.steps),
+    isPlaying: false,
+    melody: cloneMatrix(snapshot.melody),
+    melodyLengths: cloneLengthMatrix(snapshot.melodyLengths),
+    drums: cloneMatrix(snapshot.drums),
+    bass: cloneMatrix(snapshot.bass),
+    loopRange: snapshot.loopRange ? { ...snapshot.loopRange } : null,
+    historyPast,
+    historyFuture,
+    canUndo: historyPast.length > 0,
+    canRedo: historyFuture.length > 0,
+  };
 }
 
 export const useSongStore = create<SongState>((set, get) => ({
@@ -77,96 +448,385 @@ export const useSongStore = create<SongState>((set, get) => ({
   steps: DEFAULT_STEPS,
   currentStep: 0,
   isPlaying: false,
-
+  volumes: {
+    melody: 82,
+    drums: 78,
+    bass: 84,
+  },
   melody: createEmptyMatrix(MELODY_ROWS, DEFAULT_STEPS),
+  melodyLengths: createEmptyLengthMatrix(MELODY_ROWS, DEFAULT_STEPS),
   drums: createEmptyMatrix(DRUM_ROWS, DEFAULT_STEPS),
   bass: createEmptyMatrix(BASS_ROWS, DEFAULT_STEPS),
+  loopRange: null,
+  barClipboard: null,
+  historyPast: [],
+  historyFuture: [],
+  canUndo: false,
+  canRedo: false,
 
-  toggleMelody: (row, col) =>
+  toggleMelody: (row, col, length = 1) =>
     set((state) => {
-      const next = state.melody.map((r) => [...r]);
-      next[row][col] = !next[row][col];
-      return { melody: next };
+      const melody = cloneMatrix(state.melody);
+      const melodyLengths = cloneLengthMatrix(state.melodyLengths);
+      const existingNote = findMelodyNoteAt(melody[row] ?? [], melodyLengths[row] ?? [], col);
+      const requestedLength = Math.floor(length);
+
+      if (requestedLength <= 0) {
+        if (!existingNote) {
+          return {};
+        }
+
+        clearMelodyNote(melody[row], melodyLengths[row], existingNote.start);
+        return buildHistoryUpdate(state, { melody, melodyLengths });
+      }
+
+      const nextLength = snapMelodyLength(requestedLength, state.steps - col);
+
+      if (existingNote) {
+        if (existingNote.start === col && existingNote.length === nextLength) {
+          return {};
+        }
+
+        clearMelodyNote(melody[row], melodyLengths[row], existingNote.start);
+      }
+
+      for (let start = 0; start < state.steps; start += 1) {
+        if (!melody[row]?.[start]) {
+          continue;
+        }
+
+        const noteLength = melodyLengths[row]?.[start] ?? 1;
+        if (rangesOverlap(start, noteLength, col, nextLength)) {
+          clearMelodyNote(melody[row], melodyLengths[row], start);
+        }
+      }
+
+      melody[row][col] = true;
+      melodyLengths[row][col] = nextLength;
+
+      return buildHistoryUpdate(state, { melody, melodyLengths });
     }),
 
   toggleDrum: (row, col) =>
     set((state) => {
-      const next = state.drums.map((r) => [...r]);
-      next[row][col] = !next[row][col];
-      return { drums: next };
+      const drums = cloneMatrix(state.drums);
+      drums[row][col] = !drums[row][col];
+
+      return buildHistoryUpdate(state, { drums });
     }),
 
   toggleBass: (row, col) =>
     set((state) => {
-      const next = state.bass.map((r) => [...r]);
-      next[row][col] = !next[row][col];
-      return { bass: next };
+      const bass = cloneMatrix(state.bass);
+      bass[row][col] = !bass[row][col];
+
+      return buildHistoryUpdate(state, { bass });
     }),
 
-  // 💡 3. 주방(구현부): 무조건 여기에 실제 작동하는 함수가 있어야 에러가 안 납니다!
   applyChord: (chord, col, isBass) =>
     set((state) => {
-      const gridKey = isBass ? "bass" : "melody";
-      const nextGrid = state[gridKey].map((r) => [...r]);
-      const rowsToActive = CHORD_MAP[chord] || [];
+      const gridKey = isBass ? 'bass' : 'melody';
+      const nextGrid = cloneMatrix(state[gridKey]);
+      const nextMelodyLengths = cloneLengthMatrix(state.melodyLengths);
+      const rowsToActivate = (isBass ? BASS_CHORD_MAP : MELODY_CHORD_MAP)[chord] ?? [];
 
-      // 해당 열(col)의 기존 음표를 먼저 싹 지우기
-      for (let r = 0; r < nextGrid.length; r++) {
-        nextGrid[r][col] = false;
-      }
+      rowsToActivate.forEach((row) => {
+        if (row >= 0 && row < nextGrid.length && col >= 0 && col < state.steps) {
+          if (!isBass) {
+            const existingNote = findMelodyNoteAt(
+              nextGrid[row] ?? [],
+              nextMelodyLengths[row] ?? [],
+              col
+            );
+            if (existingNote) {
+              clearMelodyNote(nextGrid[row], nextMelodyLengths[row], existingNote.start);
+            }
+          }
 
-      // 화음에 해당하는 줄(row)만 켜기
-      rowsToActive.forEach((r) => {
-        if (r >= 0 && r < nextGrid.length) {
-          nextGrid[r][col] = true;
+          nextGrid[row][col] = true;
+          if (!isBass) {
+            nextMelodyLengths[row][col] = 1;
+          }
         }
       });
 
-      return { [gridKey]: nextGrid } as Partial<SongState>;
+      return buildHistoryUpdate(state, {
+        [gridKey]: nextGrid,
+        ...(!isBass ? { melodyLengths: nextMelodyLengths } : {}),
+      } as Partial<SongState>);
     }),
 
-  setBpm: (bpm) => set({ bpm }),
+  copyCurrentBar: () => {
+    const state = get();
+    const range = getCurrentBarRange(state.currentStep, state.steps);
 
-  setSteps: (steps) => {
-    const bpm = get().bpm;
     set({
-      steps,
-      currentStep: 0,
-      bpm,
-      melody: createEmptyMatrix(MELODY_ROWS, steps),
-      drums: createEmptyMatrix(DRUM_ROWS, steps),
-      bass: createEmptyMatrix(BASS_ROWS, steps),
+      barClipboard: {
+        length: range.length,
+        melody: extractBar(state.melody, range.start, range.length),
+        melodyLengths: extractLengthBar(state.melodyLengths, range.start, range.length),
+        drums: extractBar(state.drums, range.start, range.length),
+        bass: extractBar(state.bass, range.start, range.length),
+      },
     });
   },
 
-  setCurrentStep: (step) => set({ currentStep: step }),
+  pasteCurrentBar: () =>
+    set((state) => {
+      if (!state.barClipboard) {
+        return {};
+      }
+
+      const range = getCurrentBarRange(state.currentStep, state.steps);
+
+      return buildHistoryUpdate(state, {
+        melody: pasteBar(
+          state.melody,
+          state.barClipboard.melody,
+          range.start,
+          state.steps,
+          'replace'
+        ),
+        melodyLengths: pasteLengthBar(
+          state.melodyLengths,
+          state.barClipboard.melodyLengths,
+          range.start,
+          state.steps
+        ),
+        drums: pasteBar(
+          state.drums,
+          state.barClipboard.drums,
+          range.start,
+          state.steps,
+          'replace'
+        ),
+        bass: pasteBar(
+          state.bass,
+          state.barClipboard.bass,
+          range.start,
+          state.steps,
+          'replace'
+        ),
+      });
+    }),
+
+  duplicateCurrentBar: () =>
+    set((state) => {
+      const range = getCurrentBarRange(state.currentStep, state.steps);
+      const nextStart = range.start + BAR_LENGTH;
+
+      if (nextStart >= state.steps) {
+        return {};
+      }
+
+      return buildHistoryUpdate(state, {
+        melody: pasteBar(
+          state.melody,
+          extractBar(state.melody, range.start, range.length),
+          nextStart,
+          state.steps,
+          'replace'
+        ),
+        melodyLengths: pasteLengthBar(
+          state.melodyLengths,
+          extractLengthBar(state.melodyLengths, range.start, range.length),
+          nextStart,
+          state.steps
+        ),
+        drums: pasteBar(
+          state.drums,
+          extractBar(state.drums, range.start, range.length),
+          nextStart,
+          state.steps,
+          'replace'
+        ),
+        bass: pasteBar(
+          state.bass,
+          extractBar(state.bass, range.start, range.length),
+          nextStart,
+          state.steps,
+          'replace'
+        ),
+        currentStep: nextStart,
+      });
+    }),
+
+  clearCurrentBar: () =>
+    set((state) => {
+      const range = getCurrentBarRange(state.currentStep, state.steps);
+
+      return buildHistoryUpdate(state, {
+        melody: pasteBar(state.melody, [], range.start, state.steps, 'clear'),
+        melodyLengths: pasteLengthBar(
+          state.melodyLengths,
+          createEmptyLengthMatrix(MELODY_ROWS, BAR_LENGTH),
+          range.start,
+          state.steps
+        ),
+        drums: pasteBar(state.drums, [], range.start, state.steps, 'clear'),
+        bass: pasteBar(state.bass, [], range.start, state.steps, 'clear'),
+      });
+    }),
+
+  toggleLoopCurrentBar: () =>
+    set((state) => {
+      const range = getCurrentBarRange(state.currentStep, state.steps);
+      const sameLoop =
+        state.loopRange?.start === range.start && state.loopRange?.end === range.end;
+
+      return {
+        loopRange: sameLoop ? null : { start: range.start, end: range.end },
+        currentStep: sameLoop ? state.currentStep : range.start,
+      };
+    }),
+
+  setLoopRange: (range) =>
+    set((state) => {
+      const nextLoopRange = normalizeLoopRange(range, state.steps);
+
+      return {
+        loopRange: nextLoopRange,
+        currentStep: nextLoopRange ? nextLoopRange.start : clampStep(state.currentStep, state.steps),
+      };
+    }),
+
+  undo: () =>
+    set((state) => {
+      if (!state.historyPast.length) {
+        return {};
+      }
+
+      const previous = state.historyPast[state.historyPast.length - 1];
+      const nextFuture = [createHistorySnapshot(state), ...state.historyFuture].slice(
+        0,
+        MAX_HISTORY_LENGTH
+      );
+
+      return restoreHistorySnapshot(
+        previous,
+        state.historyPast.slice(0, -1),
+        nextFuture
+      );
+    }),
+
+  redo: () =>
+    set((state) => {
+      if (!state.historyFuture.length) {
+        return {};
+      }
+
+      const next = state.historyFuture[0];
+      const nextPast = [...state.historyPast, createHistorySnapshot(state)].slice(
+        -MAX_HISTORY_LENGTH
+      );
+
+      return restoreHistorySnapshot(next, nextPast, state.historyFuture.slice(1));
+    }),
+
+  setInstrumentVolume: (instrument, volume) =>
+    set((state) => ({
+      volumes: {
+        ...state.volumes,
+        [instrument]: clampVolume(volume),
+      },
+    })),
+
+  setBpm: (bpm) =>
+    set((state) => {
+      if (state.bpm === bpm) {
+        return {};
+      }
+
+      return buildHistoryUpdate(state, { bpm });
+    }),
+
+  setSteps: (steps) =>
+    set((state) => {
+      if (state.steps === steps) {
+        return {};
+      }
+
+      return buildHistoryUpdate(state, {
+        steps,
+        currentStep: 0,
+        melody: createEmptyMatrix(MELODY_ROWS, steps),
+        melodyLengths: createEmptyLengthMatrix(MELODY_ROWS, steps),
+        drums: createEmptyMatrix(DRUM_ROWS, steps),
+        bass: createEmptyMatrix(BASS_ROWS, steps),
+        loopRange: null,
+      });
+    }),
+
+  setCurrentStep: (step) =>
+    set((state) => ({
+      currentStep: clampStep(step, state.steps),
+    })),
 
   setPlaying: (playing) => set({ isPlaying: playing }),
 
-  clear: () => {
-    const steps = get().steps;
-    set({
-      currentStep: 0,
-      melody: createEmptyMatrix(MELODY_ROWS, steps),
-      drums: createEmptyMatrix(DRUM_ROWS, steps),
-      bass: createEmptyMatrix(BASS_ROWS, steps),
-    });
-  },
+  clear: () =>
+    set((state) =>
+      buildHistoryUpdate(state, {
+        currentStep: 0,
+        melody: createEmptyMatrix(MELODY_ROWS, state.steps),
+        melodyLengths: createEmptyLengthMatrix(MELODY_ROWS, state.steps),
+        drums: createEmptyMatrix(DRUM_ROWS, state.steps),
+        bass: createEmptyMatrix(BASS_ROWS, state.steps),
+      })
+    ),
 
   loadProject: (project) => {
     const steps =
-      typeof project.steps === "number" && project.steps > 0
+      typeof project.steps === 'number' && project.steps > 0
         ? project.steps
         : DEFAULT_STEPS;
-    const bpm = typeof project.bpm === "number" && project.bpm > 0 ? project.bpm : 100;
-    set({
+    const bpm = typeof project.bpm === 'number' && project.bpm > 0 ? project.bpm : 100;
+
+    set((state) =>
+      buildHistoryUpdate(state, {
+        bpm,
+        steps,
+        currentStep: 0,
+        isPlaying: false,
+        volumes: {
+          melody: clampVolume(project.volumes?.melody ?? 82),
+          drums: clampVolume(project.volumes?.drums ?? 78),
+          bass: clampVolume(project.volumes?.bass ?? 84),
+        },
+        melody: normalizeMelodyMatrix(project.melody, steps),
+        melodyLengths: normalizeMelodyLengthMatrix(project.melodyLengths, project.melody, steps),
+        drums: normalizeMatrix(project.drums, DRUM_ROWS, steps),
+        bass: normalizeBassMatrix(project.bass, steps),
+        loopRange: normalizeLoopRange(null, steps),
+      })
+    );
+  },
+
+  applyRemoteProject: (project) => {
+    const steps =
+      typeof project.steps === 'number' && project.steps > 0
+        ? project.steps
+        : DEFAULT_STEPS;
+    const bpm = typeof project.bpm === 'number' && project.bpm > 0 ? project.bpm : 100;
+
+    set((state) => ({
       bpm,
       steps,
-      currentStep: 0,
-      isPlaying: false,
-      melody: normalizeMatrix(project.melody, MELODY_ROWS, steps),
+      currentStep: clampStep(state.currentStep, steps),
+      volumes: {
+        melody: clampVolume(project.volumes?.melody ?? 82),
+        drums: clampVolume(project.volumes?.drums ?? 78),
+        bass: clampVolume(project.volumes?.bass ?? 84),
+      },
+      melody: normalizeMelodyMatrix(project.melody, steps),
+      melodyLengths: normalizeMelodyLengthMatrix(project.melodyLengths, project.melody, steps),
       drums: normalizeMatrix(project.drums, DRUM_ROWS, steps),
-      bass: normalizeMatrix(project.bass || [], BASS_ROWS, steps),
-    });
+      bass: normalizeBassMatrix(project.bass, steps),
+      loopRange: normalizeLoopRange(state.loopRange, steps),
+      historyPast: [],
+      historyFuture: [],
+      canUndo: false,
+      canRedo: false,
+    }));
   },
 }));

@@ -1,0 +1,240 @@
+.notification-bell {
+  position: relative;
+}
+
+.notification-bell-trigger {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #f5f7fa;
+  cursor: pointer;
+}
+
+.notification-bell-trigger.is-open {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.notification-bell-icon {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  width: 12px;
+  height: 14px;
+  border: 1.8px solid currentColor;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom: 0;
+}
+
+.notification-bell-icon::before,
+.notification-bell-icon::after {
+  position: absolute;
+  content: '';
+}
+
+.notification-bell-icon::before {
+  left: -2px;
+  right: -2px;
+  bottom: -4px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.notification-bell-icon::after {
+  left: 50%;
+  bottom: -8px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translateX(-50%);
+}
+
+.notification-bell-badge {
+  position: absolute;
+  top: -4px;
+  right: -3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #79ff43;
+  color: #10150a;
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-bell-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(380px, calc(100vw - 24px));
+  max-height: 460px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(17, 18, 22, 0.98);
+  box-shadow: 0 22px 40px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  z-index: 70;
+}
+
+.notification-bell-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 8px 10px;
+}
+
+.notification-bell-head strong {
+  display: block;
+  color: #f7f9fb;
+  font-size: 15px;
+}
+
+.notification-bell-head small {
+  display: block;
+  margin-top: 4px;
+  color: #8d96a7;
+  font-size: 11px;
+}
+
+.notification-bell-head button {
+  border: 0;
+  background: transparent;
+  color: #9aa4b7;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.notification-bell-filters {
+  display: flex;
+  gap: 8px;
+  padding: 0 6px 10px;
+  overflow-x: auto;
+}
+
+.notification-bell-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.notification-bell-filter {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #adb7c9;
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.notification-bell-filter.is-active {
+  background: rgba(121, 255, 67, 0.14);
+  border-color: rgba(121, 255, 67, 0.22);
+  color: #f5fff0;
+}
+
+.notification-bell-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 344px;
+  overflow-y: auto;
+}
+
+.notification-bell-item {
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notification-bell-item.is-unread {
+  background: rgba(121, 255, 67, 0.08);
+}
+
+.notification-bell-kind {
+  display: inline-flex;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.notification-bell-kind.is-community {
+  background: rgba(110, 138, 255, 0.16);
+  color: #c6d6ff;
+}
+
+.notification-bell-kind.is-shorts {
+  background: rgba(121, 255, 67, 0.14);
+  color: #cfffbb;
+}
+
+.notification-bell-kind.is-music {
+  background: rgba(56, 189, 248, 0.16);
+  color: #d1f3ff;
+}
+
+.notification-bell-item strong {
+  display: block;
+  color: #f5f7fa;
+  font-size: 13px;
+}
+
+.notification-bell-item p {
+  margin: 6px 0 0;
+  color: #b8c0d1;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.notification-bell-actor {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #dfe5f0;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.notification-bell-item small,
+.notification-bell-empty {
+  display: block;
+  margin-top: 8px;
+  color: #8d96a7;
+  font-size: 11px;
+}
+
+.notification-bell-empty {
+  margin-top: 0;
+  padding: 18px 10px;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .notification-bell-panel {
+    right: -64px;
+    width: min(360px, calc(100vw - 20px));
+  }
+}

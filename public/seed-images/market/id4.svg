@@ -1,0 +1,11 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#17181D"/>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <rect x="238" y="254" width="724" height="384" rx="40" fill="#222835"/>
+  <circle cx="444" cy="446" r="92" fill="#11161E"/><circle cx="444" cy="446" r="70" stroke="#D7DEE8" stroke-width="10"/>
+  <rect x="646" y="364" width="182" height="36" rx="18" fill="#9BC2FF"/>
+  <rect x="646" y="426" width="120" height="24" rx="12" fill="#CBD4E1"/>
+  <rect x="646" y="474" width="146" height="24" rx="12" fill="#CBD4E1"/>
+  <text x="240" y="198" fill="#EEF3FF" font-family="Arial, sans-serif" font-size="72" font-weight="700">AUDIENT iD4</text>
+  <defs><linearGradient id="bg" x1="126" y1="92" x2="1060" y2="816"><stop stop-color="#334054"/><stop offset="1" stop-color="#171A20"/></linearGradient></defs>
+</svg>

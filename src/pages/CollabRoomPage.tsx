@@ -54,6 +54,7 @@ export default function CollabRoomPage() {
   const composerProjects = useComposerLibraryStore((state) => state.projects);
   const seedLibrary = useComposerLibraryStore((state) => state.seedLibrary);
   const loadProject = useSongStore((state) => state.loadProject);
+  const deleteProject = useCollabStore((state) => state.deleteProject);
 
   const [messageDraft, setMessageDraft] = useState('');
   const [taskDraft, setTaskDraft] = useState('');
@@ -91,6 +92,8 @@ export default function CollabRoomPage() {
         .sort((left, right) => Number(left.completed) - Number(right.completed)),
     [tasks, projectId]
   );
+
+  const isOwner = user?.email === project?.ownerEmail;
 
   const isMember = user
     ? project?.members.some((member) => member.email === user.email) ?? false
@@ -193,6 +196,21 @@ export default function CollabRoomPage() {
 
     loadProject(snapshot);
     navigate(`/composer?collab=${project.id}`);
+  };
+
+  const handleDelete = async () => {
+    if (!user || !isOwner) return; // 방장인지 한 번 더 체크
+
+    if (window.confirm('정말 이 협업 프로젝트를 삭제하시겠습니까?\n삭제 후에는 복구할 수 없습니다.')) {
+      try {
+        await deleteProject(project.id);
+        alert('프로젝트가 삭제되었습니다.');
+        navigate('/collab'); // 삭제 후 목록 페이지로 이동
+      } catch (error) {
+        console.error('프로젝트 삭제 실패:', error);
+        alert('프로젝트 삭제 중 오류가 발생했습니다.');
+      }
+    }
   };
 
   const handleSendMessage = async () => {
@@ -465,6 +483,17 @@ export default function CollabRoomPage() {
                 >
                   협업 목록으로
                 </button>
+
+                {isOwner ? (
+                  <button
+                    type="button"
+                    className="collab-secondary-button is-danger"
+                    style={{ color: '#ff4d4f', borderColor: '#ff4d4f' }} // 빨간색으로 위험(Danger) 표시
+                    onClick={handleDelete}
+                  >
+                    프로젝트 삭제
+                  </button>
+                ) : null}
               </div>
             </article>
           </aside>

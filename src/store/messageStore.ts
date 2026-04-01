@@ -2,43 +2,28 @@ import { create } from 'zustand';
 import { useFriendStore } from './friendStore';
 import {
   addFriendOnServer,
-  createMessagesEventSource,
   createDirectThreadOnServer,
   createGroupThreadOnServer,
   fetchMessagesBootstrap,
   markThreadReadOnServer,
   removeFriendOnServer,
   sendThreadMessageOnServer,
+  subscribeToMessagesRealtime, // ★ 변경됨
   type MessageSnapshot,
-} from '../utils/messagesApi';
+} from '../utils/messagesApi'; 
 
-export type MessageMember = {
-  name: string;
-  email: string;
-};
-
+export type MessageMember = { name: string; email: string; };
 export type MessageThreadType = 'direct' | 'group';
 
 export type MessageThread = {
-  id: string;
-  ownerEmail: string;
-  type: MessageThreadType;
-  title: string;
-  participantName?: string;
-  participantEmail?: string;
-  members: MessageMember[];
-  lastMessageAt: number;
-  lastPreview: string;
+  id: string; ownerEmail: string; type: MessageThreadType; title: string;
+  participantName?: string; participantEmail?: string; members: MessageMember[];
+  lastMessageAt: number; lastPreview: string; readBy?: string[];
 };
 
 export type DirectMessage = {
-  id: string;
-  threadId: string;
-  authorName: string;
-  authorEmail: string;
-  content: string;
-  createdAt: number;
-  isRead: boolean;
+  id: string; threadId: string; authorName: string; authorEmail: string;
+  content: string; createdAt: number; isRead: boolean;
 };
 
 type MessageStoreState = {
@@ -47,215 +32,84 @@ type MessageStoreState = {
   inboxStatus: 'idle' | 'loading' | 'ready' | 'error';
   inboxError: string | null;
   seedInbox: (payload: { ownerEmail: string; ownerName: string }) => Promise<void>;
-  addFriend: (payload: {
-    ownerEmail: string;
-    ownerName: string;
-    friendName: string;
-    friendEmail: string;
-  }) => Promise<void>;
-  removeFriend: (payload: {
-    ownerEmail: string;
-    ownerName: string;
-    friendEmail: string;
-  }) => Promise<void>;
-  createThread: (payload: {
-    ownerEmail: string;
-    participantName: string;
-    participantEmail: string;
-    openingMessage?: string;
-    ownerName: string;
-  }) => Promise<string>;
-  createGroupThread: (payload: {
-    ownerEmail: string;
-    ownerName: string;
-    title: string;
-    members: MessageMember[];
-    openingMessage?: string;
-  }) => Promise<string>;
-  sendMessage: (payload: {
-    threadId: string;
-    authorName: string;
-    authorEmail: string;
-    content: string;
-  }) => Promise<void>;
-  markThreadRead: (payload: { threadId: string; readerEmail: string }) => Promise<void>;
+  addFriend: (payload: { ownerEmail: string; ownerName: string; friendName: string; friendEmail: string; }) => Promise<void>;
+  removeFriend: (payload: { ownerEmail: string; ownerName: string; friendEmail: string; }) => Promise<void>;
+  createDirectThread: (payload: { ownerEmail: string; ownerName: string; participantName: string; participantEmail: string; openingMessage?: string; }) => Promise<string>;
+  createGroupThread: (payload: { ownerEmail: string; ownerName: string; title: string; members: MessageMember[]; openingMessage?: string; }) => Promise<string>;
+  sendMessage: (payload: { threadId: string; authorName: string; authorEmail: string; content: string; }) => Promise<void>;
+  markThreadRead: (payload: { threadId: string; readerEmail: string; }) => Promise<void>;
 };
 
-function applySnapshot(ownerEmail: string, snapshot: MessageSnapshot) {
-  useFriendStore.getState().replaceFriends(ownerEmail, snapshot.friends);
+let messagesUnsubscribe: (() => void) | null = null; // ★ 파이어베이스 구독 해제용 변수
 
+function applySnapshot(ownerEmail: string, snapshot: MessageSnapshot) {
+  useFriendStore.getState().replaceFriends(ownerEmail, snapshot.friends ?? []);
   useMessageStore.setState((state) => ({
     ...state,
-    threads: snapshot.threads,
-    messagesByThread: snapshot.messagesByThread,
+    threads: snapshot.threads ?? [],
+    messagesByThread: snapshot.messagesByThread ?? {},
     inboxStatus: 'ready',
     inboxError: null,
   }));
 }
-
-function setStoreError(message: string) {
-  useMessageStore.setState((state) => ({
-    ...state,
-    inboxStatus: 'error',
-    inboxError: message,
-  }));
-}
-
-let messagesEventSource: EventSource | null = null;
-let subscribedOwnerEmail = '';
 
 export const useMessageStore = create<MessageStoreState>((set) => ({
   threads: [],
   messagesByThread: {},
   inboxStatus: 'idle',
   inboxError: null,
-  seedInbox: async ({ ownerEmail, ownerName }) => {
-    const normalizedEmail = ownerEmail.trim().toLowerCase();
-    if (!normalizedEmail) {
-      return;
-    }
 
-    set((state) => ({
-      ...state,
-      inboxStatus: 'loading',
-      inboxError: null,
-    }));
-
+  seedInbox: async (payload) => {
+    set({ inboxStatus: 'loading', inboxError: null });
     try {
-      const snapshot = await fetchMessagesBootstrap({
-        ownerEmail: normalizedEmail,
-        ownerName,
+      // 1. 초기 데이터 1회 불러오기
+      const snapshot = await fetchMessagesBootstrap(payload);
+      applySnapshot(payload.ownerEmail, snapshot);
+
+      // 2. 파이어베이스 실시간 리스너 켜기 (카톡처럼 실시간 동기화)
+      if (messagesUnsubscribe) messagesUnsubscribe();
+      messagesUnsubscribe = subscribeToMessagesRealtime(payload.ownerEmail, (newSnapshot) => {
+        applySnapshot(payload.ownerEmail, newSnapshot);
       });
-      applySnapshot(normalizedEmail, snapshot);
-
-      if (subscribedOwnerEmail !== normalizedEmail) {
-        messagesEventSource?.close();
-        messagesEventSource = createMessagesEventSource(normalizedEmail);
-        subscribedOwnerEmail = normalizedEmail;
-
-        messagesEventSource.addEventListener('snapshot', (event) => {
-          const message = event as MessageEvent<string>;
-          const nextSnapshot = JSON.parse(message.data) as MessageSnapshot;
-          applySnapshot(normalizedEmail, nextSnapshot);
-        });
-
-        messagesEventSource.onerror = () => {
-          setStoreError('메시지 실시간 연결이 잠시 끊겼습니다.');
-        };
-      }
     } catch (error) {
-      const message = error instanceof Error ? error.message : '메시지를 불러오지 못했습니다.';
-      setStoreError(message);
-      throw error;
+      set({ inboxStatus: 'error', inboxError: '메시지 데이터를 불러오지 못했습니다.' });
     }
   },
-  addFriend: async ({ ownerEmail, ownerName, friendName, friendEmail }) => {
-    const normalizedEmail = ownerEmail.trim().toLowerCase();
 
-    try {
-      const response = await addFriendOnServer({
-        ownerEmail: normalizedEmail,
-        ownerName,
-        friendName,
-        friendEmail,
-      });
-      applySnapshot(normalizedEmail, response.snapshot);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '친구를 추가하지 못했습니다.';
-      setStoreError(message);
-      throw error;
-    }
+  addFriend: async (payload) => {
+    const response = await addFriendOnServer(payload);
+    applySnapshot(payload.ownerEmail, response.snapshot);
   },
-  removeFriend: async ({ ownerEmail, ownerName, friendEmail }) => {
-    const normalizedEmail = ownerEmail.trim().toLowerCase();
+  
+  removeFriend: async (payload) => {
+    const response = await removeFriendOnServer(payload);
+    applySnapshot(payload.ownerEmail, response.snapshot);
+  },
 
-    try {
-      const response = await removeFriendOnServer({
-        ownerEmail: normalizedEmail,
-        ownerName,
-        friendEmail,
-      });
-      applySnapshot(normalizedEmail, response.snapshot);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '친구를 삭제하지 못했습니다.';
-      setStoreError(message);
-      throw error;
-    }
+  createDirectThread: async (payload) => {
+    const response = await createDirectThreadOnServer(payload);
+    applySnapshot(payload.ownerEmail, response.snapshot);
+    return response.threadId;
   },
-  createThread: async ({
-    ownerEmail,
-    ownerName,
-    participantName,
-    participantEmail,
-    openingMessage,
-  }) => {
-    const normalizedEmail = ownerEmail.trim().toLowerCase();
 
-    try {
-      const response = await createDirectThreadOnServer({
-        ownerEmail: normalizedEmail,
-        ownerName,
-        participantName,
-        participantEmail,
-        openingMessage,
-      });
-      applySnapshot(normalizedEmail, response.snapshot);
-      return response.threadId;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '대화방을 만들지 못했습니다.';
-      setStoreError(message);
-      throw error;
-    }
+  createGroupThread: async (payload) => {
+    const response = await createGroupThreadOnServer(payload);
+    applySnapshot(payload.ownerEmail, response.snapshot);
+    return response.threadId;
   },
-  createGroupThread: async ({ ownerEmail, ownerName, title, members, openingMessage }) => {
-    const normalizedEmail = ownerEmail.trim().toLowerCase();
 
-    try {
-      const response = await createGroupThreadOnServer({
-        ownerEmail: normalizedEmail,
-        ownerName,
-        title,
-        members,
-        openingMessage,
-      });
-      applySnapshot(normalizedEmail, response.snapshot);
-      return response.threadId;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '그룹 채팅을 만들지 못했습니다.';
-      setStoreError(message);
-      throw error;
-    }
+  sendMessage: async (payload) => {
+    const response = await sendThreadMessageOnServer({
+      ownerEmail: payload.authorEmail,
+      threadId: payload.threadId,
+      authorName: payload.authorName,
+      content: payload.content
+    });
+    applySnapshot(payload.authorEmail, response.snapshot);
   },
-  sendMessage: async ({ threadId, authorName, authorEmail, content }) => {
-    const normalizedEmail = authorEmail.trim().toLowerCase();
 
-    try {
-      const response = await sendThreadMessageOnServer({
-        ownerEmail: normalizedEmail,
-        threadId,
-        authorName,
-        content,
-      });
-      applySnapshot(normalizedEmail, response.snapshot);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '메시지를 보내지 못했습니다.';
-      setStoreError(message);
-      throw error;
-    }
-  },
-  markThreadRead: async ({ threadId, readerEmail }) => {
-    const normalizedEmail = readerEmail.trim().toLowerCase();
-
-    try {
-      const response = await markThreadReadOnServer({
-        threadId,
-        readerEmail: normalizedEmail,
-      });
-      applySnapshot(normalizedEmail, response.snapshot);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '읽음 상태를 저장하지 못했습니다.';
-      setStoreError(message);
-      throw error;
-    }
-  },
+  markThreadRead: async (payload) => {
+    const response = await markThreadReadOnServer(payload);
+    applySnapshot(payload.readerEmail, response.snapshot);
+  }
 }));

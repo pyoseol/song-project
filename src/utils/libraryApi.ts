@@ -61,8 +61,14 @@ function sanitizeForFirestore(data: any): any {
 }
 
 // 꺼낼 때: 포장된 문자열을 발견하면 원래의 2차원 배열로 완벽하게 복구합니다.
+// 꺼낼 때: 포장된 문자열을 발견하면 원래의 2차원 배열로 완벽하게 복구합니다.
 function restoreFromFirestore(data: any): any {
-  if (data !== null && typeof data === 'object') {
+  // ★ 수정됨: 배열(Array)인지 가장 먼저 확인해야 합니다!
+  if (Array.isArray(data)) {
+    return data.map(restoreFromFirestore);
+  } 
+  // 그 다음 일반 객체(Object)인지 확인합니다.
+  else if (data !== null && typeof data === 'object') {
     if (data._isSerializedArray) {
       try {
         return JSON.parse(data.data);
@@ -75,8 +81,6 @@ function restoreFromFirestore(data: any): any {
       res[key] = restoreFromFirestore(data[key]);
     }
     return res;
-  } else if (Array.isArray(data)) {
-    return data.map(restoreFromFirestore);
   }
   return data;
 }

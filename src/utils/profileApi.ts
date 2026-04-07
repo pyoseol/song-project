@@ -1,7 +1,7 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
-import { db, auth } from '../firebase'; // ★ 주의: 실제 firebase.ts 경로에 맞게 수정하세요!
-
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'; 
+import { db, auth } from '../firebase';
 export type ServerProfile = {
   id: string;
   email: string;
@@ -59,16 +59,50 @@ export async function updateUserProfileOnServer(payload: { email: string; name: 
 // ============================================================================
 // 🔥 3. 유저 프로필 이미지 변경하기
 // ============================================================================
-export async function updateUserAvatarOnServer(payload: { email: string; avatarUrl: string | null }) {
+export async function updateUserAvatarOnServer(payload: { 
+  email: string; 
+  file?: File; 
+  avatarUrl?: string | null 
+}) {
+  const storage = getStorage();
   const userDocRef = doc(db, 'users', payload.email);
-  const safeAvatarUrl = payload.avatarUrl || undefined;
+  
+  // --- [1단계] 기존 이미지 정보 가져오기 ---
+  const userSnap = await getDoc(userDocRef);
+  const currentData = userSnap.data() as ServerProfile | undefined;
+  const oldAvatarUrl = currentData?.avatarUrl;
 
-  // 1) Firestore 데이터베이스 업데이트
-  await setDoc(userDocRef, { avatarUrl: safeAvatarUrl }, { merge: true });
+  let finalAvatarUrl: string | null = payload.avatarUrl ?? null;
 
-  // 2) Firebase Auth (인증 시스템) 내부 프로필도 동기화
+  // --- [2단계] 새로운 파일이 있거나, 아예 삭제(null)하는 경우 기존 파일 삭제 ---
+  // 조건: 기존 URL이 존재하고, 그 URL이 Firebase Storage 주소인 경우에만 삭제 시도
+  if (oldAvatarUrl && (payload.file || payload.avatarUrl === null)) {
+    if (oldAvatarUrl.includes('firebasestorage.googleapis.com')) {
+      try {
+        const oldStorageRef = ref(storage, oldAvatarUrl);
+        await deleteObject(oldStorageRef);
+        console.log("기존 프로필 사진 삭제 완료");
+      } catch (error) {
+        // 이미 파일이 없거나 에러가 나도 다음 단계(업로드)를 위해 무시하고 진행
+        console.warn("기존 사진 삭제 실패 또는 이미 없음:", error);
+      }
+    }
+  }
+
+  // --- [3단계] 새로운 파일 업로드 ---
+  if (payload.file) {
+    const ext = payload.file.name.split('.').pop();
+    const storageRef = ref(storage, `avatars/${payload.email}/profile_${Date.now()}.${ext}`);
+    
+    const snapshot = await uploadBytes(storageRef, payload.file);
+    finalAvatarUrl = await getDownloadURL(snapshot.ref);
+  }
+
+  // --- [4단계] Firestore & Auth 업데이트 ---
+  await setDoc(userDocRef, { avatarUrl: finalAvatarUrl ?? null }, { merge: true });
+
   if (auth.currentUser && auth.currentUser.email === payload.email) {
-    await updateProfile(auth.currentUser, { photoURL: safeAvatarUrl || '' });
+    await updateProfile(auth.currentUser, { photoURL: finalAvatarUrl ?? '' });
   }
 
   const snap = await getDoc(userDocRef);

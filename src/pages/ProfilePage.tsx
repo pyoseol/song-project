@@ -24,6 +24,7 @@ type ProfileTab = 'music' | 'community' | 'shorts' | 'activity';
 const MAX_AVATAR_FILE_SIZE = 2 * 1024 * 1024;
 const ACCEPTED_AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
+
 const PROFILE_TABS: Array<{ key: ProfileTab; label: string }> = [
   { key: 'music', label: '음악' },
   { key: 'community', label: '커뮤니티 글' },
@@ -48,29 +49,10 @@ function getExcerpt(content: string) {
   return `${normalized.slice(0, 96)}...`;
 }
 
-function readImageAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result);
-        return;
-      }
-
-      reject(new Error('Failed to read profile image.'));
-    };
-
-    reader.onerror = () => reject(reader.error ?? new Error('Failed to read profile image.'));
-    reader.readAsDataURL(file);
-  });
-}
-
 export default function ProfilePage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const updateProfile = useAuthStore((state) => state.updateProfile);
-  const updateAvatar = useAuthStore((state) => state.updateAvatar);
   const clearAvatar = useAuthStore((state) => state.clearAvatar);
   const posts = useCommunityStore((state) => state.posts);
   const likedPostIdsByUser = useCommunityStore((state) => state.likedPostIdsByUser);
@@ -89,50 +71,55 @@ export default function ProfilePage() {
   );
   const seedMusicShare = useMusicShareStore((state) => state.seedMusicShare);
   const loadProject = useSongStore((state) => state.loadProject);
+  
   const [activeTab, setActiveTab] = useState<ProfileTab>('music');
   const [shortVideoUrlById, setShortVideoUrlById] = useState<Record<string, string>>({});
   const [avatarError, setAvatarError] = useState('');
+  
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
+  
+  
+  // ✅ 새롭게 추가된 업로드 로딩 상태
+  const [isUploading, setIsUploading] = useState(false); 
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (!user) {
-      return;
+  if (!user?.email) return;
+
+  let cancelled = false;
+
+  const syncProfile = async () => {
+    try {
+      const response = await fetchUserProfile(user.email);
+
+      // 🔥 추가 (핵심)
+      setAvatarUrl(response.user.avatarUrl);
+
+      updateProfile({
+        email: response.user.email,
+        name: response.user.name,
+        avatarUrl: response.user.avatarUrl,
+      });
+      if (cancelled) return;
+
+      const avatarUrl = response.user.avatarUrl ?? '';
+
+      updateProfile({
+        email: response.user.email,
+        name: response.user.name,
+        avatarUrl,
+      });
+    } catch (error) {
+      console.error(error);
     }
+  };
 
-    let cancelled = false;
+  void syncProfile();
 
-    const syncProfile = async () => {
-      try {
-        const response = await fetchUserProfile(user.email);
-
-        if (cancelled) {
-          return;
-        }
-
-        updateProfile({
-          email: response.user.email,
-          name: response.user.name,
-        });
-
-        if (response.user.avatarUrl) {
-          updateAvatar({
-            email: response.user.email,
-            avatarUrl: response.user.avatarUrl,
-          });
-        } else {
-          clearAvatar(response.user.email);
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    void syncProfile();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [clearAvatar, updateAvatar, updateProfile, user]);
+  return () => {
+    cancelled = true;
+  };
+}, [user?.email]); // 🔥 핵심
 
   useEffect(() => {
     void seedCommunity().catch((error) => {
@@ -155,6 +142,7 @@ export default function ProfilePage() {
       console.error(error);
     });
   }, [profileKey, seedLearnProgress]);
+  
   const displayProfileName = user?.name ?? '게스트';
   const profileInitial = displayProfileName.slice(0, 1).toUpperCase();
 
@@ -324,34 +312,42 @@ export default function ProfilePage() {
     }
 
     try {
-      const avatarUrl = await readImageAsDataUrl(file);
-      const response = await updateUserAvatarOnServer({
-        email: user.email,
-        avatarUrl,
-      });
-      updateAvatar({ email: response.user.email, avatarUrl: response.user.avatarUrl ?? avatarUrl });
+      setIsUploading(true); // ✅ 업로드 시작 (버튼 비활성화)
+      
+      
+      
+      
+      
       setAvatarError('');
     } catch (error) {
       console.error(error);
       setAvatarError('프로필 이미지를 불러오지 못했습니다. 다시 시도해 주세요.');
+    } finally {
+      setIsUploading(false); // ✅ 업로드 종료 (성공하든 실패하든 버튼 활성화)
     }
   };
 
+  // ✅ 프로필 이미지 초기화 로직 (로딩 상태 복구)
   const handleClearAvatar = async () => {
     if (!user) {
       return;
     }
 
     try {
+      setIsUploading(true); // ✅ 초기화 시작
       await updateUserAvatarOnServer({
         email: user.email,
         avatarUrl: null,
       });
+
+      setAvatarUrl(undefined);
       clearAvatar(user.email);
       setAvatarError('');
     } catch (error) {
       console.error(error);
       setAvatarError('프로필 이미지를 초기화하지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsUploading(false); // ✅ 초기화 종료
     }
   };
 
@@ -364,8 +360,12 @@ export default function ProfilePage() {
           <div className="profile-summary">
             <div className="profile-avatar-shell">
               <div className="profile-avatar" aria-hidden="true">
-                {user?.avatarUrl ? (
-                  <img src={user.avatarUrl} alt="" className="profile-avatar-image" />
+                {avatarUrl ? (
+                  <img
+                    src={`${avatarUrl}?t=${Date.now()}`}
+                    alt=""
+                    className="profile-avatar-image"
+                  />
                 ) : (
                   <span className="profile-avatar-fallback">{profileInitial}</span>
                 )}
@@ -379,16 +379,23 @@ export default function ProfilePage() {
                     accept="image/jpeg,image/png,image/webp"
                     className="profile-avatar-input"
                     onChange={handleAvatarChange}
+                    disabled={isUploading} // 인풋도 막아줌
                   />
                   <div className="profile-avatar-button-row">
-                    <button type="button" className="profile-avatar-button" onClick={handlePickAvatar}>
-                      이미지 변경
+                    <button 
+                      type="button" 
+                      className="profile-avatar-button" 
+                      onClick={handlePickAvatar}
+                      disabled={isUploading} // ✅ 로딩 상태 반영
+                    >
+                      {isUploading ? '업로드 중...' : '이미지 변경'}
                     </button>
                     {user.avatarUrl ? (
                       <button
                         type="button"
                         className="profile-avatar-button is-secondary"
                         onClick={handleClearAvatar}
+                        disabled={isUploading} // ✅ 로딩 상태 반영
                       >
                         기본 이미지
                       </button>

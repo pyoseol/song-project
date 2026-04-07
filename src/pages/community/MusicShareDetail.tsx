@@ -62,6 +62,7 @@ export default function MusicShareDetail() {
   const pushNotification = useNotificationStore((state) => state.pushNotification);
   const [commentInput, setCommentInput] = useState('');
 
+  // 여기서 seedLibrary와 seedMusicShare가 사용됩니다. (에러 방지)
   useEffect(() => {
     void seedLibrary().catch((error) => {
       console.error(error);
@@ -83,6 +84,7 @@ export default function MusicShareDetail() {
 
   const track = trackLibrary.find((item) => item.id === trackId) ?? null;
   const metrics = track ? trackMetricsById[track.id] ?? { likeCount: 0, viewCount: 0, downloadCount: 0 } : null;
+  
   const comments = useMemo(
     () =>
       track
@@ -92,19 +94,24 @@ export default function MusicShareDetail() {
         : [],
     [track, trackComments]
   );
+  
   const liked = !!user && !!track && (likedTrackIdsByUser[user.email] ?? []).includes(track.id);
   const saved = !!user && !!track && (favoriteTrackIdsByUser[user.email] ?? []).includes(track.id);
 
+  // 🌟 무한 루프 방지용 코드 (순서가 중요합니다! 반드시 track이 정의된 아래에 있어야 합니다)
+  const currentTrackId = track?.id;
+  const currentUserEmail = user?.email;
+
   useEffect(() => {
-    if (!track) {
+    if (!currentTrackId) {
       return;
     }
 
-    void recordTrackView(track.id, user?.email);
-    if (user) {
-      void recordTrackOpen(track.id, user.email);
+    void recordTrackView(currentTrackId, currentUserEmail);
+    if (currentUserEmail) {
+      void recordTrackOpen(currentTrackId, currentUserEmail);
     }
-  }, [recordTrackOpen, recordTrackView, track, user]);
+  }, [recordTrackOpen, recordTrackView, currentTrackId, currentUserEmail]);
 
   if (!track || !metrics) {
     return (
@@ -217,7 +224,7 @@ export default function MusicShareDetail() {
         <section className="music-share-detail-hero" style={{ backgroundImage: track.imageUrl ? `linear-gradient(180deg, rgba(10, 12, 16, 0.08), rgba(10, 12, 16, 0.4)), url(${track.imageUrl})` : track.palette }}>
           <div className="music-share-detail-overlay" />
           <div className="music-share-detail-copy">
-            <span className="music-share-detail-kicker">{track.category.toUpperCase()}</span>
+            <span className="music-share-detail-kicker">{track.category ? track.category.toUpperCase() : 'ETC'}</span>
             <h1>{track.title}</h1>
             <p>{track.reference}</p>
             <div className="music-share-detail-meta">
@@ -255,7 +262,7 @@ export default function MusicShareDetail() {
             </div>
 
             <div className="music-share-detail-tags">
-              {track.tags.map((tag) => (
+              {track.tags?.map((tag) => (
                 <span key={tag}>#{tag}</span>
               ))}
             </div>

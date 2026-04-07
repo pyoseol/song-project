@@ -288,7 +288,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
   const handleShareConfirm = async () => {
     const title = shareTitle.trim();
     if (!title) {
-      alert('?? ??? ??? ???.');
+      alert('공유 제목을 입력해 주세요.');
       return;
     }
 
@@ -303,7 +303,11 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
 
       if (shareCoverFile) {
         setIsUploadingShareCover(true);
-        uploadedCover = await uploadMusicShareCoverOnServer(shareCoverFile);
+        // 🌟 수정된 부분: 파일과 이메일을 객체로 묶어서 서버에 전송합니다.
+        uploadedCover = await uploadMusicShareCoverOnServer({
+          file: shareCoverFile,
+          creatorEmail: user?.email,
+        });
       }
 
       await shareComposerProject({
@@ -317,18 +321,18 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
         project: createProjectSnapshot(),
         creatorName: user?.name ?? 'guest',
         creatorEmail: user?.email ?? 'guest@songmaker.local',
-        coverImageUrl: uploadedCover?.imageUrl,
-        coverImageStorageKey: uploadedCover?.imageStorageKey,
-        coverImageFileName: uploadedCover?.imageFileName,
+        coverImageUrl: uploadedCover?.imageUrl || "",
+        coverImageStorageKey: uploadedCover?.imageStorageKey || "",
+        coverImageFileName: uploadedCover?.imageFileName || "",
       });
 
       clearShareCover();
       closeDialog();
-      alert('?? ?? ???? ?? ???????.');
+      alert('프로젝트가 성공적으로 공유되었습니다.');
     } catch (error) {
       console.error('Project share failed:', error);
       const message = error instanceof Error ? error.message : String(error);
-      alert(`??? ??????.\n\n${message}`);
+      alert(`공유에 실패했습니다.\n\n${message}`);
     } finally {
       setIsUploadingShareCover(false);
     }
@@ -667,9 +671,22 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                     </select>
                   </label>
                   <label className="transport-dialog-field">
-                    <span>?? ???</span>
-                    <input type="file" accept="image/*" onChange={handleSelectShareCover} />
-                    <small>?? ?? ??? ?? ??? ?? ???? ?????.</small>
+                    <span>커버 이미지</span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleSelectShareCover} 
+                      style={{ display: 'none' }} 
+                    />
+                    
+                    {/* 2. 대신 사이트 테마에 어울리는 가짜 버튼을 만들어줍니다! */}
+                    <span 
+                      className="transport-dialog-button" 
+                      style={{ display: 'inline-block', width: 'fit-content', cursor: 'pointer', textAlign: 'center' }}
+                    >
+                      이미지 파일 찾기
+                    </span>
+                    <small>곡을 잘 나타내는 커버 이미지를 선택해 주세요.</small>
                   </label>
                   {shareCoverPreviewUrl ? (
                     <div className="transport-dialog-image-preview">
@@ -678,9 +695,9 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                         style={{ backgroundImage: `url(${shareCoverPreviewUrl})` }}
                       />
                       <div className="transport-dialog-image-preview-copy">
-                        <strong>{shareCoverFile?.name ?? '?? ???'}</strong>
+                        <strong>{shareCoverFile?.name ?? '커버 이미지'}</strong>
                         <button type="button" onClick={clearShareCover}>
-                          ??? ??
+                          이미지 삭제
                         </button>
                       </div>
                     </div>
@@ -729,7 +746,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                     onClick={handleShareConfirm}
                     disabled={isUploadingShareCover}
                   >
-                    {isUploadingShareCover ? '??? ??? ?...' : '????'}
+                    {isUploadingShareCover ? '이미지 업로드 중...' : '공유하기'}
                   </button>
                 </div>
               </>

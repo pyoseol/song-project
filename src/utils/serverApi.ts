@@ -2,9 +2,16 @@ import { useAuthStore } from '../store/authStore';
 import { getStoredSessionToken } from './authSession';
 import { storeSessionToken } from './authSession';
 
-const DEFAULT_SERVER_URL =
-  typeof window !== 'undefined'
-    ? `${window.location.protocol}//${window.location.hostname}:8788`
+// ✅ 로컬 개발 환경인지 확인하는 변수 추가
+const isLocalhost = 
+  typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+// ✅ 로컬일 때만 8788 포트를 붙이고, 배포 환경에서는 포트를 뺌
+const DEFAULT_SERVER_URL = isLocalhost
+  ? 'http://localhost:8788'
+  : typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.hostname}` // 배포 환경: https://music-web-final.web.app
     : 'http://localhost:8788';
 
 export const APP_SERVER_URL =

@@ -1,8 +1,8 @@
 import { 
   collection, getDocs, doc, setDoc, deleteDoc, addDoc, updateDoc, increment, arrayUnion, arrayRemove, getDoc, query, orderBy 
 } from 'firebase/firestore';
-import { db } from '../firebase'; // ★ 주의: 실제 firebase.ts 경로에 맞게 수정하세요!
-
+import { db, storage } from '../firebase'; // ★ 주의: 실제 firebase.ts 경로에 맞게 수정하세요!
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 // ============================================================================
 // 1. 타입 정의
 // ============================================================================
@@ -254,11 +254,22 @@ export async function recordTrackOpenOnServer(payload: { trackId: string; userEm
   return { snapshot: await fetchMusicShareBootstrap() };
 }
 
-export async function uploadMusicShareCoverOnServer(payload: any): Promise<{ imageUrl: string; imageStorageKey: string; imageFileName: string; }> {
-  console.log("업로드 요청 데이터:", payload); 
+export async function uploadMusicShareCoverOnServer(payload: { file: File; creatorEmail?: string; }): Promise<{ imageUrl: string; imageStorageKey: string; imageFileName: string; }> {
+  // 1. 파이어베이스 스토리지에 저장될 고유한 이름(경로) 만들기
+  const storageKey = `share_covers/${Date.now()}_${payload.file.name}`;
+  
+  // 2. 파이어베이스 스토리지 참조 위치 만들고 파일 업로드하기
+  const imageRef = ref(storage, storageKey);
+  await uploadBytes(imageRef, payload.file);
+  
+  // 3. 업로드된 이미지의 진짜 웹 다운로드 URL 가져오기
+  const imageUrl = await getDownloadURL(imageRef);
+  
+  console.log("커버 이미지 실제 업로드 완료:", imageUrl);
+  
   return {
-    imageUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&q=80",
-    imageStorageKey: "temp-cover-key", 
-    imageFileName: "temp-cover.jpg",
+    imageUrl: imageUrl,
+    imageStorageKey: storageKey,
+    imageFileName: payload.file.name
   };
 }

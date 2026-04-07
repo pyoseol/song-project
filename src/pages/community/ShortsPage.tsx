@@ -31,7 +31,7 @@ type ShortsFormState = {
   fileName: string;
 };
 
-const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
 
 const FILTER_OPTIONS: Array<{ key: ShortsFilter; label: string }> = [
   { key: 'all', label: '전체' },
@@ -543,10 +543,10 @@ export default function ShortsPage() {
           creatorEmail: user.email,
           file: uploadedVideoFile,
         });
-        videoStorageKey = upload.videoStorageKey;
-        videoUrl = upload.videoUrl;
-        videoFileName = upload.videoFileName;
-        videoSizeBytes = upload.videoSizeBytes;
+        videoStorageKey = upload.storageKey; 
+        videoUrl = upload.url; 
+        videoFileName = uploadedVideoFile.name; 
+        videoSizeBytes = uploadedVideoFile.size;
       }
     } catch (error) {
       console.error(error);

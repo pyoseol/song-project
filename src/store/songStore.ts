@@ -13,8 +13,10 @@ import {
   MELODY_ROWS,
 } from '../constants/composer.ts';
 
-const DEFAULT_STEPS = 32;
 const BAR_LENGTH = 16;
+export const FIXED_BAR_COUNT = 40;
+export const FIXED_COMPOSER_STEPS = BAR_LENGTH * FIXED_BAR_COUNT;
+const DEFAULT_STEPS = FIXED_COMPOSER_STEPS;
 const MAX_HISTORY_LENGTH = 40;
 const MELODY_LENGTH_PRESETS = [1, 2, 4, 8, 16] as const;
 
@@ -111,6 +113,30 @@ function createEmptyMatrix(rows: number, cols: number): boolean[][] {
 function createEmptyLengthMatrix(rows: number, cols: number): number[][] {
   return Array.from({ length: rows }, () =>
     Array.from({ length: cols }, () => 0)
+  );
+}
+
+function resizeMatrix(source: boolean[][], rows: number, cols: number): boolean[][] {
+  return Array.from({ length: rows }, (_, row) =>
+    Array.from({ length: cols }, (_, col) => Boolean(source[row]?.[col]))
+  );
+}
+
+function resizeLengthMatrix(
+  source: number[][],
+  melody: boolean[][],
+  rows: number,
+  cols: number
+): number[][] {
+  return Array.from({ length: rows }, (_, row) =>
+    Array.from({ length: cols }, (_, col) => {
+      if (!melody[row]?.[col]) {
+        return 0;
+      }
+
+      const rawLength = Math.max(1, Math.floor(source[row]?.[col] ?? 1));
+      return snapMelodyLength(rawLength, cols - col);
+    })
   );
 }
 
@@ -746,14 +772,25 @@ export const useSongStore = create<SongState>((set, get) => ({
         return {};
       }
 
+      const melody = resizeMatrix(state.melody, MELODY_ROWS, steps);
+      const drums = resizeMatrix(state.drums, DRUM_ROWS, steps);
+      const bass = resizeMatrix(state.bass, BASS_ROWS, steps);
+      const melodyLengths = resizeLengthMatrix(
+        state.melodyLengths,
+        melody,
+        MELODY_ROWS,
+        steps
+      );
+
       return buildHistoryUpdate(state, {
         steps,
-        currentStep: 0,
-        melody: createEmptyMatrix(MELODY_ROWS, steps),
-        melodyLengths: createEmptyLengthMatrix(MELODY_ROWS, steps),
-        drums: createEmptyMatrix(DRUM_ROWS, steps),
-        bass: createEmptyMatrix(BASS_ROWS, steps),
-        loopRange: null,
+        currentStep: clampStep(state.currentStep, steps),
+        melody,
+        melodyLengths,
+        drums,
+        bass,
+        loopRange: normalizeLoopRange(state.loopRange, steps),
+        barClipboard: null,
       });
     }),
 
@@ -776,10 +813,7 @@ export const useSongStore = create<SongState>((set, get) => ({
     ),
 
   loadProject: (project) => {
-    const steps =
-      typeof project.steps === 'number' && project.steps > 0
-        ? project.steps
-        : DEFAULT_STEPS;
+    const steps = FIXED_COMPOSER_STEPS;
     const bpm = typeof project.bpm === 'number' && project.bpm > 0 ? project.bpm : 100;
 
     set((state) =>
@@ -803,10 +837,7 @@ export const useSongStore = create<SongState>((set, get) => ({
   },
 
   applyRemoteProject: (project) => {
-    const steps =
-      typeof project.steps === 'number' && project.steps > 0
-        ? project.steps
-        : DEFAULT_STEPS;
+    const steps = FIXED_COMPOSER_STEPS;
     const bpm = typeof project.bpm === 'number' && project.bpm > 0 ? project.bpm : 100;
 
     set((state) => ({

@@ -30,8 +30,7 @@ type AuthState = {
     avatarUrl?: string;
     sessionToken?: string | null;
   }) => void;
-  updateProfile: (payload: { email: string; name: string }) => void;
-  updateAvatar: (payload: { email: string; avatarUrl: string }) => void;
+  updateProfile: (payload: { email: string; name: string; avatarUrl?: string; }) => void;
   clearAvatar: (email: string) => void;
   markComposerTutorialCompleted: (email: string) => void;
   logout: () => void;
@@ -108,47 +107,31 @@ export const useAuthStore = create<AuthState>()(
             },
           };
         }),
-      updateProfile: ({ email, name }) =>
+      updateProfile: ({ email, name, avatarUrl }) =>
         set((state) => {
           const currentProfile = state.profilesByEmail[email];
           const nextName = getDisplayName(email, name || currentProfile?.name);
 
+          const nextAvatar =
+            avatarUrl ??
+            currentProfile?.avatarUrl ??
+            state.user?.avatarUrl;
+            
           return {
             user:
               state.user?.email === email
                 ? {
                     ...state.user,
                     name: nextName,
+                    avatarUrl: nextAvatar,
                   }
                 : state.user,
             profilesByEmail: {
               ...state.profilesByEmail,
               [email]: {
                 name: nextName,
-                avatarUrl: currentProfile?.avatarUrl,
-                composerTutorialCompleted: currentProfile?.composerTutorialCompleted ?? false,
-              },
-            },
-          };
-        }),
-      updateAvatar: ({ email, avatarUrl }) =>
-        set((state) => {
-          const currentProfile = state.profilesByEmail[email];
-          const nextName = currentProfile?.name ?? state.user?.name ?? getDisplayName(email);
-
-          return {
-            user:
-              state.user?.email === email
-                ? {
-                    ...state.user,
-                    avatarUrl,
-                  }
-                : state.user,
-            profilesByEmail: {
-              ...state.profilesByEmail,
-              [email]: {
-                name: nextName,
-                avatarUrl,
+                avatarUrl: nextAvatar,
+                
                 composerTutorialCompleted: currentProfile?.composerTutorialCompleted ?? false,
               },
             },

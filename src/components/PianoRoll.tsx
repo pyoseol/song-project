@@ -5,6 +5,7 @@ import {
   BASS_CHORD_MAP,
   BASS_NOTES,
   MELODY_CHORD_MAP,
+  MELODY_PIANO_ROW_HEIGHT,
   MELODY_NOTES,
   PIANO_ROW_HEIGHT,
   PIANO_STEP_WIDTH,
@@ -38,6 +39,8 @@ const MELODY_NOTE_LENGTH_OPTIONS = [
   { label: '1/2', steps: 8 },
   { label: '1 Bar', steps: 16 },
 ] as const;
+
+const MELODY_CHORD_OPTIONS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const;
 
 type MelodyNoteLengthSteps = (typeof MELODY_NOTE_LENGTH_OPTIONS)[number]['steps'];
 
@@ -162,7 +165,7 @@ export const PianoRoll = ({
   const modeClass = isBass ? 'bass' : 'melody';
   const rowCount = currentGrid.length;
   const gridGap = isBass ? PIANO_GRID_GAP : 2;
-  const rowHeight = isBass ? PIANO_ROW_HEIGHT : 20;
+  const rowHeight = isBass ? PIANO_ROW_HEIGHT : MELODY_PIANO_ROW_HEIGHT;
   const stepWidth = isBass ? PIANO_STEP_WIDTH : 56;
   const headerHeight = isBass ? PIANO_HEADER_HEIGHT : 24;
   const headerMargin = isBass ? PIANO_HEADER_MARGIN : 8;
@@ -473,18 +476,36 @@ export const PianoRoll = ({
         <div className="piano-roll-melody-topbar">
           <div className="piano-roll-melody-corner" aria-hidden="true" />
           <div className="piano-roll-length-bar" aria-label="Melody note length">
-            {MELODY_NOTE_LENGTH_OPTIONS.map((option) => (
-              <button
-                key={option.steps}
-                type="button"
-                className={`piano-roll-length-button${
-                  melodyNoteLengthSteps === option.steps ? ' is-active' : ''
-                }`}
-                onClick={() => setMelodyNoteLengthSteps(option.steps)}
-              >
-                {option.label}
-              </button>
-            ))}
+            <div className="piano-roll-length-controls">
+              {MELODY_NOTE_LENGTH_OPTIONS.map((option) => (
+                <button
+                  key={option.steps}
+                  type="button"
+                  className={`piano-roll-length-button${
+                    melodyNoteLengthSteps === option.steps ? ' is-active' : ''
+                  }`}
+                  onClick={() => setMelodyNoteLengthSteps(option.steps)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="piano-roll-chord-actions" aria-label="Melody chords">
+              {MELODY_CHORD_OPTIONS.map((chord) => (
+                <button
+                  key={chord}
+                  type="button"
+                  className="piano-roll-chord-chip"
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData('text/plain', chord);
+                  }}
+                >
+                  {chord}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

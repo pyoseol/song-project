@@ -1,5 +1,6 @@
 export const PIANO_STEP_WIDTH = 132;
 export const PIANO_ROW_HEIGHT = 56;
+export const MELODY_PIANO_ROW_HEIGHT = 20;
 export const DRUM_STEP_WIDTH = 84;
 
 export const MELODY_NOTES = [

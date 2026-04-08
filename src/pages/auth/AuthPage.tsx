@@ -40,17 +40,17 @@ const PAGE_META: Record<
     eyebrow: 'MEMBER LOGIN',
     title: '다시 돌아와서\n작업을 이어가세요',
     description:
-      '튜토리얼 진행도, 작곡 프로젝트, 커뮤니티 활동을 같은 계정으로 이어볼 수 있어요.',
+      '작곡 프로젝트와 커뮤니티 활동을 같은 계정으로 이어볼 수 있어요.',
     submitLabel: '로그인',
     helperTitle: '바로 이어서 작업하기',
     helperBody:
-      '로그인하면 작곡 튜토리얼, 작곡, 커뮤니티, 음악 공유 흐름이 하나의 계정으로 자연스럽게 이어집니다.',
+      '로그인하면 작곡, 커뮤니티, 음악 공유 흐름이 하나의 계정으로 자연스럽게 이어집니다.',
   },
   signup: {
     eyebrow: 'CREATE ACCOUNT',
     title: '새 계정을 만들고\n커뮤니티에 참여하세요',
     description:
-      '회원가입 후 커뮤니티 글쓰기, 중고거래 문의, 튜토리얼 진행도와 저장 프로젝트를 한 번에 관리할 수 있어요.',
+      '회원가입 후 커뮤니티 글쓰기, 중고거래 문의, 저장 프로젝트를 한 번에 관리할 수 있어요.',
     submitLabel: '회원가입',
     helperTitle: '처음 들어오는 사용자를 위한 흐름',
     helperBody:
@@ -70,7 +70,7 @@ const PAGE_META: Record<
 
 const FEATURE_ITEMS = [
   {
-    label: '튜토리얼 기록',
+    label: '작업 기록',
     title: '작곡 가이드 진행도와 즐겨찾기 흐름을 같은 계정 기준으로 이어서 관리',
   },
   {
@@ -105,6 +105,8 @@ export default function AuthPage({ mode }: AuthPageProps) {
   const login = useAuthStore((state) => state.login);
   const signup = useAuthStore((state) => state.signup);
   const pageMeta = PAGE_META[mode];
+  const showHeroCard = mode === 'reset';
+  const showGuideCard = mode === 'reset';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -218,7 +220,7 @@ export default function AuthPage({ mode }: AuthPageProps) {
       <SiteHeader />
 
       <main className="auth-shell">
-        <section className="auth-hero-card">
+        {showHeroCard ? <section className="auth-hero-card">
           <div className="auth-hero-copy">
             <span className="auth-eyebrow">{pageMeta.eyebrow}</span>
             <h1 className="auth-title">
@@ -239,10 +241,10 @@ export default function AuthPage({ mode }: AuthPageProps) {
               </article>
             ))}
           </div>
-        </section>
+        </section> : null}
 
-        <section className="auth-layout">
-          <aside className="auth-side-card">
+        <section className={`auth-layout${showGuideCard ? '' : ' auth-layout--single'}`}>
+          {showGuideCard ? <aside className="auth-side-card">
             <span className="auth-side-kicker">GUIDE</span>
             <strong>{pageMeta.helperTitle}</strong>
             <p>{pageMeta.helperBody}</p>
@@ -258,7 +260,7 @@ export default function AuthPage({ mode }: AuthPageProps) {
                 비밀번호 찾기
               </button>
             </div>
-          </aside>
+          </aside> : null}
 
           <form className="auth-form-card" onSubmit={handleSubmit}>
             <div className="auth-form-head">

@@ -176,7 +176,7 @@ export default function PostWrite() {
               <button
                 type="button"
                 className="community-write-secondary-button"
-                onClick={() => navigate('/composer?tutorial=1')}
+                onClick={() => navigate('/composer')}
               >
                 작곡 가이드 보기
               </button>

@@ -10,7 +10,6 @@ import {
 } from '../constants/composerGuide.ts';
 import {
   COMPOSER_TUTORIAL_BASS_TARGETS,
-  COMPOSER_TUTORIAL_BAR_LENGTH,
   COMPOSER_TUTORIAL_CHORD_TARGETS,
   COMPOSER_TUTORIAL_DRUM_TARGETS,
   COMPOSER_TUTORIAL_MELODY_TARGETS,
@@ -133,12 +132,6 @@ const bassLaneColors = [
   '#facc15',
 ] as const;
 
-const MIXER_ITEMS = [
-  { key: 'melody', label: 'Melody' },
-  { key: 'drums', label: 'Drums' },
-  { key: 'bass', label: 'Bass' },
-] as const;
-
 function getSubdivisionClassName(col: number) {
   return `${col % 2 === 0 ? ' is-eighth' : ''}${col % 4 === 0 ? ' is-quarter' : ''}${
     col % 8 === 0 ? ' is-half' : ''
@@ -166,8 +159,6 @@ export function Composer() {
     toggleBass,
     applyChord,
     currentStep,
-    clear,
-    setSteps,
     setCurrentStep,
     loopRange,
     setLoopRange,
@@ -188,7 +179,7 @@ export function Composer() {
   const composerLocksByProject = useCollabStore((state) => state.composerLocksByProject);
   const composerHistoryByProject = useCollabStore((state) => state.composerHistoryByProject);
   const collabId = searchParams.get('collab');
-  const tutorialRequested = searchParams.get('tutorial') === '1';
+  const tutorialRequested = false;
   const requestedGuideStep = Number(searchParams.get('guideStep') ?? '0');
   const collabProject = useMemo(
     () => (collabId ? projects.find((project) => project.id === collabId) ?? null : null),
@@ -519,8 +510,6 @@ export function Composer() {
   );
   const liveCompletedQuestCount = liveTutorialQuests.filter((quest) => quest.done).length;
   const liveTutorialProgress = Math.round((liveCompletedQuestCount / tutorialQuests.length) * 100);
-  const liveRecommendedQuest =
-    liveTutorialQuests.find((quest) => !quest.done) ?? liveTutorialQuests.at(-1);
   const activeGuideQuest = liveTutorialQuests[guideStepIndex] ?? liveTutorialQuests[0];
   const nextChordTutorialTarget = useMemo(
     () =>
@@ -729,17 +718,6 @@ export function Composer() {
     [markVisitedTab, setActiveTab, syncGuideQuery]
   );
 
-  const closeGuide = useCallback(() => {
-    syncGuideQuery(false);
-  }, [syncGuideQuery]);
-
-  const moveGuideStep = useCallback(
-    (direction: -1 | 1) => {
-      openGuideAt(guideStepIndex + direction);
-    },
-    [guideStepIndex, openGuideAt]
-  );
-
   useEffect(() => {
     if (!tutorialCompleted || !tutorialRequested) {
       return;
@@ -804,24 +782,6 @@ export function Composer() {
     },
     [loopRange, setCurrentStep, setLoopRange]
   );
-
-  const startTutorialSong = () => {
-    const store = useSongStore.getState();
-
-    if (store.steps !== COMPOSER_TUTORIAL_BAR_LENGTH) {
-      setSteps(COMPOSER_TUTORIAL_BAR_LENGTH);
-    } else {
-      clear();
-    }
-
-    setCurrentStep(0);
-    setPlayedTutorialOnce(false);
-    setVisitedTabs(['melody']);
-    setOpenTabsState([...tabOrder]);
-    setIsTabPickerOpen(false);
-    setActiveTab('melody');
-    openGuideAt(0);
-  };
 
   const getDrumTutorialCellClass = (row: number, col: number) => {
     if (
@@ -1412,273 +1372,109 @@ export function Composer() {
     >
       <SiteHeader activeSection="composer" />
 
-      {!tutorialCompleted ? (
-        <button
-          type="button"
-          className={`composer-guide-shortcut composer-guide-corner-shortcut${
-            isGuideOpen ? ' is-active' : ''
-          }`}
-          onClick={() => {
-            if (isGuideOpen) {
-              closeGuide();
-              return;
-            }
-
-            openGuideAt(guideStepIndex);
-          }}
-        >
-          {isGuideOpen ? '튜토리얼 숨기기' : '튜토리얼 시작'}
-        </button>
-      ) : null}
-
       <div className="composer-workbar">
         <div className="composer-workbar-controls">
           <div
-            ref={tabStripRef}
-            className={`composer-tab-strip${getGuideHighlightClass('tabs')}`}
-            role="tablist"
-            aria-label="악기 탭"
-          >
-            {openTabs.map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                className={`composer-tab-button is-${tab}${
-                  activeTab === tab ? ' is-active' : ''
-                }${getTutorialTabClass(tab)}`}
-                onClick={() => {
-                  markVisitedTab(tab);
-                  setActiveTab(tab);
-                }}
-                aria-pressed={activeTab === tab}
-              >
-                <span className="composer-tab-button-inner">
-                  <span className="composer-tab-label">{tabLabels[tab]}</span>
-                  {tab !== 'melody' && !tutorialRequested ? (
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      className="composer-tab-close"
-                      aria-label={`${tabLabels[tab]} 닫기`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleCloseTab(tab);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          handleCloseTab(tab);
-                        }
-                      }}
-                    >
-                      ×
-                    </span>
-                  ) : null}
-                </span>
-              </button>
-            ))}
-
-            {closedTabs.length ? (
-              <div ref={tabPickerRef} className="composer-tab-picker">
-                <button
-                  type="button"
-                  className={`composer-tab-add-button${isTabPickerOpen ? ' is-open' : ''}`}
-                  onClick={handleTabPickerToggle}
-                  aria-label="악기 탭 추가"
-                  aria-expanded={isTabPickerOpen}
-                  aria-haspopup="menu"
-                >
-                  +
-                </button>
-
-                {isTabPickerOpen ? (
-                  <div className="composer-tab-picker-menu" role="menu" aria-label="열 수 있는 악기">
-                    {closedTabs.map((tab) => (
-                      <button
-                        key={tab}
-                        type="button"
-                        className={`composer-tab-picker-item is-${tab}`}
-                        onClick={() => handleOpenTab(tab)}
-                      >
-                        {tabLabels[tab]}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            <button
-              type="button"
-              hidden
-              style={{ display: 'none' }}
-              aria-hidden="true"
-              tabIndex={-1}
-              className={`composer-guide-toggle${isGuideOpen ? ' is-active' : ''}`}
-              onClick={() => {
-                if (isGuideOpen) {
-                  closeGuide();
-                  return;
-                }
-
-                openGuideAt(guideStepIndex);
-              }}
-            >
-              {isGuideOpen ? '튜토리얼 숨기기' : '튜토리얼 보기'}
-            </button>
-          </div>
-
-          <div
             ref={mixerStripRef}
-            className={`composer-mixer-strip${getGuideHighlightClass('mixer')}`}
-            aria-label="악기별 볼륨 조절"
+            className={`composer-tab-stack${getGuideHighlightClass('mixer')}`}
           >
-            {MIXER_ITEMS.map((item) => (
-              <label key={item.key} className="composer-mixer-item">
-                <span className="composer-mixer-label">{item.label}</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={volumes[item.key]}
-                  onChange={(event) => handleMixerChange(item.key, Number(event.target.value))}
-                  className="composer-mixer-range"
-                />
-                <strong className="composer-mixer-value">{volumes[item.key]}</strong>
-              </label>
-            ))}
+            <div
+              ref={tabStripRef}
+              className={`composer-tab-strip${getGuideHighlightClass('tabs')}`}
+              role="tablist"
+              aria-label="악기 탭"
+            >
+              {openTabs.map((tab) => (
+                <div
+                  key={tab}
+                  className={`composer-tab-card is-${tab}${
+                    activeTab === tab ? ' is-active' : ''
+                  }${getTutorialTabClass(tab)}`}
+                  style={{ ['--composer-tab-volume' as string]: `${volumes[tab]}%` }}
+                >
+                  <button
+                    type="button"
+                    className="composer-tab-button"
+                    onClick={() => {
+                      markVisitedTab(tab);
+                      setActiveTab(tab);
+                    }}
+                    aria-pressed={activeTab === tab}
+                  >
+                    <span className="composer-tab-button-inner">
+                      <span className="composer-tab-label">{tabLabels[tab]}</span>
+                      {tab !== 'melody' && !tutorialRequested ? (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          className="composer-tab-close"
+                          aria-label={`${tabLabels[tab]} 닫기`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleCloseTab(tab);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              handleCloseTab(tab);
+                            }
+                          }}
+                        >
+                          ×
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+
+                  <label className="composer-tab-volume">
+                    <span className="sr-only">{`${tabLabels[tab]} volume`}</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={volumes[tab]}
+                      onChange={(event) => handleMixerChange(tab, Number(event.target.value))}
+                    />
+                  </label>
+                </div>
+              ))}
+
+              {closedTabs.length ? (
+                <div ref={tabPickerRef} className="composer-tab-picker">
+                  <button
+                    type="button"
+                    className={`composer-tab-add-button${isTabPickerOpen ? ' is-open' : ''}`}
+                    onClick={handleTabPickerToggle}
+                    aria-label="악기 탭 추가"
+                    aria-expanded={isTabPickerOpen}
+                    aria-haspopup="menu"
+                  >
+                    +
+                  </button>
+
+                  {isTabPickerOpen ? (
+                    <div className="composer-tab-picker-menu" role="menu" aria-label="열 수 있는 악기">
+                      {closedTabs.map((tab) => (
+                        <button
+                          key={tab}
+                          type="button"
+                          className={`composer-tab-picker-item is-${tab}`}
+                          onClick={() => handleOpenTab(tab)}
+                        >
+                          {tabLabels[tab]}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+            </div>
+
           </div>
         </div>
       </div>
-
-      {isGuideOpen ? (
-        <section className="composer-guide-shell" aria-label="작곡 튜토리얼">
-          <div className="composer-guide-copy">
-            <div className="composer-guide-head">
-              <span className="composer-guide-eyebrow">작곡 튜토리얼</span>
-              <button
-                type="button"
-                className="composer-guide-close"
-                onClick={closeGuide}
-              >
-                닫기
-              </button>
-              <strong>{activeGuideStep.title}</strong>
-              <span className="composer-guide-focus">지금 보고 있는 곳 {activeGuideStep.focusLabel}</span>
-            </div>
-
-            <div className="composer-guide-progress-panel">
-              <div className="composer-guide-progress-copy">
-                <strong>간단한 곡 만들기 미션</strong>
-                <span>
-                  {liveCompletedQuestCount}/{liveTutorialQuests.length} 완료 · {liveTutorialProgress}% 진행
-                </span>
-              </div>
-              <div className="composer-guide-progress-track" aria-hidden="true">
-                <span
-                  className="composer-guide-progress-fill"
-                  style={{ width: `${liveTutorialProgress}%` }}
-                />
-              </div>
-            </div>
-
-            <p className="composer-guide-summary">{activeGuideStep.summary}</p>
-
-            <div className="composer-guide-note">
-              <strong>화면 보면서 따라하기</strong>
-              <p>{activeGuideStep.detail}</p>
-            </div>
-
-            <div className="composer-guide-tip">
-              <span>TIP</span>
-              <p>{activeGuideStep.tip}</p>
-            </div>
-
-            {liveRecommendedQuest ? (
-              <div className="composer-guide-mission-card">
-                <span className="composer-guide-mission-kicker">현재 추천 미션</span>
-                <strong>{liveRecommendedQuest.title}</strong>
-                <p>{liveRecommendedQuest.goal}</p>
-                <small>{liveRecommendedQuest.progress}</small>
-                {liveRecommendedQuest.stepIndex !== guideStepIndex ? (
-                  <button
-                    type="button"
-                    className="composer-guide-button"
-                    onClick={() => openGuideAt(liveRecommendedQuest.stepIndex)}
-                  >
-                    이 미션으로 이동
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-
-            <div className="composer-guide-pattern">
-              <strong>지금 따라 찍을 패턴</strong>
-              <div className="composer-guide-pattern-grid">
-                {activeGuideQuest.pattern.map((item) => (
-                  <span key={item} className="composer-guide-pattern-item">
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="composer-guide-actions">
-              <button
-                type="button"
-                className="composer-guide-button"
-                onClick={() => moveGuideStep(-1)}
-                disabled={guideStepIndex === 0}
-              >
-                이전
-              </button>
-              <button
-                type="button"
-                className="composer-guide-button is-primary"
-                onClick={() => moveGuideStep(1)}
-                disabled={guideStepIndex === COMPOSER_GUIDE_STEPS.length - 1}
-              >
-                다음
-              </button>
-              <button
-                type="button"
-                className="composer-guide-button"
-                onClick={() => openGuideAt(0)}
-              >
-                처음부터 다시 보기
-              </button>
-              <button
-                type="button"
-                className="composer-guide-button"
-                onClick={startTutorialSong}
-              >
-                튜토리얼 곡 새로 시작
-              </button>
-            </div>
-          </div>
-
-          <div className="composer-guide-step-list">
-            {liveTutorialQuests.map((quest, index) => (
-              <button
-                key={quest.id}
-                type="button"
-                className={`composer-guide-step${
-                  guideStepIndex === index ? ' is-active' : ''
-                }${quest.done ? ' is-complete' : ''}`}
-                onClick={() => openGuideAt(index)}
-              >
-                <span>STEP {String(index + 1).padStart(2, '0')}</span>
-                <strong>{quest.title}</strong>
-                <small>{quest.progress}</small>
-                <em className={`composer-guide-step-status${quest.done ? ' is-complete' : ''}`}>
-                  {quest.done ? '완료' : '진행 중'}
-                </em>
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       {collabId ? (
         <section className={`composer-collab-banner is-${connectionStatus}`}>
@@ -1739,42 +1535,6 @@ export function Composer() {
       <main ref={mainViewportRef} className={`composer-main composer-main--${activeTab}`}>
         {activeTab === 'melody' && (
           <>
-            <section
-              ref={melodyChordBarRef}
-              className={`composer-chord-bar composer-chord-bar--melody${getGuideHighlightClass(
-                'melody-chords'
-              )}`}
-            >
-              <div className="composer-chord-copy">
-                <span className="composer-chord-label">{chordMeta.melody.label}</span>
-                <p className="composer-chord-description">{chordMeta.melody.description}</p>
-              </div>
-
-              <div className="composer-chord-list">
-                {chordOptions.map((chord) => (
-                  <div
-                    key={chord}
-                    className={`composer-chord-chip${
-                      guideStepIndex === 1 && nextChordTutorialTarget?.chord === chord
-                        ? ' is-tutorial-target'
-                        : ''
-                    }`}
-                    draggable
-                    onDragStart={(event) => {
-                      event.dataTransfer.setData('text/plain', chord);
-                    }}
-                  >
-                    {chord}
-                    {guideStepIndex === 1 && nextChordTutorialTarget?.chord === chord ? (
-                      <span className="composer-chord-chip-guide">
-                        {nextChordTutorialTarget.col + 1}칸
-                      </span>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            </section>
-
             <section
               ref={melodyRollRef}
               className={`composer-roll-shell composer-roll-shell--melody${getGuideHighlightClass(

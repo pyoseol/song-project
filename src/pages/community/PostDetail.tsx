@@ -149,6 +149,7 @@ export default function PostDetail() {
   const [replyInput, setReplyInput] = useState('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentInput, setEditingCommentInput] = useState('');
+  const [commentToastMessage, setCommentToastMessage] = useState('');
 
   const post: Post | null = posts.find((item) => item.id === id) ?? null;
   const comments: Comment[] = useMemo(
@@ -172,6 +173,18 @@ export default function PostDetail() {
       console.error(error);
     });
   }, [bootstrapStatus, id, recordView]);
+
+  useEffect(() => {
+    if (!commentToastMessage) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setCommentToastMessage('');
+    }, 1800);
+
+    return () => window.clearTimeout(timeout);
+  }, [commentToastMessage]);
 
   if (!post && (bootstrapStatus === 'idle' || bootstrapStatus === 'loading')) {
     return (
@@ -244,6 +257,7 @@ export default function PostDetail() {
       actorName: user.name,
     });
     setCommentInput('');
+    setCommentToastMessage('댓글을 달았습니다.');
   };
 
   const handleReplySubmit = async (comment: Comment) => {
@@ -273,6 +287,7 @@ export default function PostDetail() {
     });
     setReplyTargetId(null);
     setReplyInput('');
+    setCommentToastMessage('답글을 달았습니다.');
   };
 
   const handleCommentUpdate = async (comment: Comment) => {
@@ -759,6 +774,11 @@ export default function PostDetail() {
           </aside>
         </div>
       </main>
+      {commentToastMessage ? (
+        <div className="community-detail-toast" role="status" aria-live="polite">
+          {commentToastMessage}
+        </div>
+      ) : null}
     </div>
   );
 }

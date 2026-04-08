@@ -136,9 +136,16 @@
 .piano-roll-length-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 14px;
   margin: 0 0 8px;
   padding: 0 10px;
+}
+
+.piano-roll-length-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
 }
 
 .piano-roll--melody .piano-roll-length-bar {
@@ -183,6 +190,37 @@
   border-color: rgba(137, 255, 54, 0.42);
   background: rgba(137, 255, 54, 0.14);
   color: #f4ffe8;
+}
+
+.piano-roll-chord-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  padding-left: 12px;
+  overflow-x: auto;
+}
+
+.piano-roll-chord-actions::-webkit-scrollbar {
+  display: none;
+}
+
+.piano-roll-chord-chip {
+  flex: 0 0 auto;
+  min-width: 44px;
+  height: 40px;
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #1d2534, #161d2a);
+  color: #eef2f7;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: grab;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.piano-roll-chord-chip:active {
+  cursor: grabbing;
 }
 
 .piano-roll-step-header,

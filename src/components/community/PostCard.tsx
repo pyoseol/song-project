@@ -62,6 +62,48 @@ function formatRelativeTime(timestamp: number) {
   });
 }
 
+function EyeIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" className="community-post-stat-icon">
+      <path
+        d="M1.4 8s2.2-4 6.6-4 6.6 4 6.6 4-2.2 4-6.6 4-6.6-4-6.6-4Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <circle cx="8" cy="8" r="2.1" fill="none" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  );
+}
+
+function CommentIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" className="community-post-stat-icon">
+      <path
+        d="M3 3.5h10v6.2H7.6L4.7 12V9.7H3z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function HeartIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" className="community-post-stat-icon">
+      <path
+        d="M8 13.1 2.8 8.4a3.1 3.1 0 0 1 4.4-4.4L8 4.8l.8-.8A3.1 3.1 0 0 1 13.2 8.4Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function PostCard({ post, rank, onClick }: PostCardProps) {
   const tone = getCategoryTone(post.category);
 
@@ -82,37 +124,25 @@ export default function PostCard({ post, rank, onClick }: PostCardProps) {
             {post.category ?? '자유'}
           </span>
           <span className="community-post-title">{post.title}</span>
-          {post.isHot ? <span className="community-post-hot">HOT</span> : null}
         </span>
 
         <span className="community-post-meta">
           <span>{post.authorName}</span>
           <span>{formatRelativeTime(post.createdAt)}</span>
-          {post.tags?.slice(0, 2).map((tag) => (
-            <span key={tag} className="community-post-meta-tag">
-              #{tag}
-            </span>
-          ))}
         </span>
       </span>
 
       <span className="community-post-stats">
         <span className="community-post-stat">
-          <span className="community-post-stat-icon" aria-hidden="true">
-            ◔
-          </span>
+          <EyeIcon />
           <strong>{formatCount(post.viewCount)}</strong>
         </span>
         <span className="community-post-stat">
-          <span className="community-post-stat-icon" aria-hidden="true">
-            ⌁
-          </span>
+          <CommentIcon />
           <strong>{formatCount(post.commentCount)}</strong>
         </span>
         <span className="community-post-stat is-like">
-          <span className="community-post-stat-icon" aria-hidden="true">
-            ♡
-          </span>
+          <HeartIcon />
           <strong>{formatCount(post.likeCount)}</strong>
         </span>
       </span>

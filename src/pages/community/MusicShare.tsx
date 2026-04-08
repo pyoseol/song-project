@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import CommunitySpaceNav from '../../components/community/CommunitySpaceNav';
 import SiteHeader from '../../components/layout/SiteHeader';
 import {
   MUSIC_SHARE_CATEGORIES,
@@ -303,6 +304,8 @@ export default function MusicShare() {
       <SiteHeader activeSection="community" />
 
       <main className="music-share-shell">
+        <CommunitySpaceNav active="music" />
+
         <aside className="music-share-sidebar">
           <div className="music-share-sidebar-head">
             <span className="music-share-sidebar-kicker">MUSIC SHARE</span>
@@ -527,6 +530,14 @@ export default function MusicShare() {
           </div>
         </section>
       </main>
+
+      <button
+        type="button"
+        className="music-share-floating-action"
+        onClick={() => navigate('/composer')}
+      >
+        공유곡 만들기
+      </button>
 
       {selectedTrack ? (
         <div className="music-share-comment-overlay" onClick={() => setCommentTrackId(null)}>

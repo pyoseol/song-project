@@ -6,19 +6,19 @@ import {
   exportSongAsWav,
   preparePlaybackEngine,
 } from '../audio/engine.ts';
+import type { SongProject } from '../store/songStore.ts';
+import { useSongStore } from '../store/songStore.ts';
 import { useAuthStore } from '../store/authStore.ts';
 import { useComposerLibraryStore } from '../store/composerLibraryStore.ts';
-import { useSongStore } from '../store/songStore.ts';
-import type { SongProject } from '../store/songStore.ts';
 import { fetchAiMusic } from '../utils/ai';
 import { uploadMusicShareCoverOnServer } from '../utils/libraryApi.ts';
 import './TransportBar.css';
 
 const DEFAULT_AI_TEMPLATE = `분위기:
 참고곡:
-사용할 악기:
+사용 악기:
 리듬 무드:
-멜로디와 베이스 구분:
+멜로디/베이스 구분:
 강조하고 싶은 요소:`;
 
 const SAVE_BACKUP_STORAGE_KEY = 'song-maker-project-backups';
@@ -66,12 +66,47 @@ type TransportBarProps = {
   onPlayStarted?: () => void;
 };
 
+const UndoIcon = () => (
+  <svg
+    className="transport-button-icon-svg"
+    viewBox="0 0 20 20"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path d="M8 6H4.5V2.5" />
+    <path d="M4.5 6a7 7 0 1 1 1.3 7.6" />
+  </svg>
+);
+
+const RedoIcon = () => (
+  <svg
+    className="transport-button-icon-svg"
+    viewBox="0 0 20 20"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path d="M12 6h3.5V2.5" />
+    <path d="M15.5 6a7 7 0 1 0-1.3 7.6" />
+  </svg>
+);
+
+const ResetIcon = () => (
+  <svg
+    className="transport-button-icon-svg"
+    viewBox="0 0 20 20"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path d="M10 3.5a6.5 6.5 0 1 1-4.6 1.9" />
+    <path d="M5.4 1.8v3.8h3.8" />
+  </svg>
+);
+
 export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
   const {
     bpm,
     setBpm,
     steps,
-    clear,
     isPlaying,
     setPlaying,
     currentStep,
@@ -82,31 +117,31 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
     bass,
     volumes,
     loopRange,
-    barClipboard,
-    canUndo,
-    canRedo,
     undo,
     redo,
-    copyCurrentBar,
-    pasteCurrentBar,
-    duplicateCurrentBar,
-    clearCurrentBar,
-    toggleLoopCurrentBar,
+    clear,
+    canUndo,
+    canRedo,
   } = useSongStore();
+
   const user = useAuthStore((state) => state.user);
   const saveComposerProject = useComposerLibraryStore((state) => state.saveProject);
   const shareComposerProject = useComposerLibraryStore((state) => state.shareProject);
+
   const [isExporting, setIsExporting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [activeDialog, setActiveDialog] = useState<ComposerDialog>(null);
+
   const [aiSummary, setAiSummary] = useState('');
   const [aiDetails, setAiDetails] = useState(DEFAULT_AI_TEMPLATE);
+
   const [saveTitle, setSaveTitle] = useState('');
   const [saveDescription, setSaveDescription] = useState('');
   const [saveGenre, setSaveGenre] = useState('ballad');
   const [saveFormat, setSaveFormat] = useState<SaveFormat>('wav');
   const [saveBackupEnabled, setSaveBackupEnabled] = useState(true);
+
   const [shareTitle, setShareTitle] = useState('');
   const [shareDescription, setShareDescription] = useState('');
   const [shareGenre, setShareGenre] = useState('pop');
@@ -115,6 +150,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
   const [shareCoverFile, setShareCoverFile] = useState<File | null>(null);
   const [shareCoverPreviewUrl, setShareCoverPreviewUrl] = useState('');
   const [isUploadingShareCover, setIsUploadingShareCover] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const currentBar = Math.floor(currentStep / BAR_LENGTH) + 1;
@@ -162,6 +198,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
     if (shareCoverPreviewUrl) {
       URL.revokeObjectURL(shareCoverPreviewUrl);
     }
+
     setShareCoverFile(null);
     setShareCoverPreviewUrl('');
   };
@@ -178,7 +215,6 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
     try {
       await preparePlaybackEngine();
       Tone.Transport.bpm.value = bpm;
-
       Tone.Transport.stop();
       Tone.Transport.position = 0;
       setCurrentStep(loopRange?.start ?? 0);
@@ -197,6 +233,19 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
 
   const handleLoadProjectClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleResetProject = () => {
+    const shouldReset = window.confirm('현재 작곡 내용을 초기화할까요?');
+    if (!shouldReset) {
+      return;
+    }
+
+    Tone.Transport.stop();
+    Tone.Transport.position = 0;
+    clear();
+    setCurrentStep(0);
+    setPlaying(false);
   };
 
   const handleLoadProject = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -328,7 +377,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
 
       clearShareCover();
       closeDialog();
-      alert('프로젝트가 성공적으로 공유되었습니다.');
+      alert('?? ?? ???? ?? ???????.');
     } catch (error) {
       console.error('Project share failed:', error);
       const message = error instanceof Error ? error.message : String(error);
@@ -360,12 +409,12 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
       const aiGeneratedProject = (await fetchAiMusic(prompt)) as SongProject;
       useSongStore.getState().loadProject(aiGeneratedProject);
       setIsAiPanelOpen(false);
-      alert('AI 작곡 결과를 불러왔습니다.');
+      alert('AI 생성 결과를 불러왔습니다.');
     } catch (error) {
       console.error('AI generation failed:', error);
       const message =
-        error instanceof Error ? error.message : 'AI 작곡 요청을 처리하지 못했습니다.';
-      alert(`AI 작곡에 실패했습니다.\n\n${message}`);
+        error instanceof Error ? error.message : 'AI 생성 요청을 처리하지 못했습니다.';
+      alert(`AI 생성에 실패했습니다.\n\n${message}`);
     } finally {
       setIsGenerating(false);
     }
@@ -416,66 +465,34 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
             </span>
           ) : null}
         </div>
-
       </div>
 
       <div className="transport-actions">
         <button
           type="button"
-          className="transport-button transport-button--micro"
+          className="transport-button transport-button--with-icon transport-button--tool"
           onClick={undo}
           disabled={!canUndo}
         >
-          되돌리기
+          <UndoIcon />
+          <span>되돌리기</span>
         </button>
         <button
           type="button"
-          className="transport-button transport-button--micro"
+          className="transport-button transport-button--with-icon transport-button--tool"
           onClick={redo}
           disabled={!canRedo}
         >
-          다시하기
+          <RedoIcon />
+          <span>다시하기</span>
         </button>
         <button
           type="button"
-          className="transport-button transport-button--micro"
-          onClick={copyCurrentBar}
+          className="transport-button transport-button--with-icon transport-button--tool"
+          onClick={handleResetProject}
         >
-          마디 복사
-        </button>
-        <button
-          type="button"
-          className="transport-button transport-button--micro"
-          onClick={pasteCurrentBar}
-          disabled={!barClipboard}
-        >
-          붙여넣기
-        </button>
-        <button
-          type="button"
-          className="transport-button transport-button--micro"
-          onClick={duplicateCurrentBar}
-        >
-          마디 복제
-        </button>
-        <button
-          type="button"
-          className="transport-button transport-button--micro"
-          onClick={clearCurrentBar}
-        >
-          마디 비우기
-        </button>
-        <button
-          type="button"
-          className={`transport-button transport-button--micro${
-            loopRange ? ' transport-button--toggle' : ''
-          }`}
-          onClick={toggleLoopCurrentBar}
-        >
-          마디 반복
-        </button>
-        <button type="button" className="transport-button" onClick={clear}>
-          초기화
+          <ResetIcon />
+          <span>초기화</span>
         </button>
         <button type="button" className="transport-button" onClick={() => openDialog('save')}>
           저장하기
@@ -536,7 +553,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                       type="text"
                       value={saveTitle}
                       onChange={(event) => setSaveTitle(event.target.value)}
-                      placeholder="프로젝트 제목을 입력해 주세요"
+                      placeholder="프로젝트 제목을 입력해 주세요."
                     />
                   </label>
                   <label className="transport-dialog-field">
@@ -544,15 +561,12 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                     <textarea
                       value={saveDescription}
                       onChange={(event) => setSaveDescription(event.target.value)}
-                      placeholder="곡에 대한 설명을 입력해 주세요"
+                      placeholder="곡에 대한 설명을 입력해 주세요."
                     />
                   </label>
                   <label className="transport-dialog-field">
                     <span>장르</span>
-                    <select
-                      value={saveGenre}
-                      onChange={(event) => setSaveGenre(event.target.value)}
-                    >
+                    <select value={saveGenre} onChange={(event) => setSaveGenre(event.target.value)}>
                       {GENRE_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
@@ -563,10 +577,10 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                 </div>
 
                 <div className="transport-dialog-group">
-                  <span className="transport-dialog-kicker">오디오 출력 설정</span>
+                  <span className="transport-dialog-kicker">파일 설정</span>
                   <div className="transport-dialog-field">
-                    <span>파일 형식</span>
-                    <div className="transport-dialog-format-row" role="tablist" aria-label="파일 형식">
+                    <span>형식</span>
+                    <div className="transport-dialog-format-row" role="tablist" aria-label="형식">
                       {(['wav', 'mp3', 'flac'] as const).map((format) => (
                         <button
                           key={format}
@@ -580,13 +594,6 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                         </button>
                       ))}
                     </div>
-                    <small>
-                      {saveFormat === 'wav'
-                        ? '무손실 고음질 파일로 저장합니다.'
-                        : saveFormat === 'mp3'
-                        ? '용량이 가벼워 공유하기 좋은 형식입니다.'
-                        : 'FLAC 저장은 아직 준비 중입니다.'}
-                    </small>
                   </div>
                 </div>
 
@@ -598,11 +605,9 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                   >
                     <div className="transport-dialog-toggle-copy">
                       <span>백업 저장</span>
-                      <small>프로젝트 JSON도 같이 저장합니다.</small>
+                      <small>프로젝트 JSON 파일도 함께 저장합니다.</small>
                     </div>
-                    <span
-                      className={`transport-dialog-switch${saveBackupEnabled ? ' is-on' : ''}`}
-                    >
+                    <span className={`transport-dialog-switch${saveBackupEnabled ? ' is-on' : ''}`}>
                       <span />
                     </span>
                   </button>
@@ -646,7 +651,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                       type="text"
                       value={shareTitle}
                       onChange={(event) => setShareTitle(event.target.value)}
-                      placeholder="공유 제목을 입력해 주세요"
+                      placeholder="공유 제목을 입력해 주세요."
                     />
                   </label>
                   <label className="transport-dialog-field">
@@ -654,7 +659,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                     <textarea
                       value={shareDescription}
                       onChange={(event) => setShareDescription(event.target.value)}
-                      placeholder="공유할 곡 설명을 적어 주세요"
+                      placeholder="공유할 곡 설명을 적어 주세요."
                     />
                   </label>
                   <label className="transport-dialog-field">
@@ -671,22 +676,9 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                     </select>
                   </label>
                   <label className="transport-dialog-field">
-                    <span>커버 이미지</span>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      onChange={handleSelectShareCover} 
-                      style={{ display: 'none' }} 
-                    />
-                    
-                    {/* 2. 대신 사이트 테마에 어울리는 가짜 버튼을 만들어줍니다! */}
-                    <span 
-                      className="transport-dialog-button" 
-                      style={{ display: 'inline-block', width: 'fit-content', cursor: 'pointer', textAlign: 'center' }}
-                    >
-                      이미지 파일 찾기
-                    </span>
-                    <small>곡을 잘 나타내는 커버 이미지를 선택해 주세요.</small>
+                    <span>?? ???</span>
+                    <input type="file" accept="image/*" onChange={handleSelectShareCover} />
+                    <small>?? ?? ??? ?? ??? ?? ???? ?????.</small>
                   </label>
                   {shareCoverPreviewUrl ? (
                     <div className="transport-dialog-image-preview">
@@ -695,9 +687,9 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                         style={{ backgroundImage: `url(${shareCoverPreviewUrl})` }}
                       />
                       <div className="transport-dialog-image-preview-copy">
-                        <strong>{shareCoverFile?.name ?? '커버 이미지'}</strong>
+                        <strong>{shareCoverFile?.name ?? '?? ???'}</strong>
                         <button type="button" onClick={clearShareCover}>
-                          이미지 삭제
+                          ??? ??
                         </button>
                       </div>
                     </div>
@@ -712,7 +704,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                   >
                     <div className="transport-dialog-toggle-copy">
                       <span>공개 여부</span>
-                      <small>끄면 나만 볼 수 있습니다.</small>
+                      <small>끄면 본인만 볼 수 있습니다.</small>
                     </div>
                     <span className={`transport-dialog-switch${shareIsPublic ? ' is-on' : ''}`}>
                       <span />
@@ -728,9 +720,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                       <span>MIDI 공유</span>
                       <small>원본 편집 정보도 함께 공유합니다.</small>
                     </div>
-                    <span
-                      className={`transport-dialog-switch${shareMidiEnabled ? ' is-on' : ''}`}
-                    >
+                    <span className={`transport-dialog-switch${shareMidiEnabled ? ' is-on' : ''}`}>
                       <span />
                     </span>
                   </button>
@@ -746,7 +736,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                     onClick={handleShareConfirm}
                     disabled={isUploadingShareCover}
                   >
-                    {isUploadingShareCover ? '이미지 업로드 중...' : '공유하기'}
+                    {isUploadingShareCover ? '??? ??? ?...' : '????'}
                   </button>
                 </div>
               </>
@@ -760,7 +750,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
           <div className="transport-ai-header">
             <div>
               <span className="transport-ai-eyebrow">AI COMPOSER</span>
-              <strong>원하는 곡 방향을 자세히 적어보세요</strong>
+              <strong>원하는 곡의 방향을 자세히 적어보세요.</strong>
             </div>
             <button
               type="button"
@@ -772,11 +762,6 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
             </button>
           </div>
 
-          <div className="transport-ai-meta">
-            <span className="transport-ai-chip">{bpm} BPM</span>
-            <span className="transport-ai-chip">{steps} steps</span>
-          </div>
-
           <label className="transport-ai-field">
             <span>한 줄 요약</span>
             <input
@@ -784,7 +769,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
               className="transport-ai-input"
               value={aiSummary}
               onChange={(event) => setAiSummary(event.target.value)}
-              placeholder="예: 몽환적인 시티팝 무드, 후렴은 시원하게"
+              placeholder="예: 몽환적인 시티팝 무드, 여름 밤처럼"
             />
           </label>
 
@@ -794,12 +779,12 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
               className="transport-ai-textarea"
               value={aiDetails}
               onChange={(event) => setAiDetails(event.target.value)}
-              placeholder="분위기, 참고곡, 악기 구성, 리듬 무드 같은 조건을 자세히 적어 주세요"
+              placeholder="분위기, 참고곡, 악기 구성, 리듬 무드 등을 자세히 적어 주세요."
             />
           </label>
 
           <p className="transport-ai-helper">
-            참고곡, 악기 구성, 리듬, 전개 포인트를 구체적으로 적을수록 원하는 결과에 더 가까워집니다.
+            참고곡, 악기 구성, 리듬, 포인트를 구체적으로 적을수록 원하는 결과에 가까워집니다.
           </p>
 
           <div className="transport-ai-actions">

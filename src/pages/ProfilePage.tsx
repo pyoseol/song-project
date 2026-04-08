@@ -414,7 +414,7 @@ export default function ProfilePage() {
                 <span>저장한 곡 {formatCount(savedTracks.length)}개</span>
                 <span>숏폼 {formatCount(myShorts.length)}개</span>
               </div>
-              <p>최근 작업과 작곡 튜토리얼 진행도를 한 번에 볼 수 있는 내 작업 공간입니다.</p>
+              <p>최근 작업과 저장한 음악을 한 번에 볼 수 있는 내 작업 공간입니다.</p>
             </div>
           </div>
 
@@ -714,7 +714,7 @@ export default function ProfilePage() {
                         key={lesson.id}
                         type="button"
                         className="profile-mini-list-item"
-                        onClick={() => navigate('/composer?tutorial=1')}
+                        onClick={() => navigate('/composer')}
                       >
                         <strong>{lesson.label}</strong>
                         <span>{lesson.section}</span>

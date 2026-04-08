@@ -1,6 +1,7 @@
 import type { ChangeEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import CommunitySpaceNav from '../../components/community/CommunitySpaceNav';
 import SiteHeader from '../../components/layout/SiteHeader';
 import { useAuthStore } from '../../store/authStore';
 import { useUsedMarketStore } from '../../store/usedMarketStore';
@@ -266,6 +267,8 @@ export default function UsedMarket() {
       <SiteHeader activeSection="community" />
 
       <main className="used-market-shell">
+        <CommunitySpaceNav active="market" />
+
         <aside className="used-market-sidebar">
           <div className="used-market-sidebar-head">
             <span className="used-market-sidebar-kicker">USED MARKET</span>
@@ -461,6 +464,14 @@ export default function UsedMarket() {
           </div>
         </section>
       </main>
+
+      <button
+        type="button"
+        className="used-market-floating-action"
+        onClick={() => setIsCreateOpen(true)}
+      >
+        상품 등록
+      </button>
 
       {isCreateOpen ? (
         <div className="used-market-modal-backdrop" onClick={closeCreateModal}>

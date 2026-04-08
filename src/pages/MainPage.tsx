@@ -193,9 +193,9 @@ export default function MainPage() {
           <div className="main-hero-copy">
             <span className="main-hero-eyebrow">SONG MAKER HUB</span>
             <h1 className="main-hero-title">
-              튜토리얼부터 작곡,
+              작곡부터 커뮤니티까지,
               <br />
-              커뮤니티까지 한 번에 이어가기
+              한 번에 이어가기
             </h1>
             <p className="main-hero-description">
               지금 필요한 흐름만 골라서 바로 시작할 수 있도록 메인 화면을 정리했습니다.
@@ -209,13 +209,6 @@ export default function MainPage() {
                 onClick={() => navigate('/composer')}
               >
                 바로 작곡하기
-              </button>
-              <button
-                type="button"
-                className="main-hero-button"
-                onClick={() => navigate('/composer?tutorial=1')}
-              >
-                튜토리얼 시작하기
               </button>
               <button
                 type="button"
@@ -300,16 +293,8 @@ export default function MainPage() {
                   <span className="main-section-icon" aria-hidden="true">
                     #
                   </span>
-                  추천 작곡 가이드
+                  추천 작곡
                 </h2>
-
-                <button
-                  type="button"
-                  className="main-section-link"
-                  onClick={() => navigate('/composer?tutorial=1')}
-                >
-                  작곡 튜토리얼 보기 {'>'}
-                </button>
               </div>
 
               <div className="main-lesson-grid">
@@ -318,7 +303,7 @@ export default function MainPage() {
                     key={lesson.id}
                     type="button"
                     className="main-lesson-card"
-                    onClick={() => navigate('/composer?tutorial=1')}
+                    onClick={() => navigate('/composer')}
                   >
                     <span className="main-lesson-section">{lesson.section}</span>
                     <strong>{lesson.title}</strong>

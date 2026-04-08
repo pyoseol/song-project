@@ -1,0 +1,34 @@
+import { useNavigate } from 'react-router-dom';
+import './CommunitySpaceNav.css';
+
+type CommunitySpaceNavProps = {
+  active: 'board' | 'music' | 'market';
+};
+
+const ITEMS = [
+  { key: 'board', label: '게시판', route: '/community' },
+  { key: 'music', label: '음악 공유', route: '/community/music' },
+  { key: 'market', label: '중고 거래', route: '/community/market' },
+] as const;
+
+export default function CommunitySpaceNav({ active }: CommunitySpaceNavProps) {
+  const navigate = useNavigate();
+
+  return (
+    <section className="community-space-nav" aria-label="다른 커뮤니티 공간">
+      <span className="community-space-nav-label">다른 커뮤니티</span>
+      <div className="community-space-nav-list">
+        {ITEMS.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            className={`community-space-nav-button${active === item.key ? ' is-active' : ''}`}
+            onClick={() => navigate(item.route)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}

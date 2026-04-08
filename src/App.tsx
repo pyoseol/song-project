@@ -37,7 +37,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/learn" element={<Navigate to="/composer?tutorial=1" replace />} />
+          <Route path="/learn" element={<Navigate to="/composer" replace />} />
           <Route path="/composer" element={<Composer />} />
           <Route path="/community" element={<PostList />} />
           <Route path="/community/music" element={<MusicShare />} />

@@ -489,6 +489,12 @@
   cursor: pointer;
 }
 
+.community-reset-button--inline {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
 .community-board-toolbar {
   margin-top: 24px;
   display: flex;
@@ -1110,5 +1116,135 @@
   .community-write-button {
     width: 100%;
     max-width: 240px;
+  }
+}
+
+.community-shell {
+  padding-bottom: 110px;
+}
+
+.community-board-column {
+  width: 100%;
+}
+
+.community-board-panel {
+  width: 100%;
+}
+
+.community-reset-button {
+  height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.community-reset-button--inline {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+.community-post-header,
+.community-post-row {
+  grid-template-columns: 56px minmax(0, 1fr) 176px;
+}
+
+.community-post-main {
+  gap: 8px;
+}
+
+.community-post-title {
+  font-weight: 700;
+}
+
+.community-post-meta {
+  gap: 12px;
+}
+
+.community-post-meta span {
+  position: relative;
+}
+
+.community-post-meta span + span::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: #667089;
+  transform: translateY(-50%);
+}
+
+.community-post-stats {
+  gap: 12px;
+}
+
+.community-post-stat-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.community-board-footer {
+  grid-template-columns: 1fr;
+  justify-items: center;
+}
+
+.community-pagination {
+  grid-column: auto;
+}
+
+.community-floating-write-button {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 30;
+  min-width: 120px;
+  height: 50px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #7d90ff 0%, #6b7cff 100%);
+  color: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: 0 18px 36px rgba(71, 88, 200, 0.32);
+  cursor: pointer;
+}
+
+.community-floating-write-button:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 820px) {
+  .community-post-header,
+  .community-post-row {
+    grid-template-columns: 48px minmax(0, 1fr) 148px;
+  }
+}
+
+@media (max-width: 640px) {
+  .community-shell {
+    padding-bottom: 96px;
+  }
+
+  .community-post-header,
+  .community-post-row {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .community-post-header span:last-child,
+  .community-post-stats {
+    display: none;
+  }
+
+  .community-floating-write-button {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    width: auto;
   }
 }

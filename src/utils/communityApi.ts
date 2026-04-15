@@ -1,5 +1,5 @@
 import { 
-  collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc, query, orderBy, increment, arrayUnion, arrayRemove 
+  collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc, query, orderBy, increment, arrayUnion, arrayRemove, limit,  
 } from 'firebase/firestore';
 import { db } from '../firebase'; // ★ 주의: 실제 firebase.ts 파일 경로에 맞게 수정해주세요!
 import type { Comment, Post } from '../types/community';
@@ -85,10 +85,10 @@ async function fetchUserMetas() {
 }
 
 export async function fetchCommunityBootstrap(): Promise<CommunitySnapshot> {
-  const postsQuery = query(collection(db, 'community_posts'), orderBy('createdAt', 'desc'));
+  const postsQuery = query(collection(db, 'community_posts'), orderBy('createdAt', 'desc'), limit(20)); // limit(20) 추가
   const postsSnap = await getDocs(postsQuery);
-  
-  const commentsQuery = query(collection(db, 'community_comments'), orderBy('createdAt', 'asc'));
+    
+  const commentsQuery = query(collection(db, 'community_comments'), orderBy('createdAt', 'asc'), limit(50)); // limit(50) 추가
   const commentsSnap = await getDocs(commentsQuery);
 
   const posts = postsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));

@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, deleteDoc, getDocs, query, where, updateDoc, arrayUnion, onSnapshot } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, getDocs, query, where, updateDoc, arrayUnion, onSnapshot, limit, orderBy } from 'firebase/firestore';
 import { db } from '../firebase'; // ★ 주의: 실제 firebase.ts 경로에 맞게 수정하세요!
 import type { FriendProfile } from '../store/friendStore';
 import type { DirectMessage, MessageMember, MessageThread } from '../store/messageStore';
@@ -156,12 +156,22 @@ export function subscribeToMessagesRealtime(ownerEmail: string, onUpdate: (snaps
     state.threads = threads;
     
     threads.forEach(t => {
-       const unsubMsgs = onSnapshot(query(collection(db, 'messages_items'), where('threadId', '==', t.id)), (mSnap) => {
-         state.messagesByThread[t.id] = mSnap.docs.map(d => ({ id: d.id, ...d.data() } as DirectMessage))
-            .sort((a, b) => a.createdAt - b.createdAt);
-         onUpdate({ ...state });
-       });
-       unsubscribers.push(unsubMsgs);
+       const unsubMsgs = onSnapshot(
+         query(
+           collection(db, 'messages_items'), 
+           where('threadId', '==', t.id),
+           orderBy('createdAt', 'desc'), // 1. 최신 메시지부터 정렬
+           limit(50)                     // 2. 최대 50개까지만 가져오기
+         ), 
+         (mSnap) => {
+           state.messagesByThread[t.id] = mSnap.docs.map(d => ({ id: d.id, ...d.data() } as DirectMessage))
+              // 3. (기존에 작성하신 코드) 가져온 50개의 최신 메시지를 다시 과거순(채팅방 순서)으로 정렬
+              .sort((a, b) => a.createdAt - b.createdAt); 
+           
+           onUpdate({ ...state });
+         }
+       );
+       unsubscribers.push(unsubMsgs); // (참고) 기존 코드에 맞춰 구독 해제 배열에 추가
     });
     onUpdate({ ...state });
   });

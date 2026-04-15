@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc, query, limit, orderBy } from 'firebase/firestore';
 import { db } from '../firebase'; // ★ 주의: 실제 firebase.ts 경로에 맞게 수정하세요!
 import type {
   SessionMeetingType,
@@ -41,7 +41,8 @@ export type UpdateSessionRecruitPayload = CreateSessionRecruitPayload & {
 
 export async function fetchSessionRecruitBootstrap(): Promise<SessionRecruitSnapshot> {
   // 파이어베이스에서 세션 모집 글 목록을 모두 가져옵니다.
-  const snap = await getDocs(collection(db, 'session_recruit_posts'));
+  const q = query(collection(db, 'session_recruit_posts'), orderBy('createdAt', 'desc'), limit(20));
+  const snap = await getDocs(q);
   const posts = snap.docs.map(docSnap => ({
     id: docSnap.id, // 파이어베이스 문서 ID를 글 ID로 사용
     ...docSnap.data()

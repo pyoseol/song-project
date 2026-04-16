@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import SiteHeader from '../components/layout/SiteHeader';
 import { PianoRoll } from '../components/PianoRoll.tsx';
 import { TransportBar } from '../components/TransportBar.tsx';
-import { initTransport, playBassPreview, playDrumPreview, playMelodyPreview } from '../audio/engine.ts';
+import { initTransport, playBassPreview, playDrumPreview } from '../audio/engine.ts';
 import {
   COMPOSER_GUIDE_STEPS,
   type ComposerGuideFocus,
@@ -17,7 +17,7 @@ import {
   type ComposerTutorialChordTarget,
   type ComposerTutorialNoteTarget,
 } from '../constants/composerTutorialGame.ts';
-import { BASS_CHORD_MAP, BASS_NOTES, DRUM_STEP_WIDTH, MELODY_NOTE_TO_ROW } from '../constants/composer.ts';
+import { BASS_CHORD_MAP, BASS_NOTES, DRUM_STEP_WIDTH } from '../constants/composer.ts';
 import { useAuthStore } from '../store/authStore.ts';
 import {
   COLLAB_PRESENCE_PING_INTERVAL_MS,
@@ -34,53 +34,21 @@ import {
   type InstrumentKey,
   useSongStore,
 } from '../store/songStore.ts';
-import {
-  useUIStore,
-  type ComposerTabKey,
-  type MelodyInstrument,
-} from '../store/uiStore.ts';
+import { useUIStore } from '../store/uiStore.ts';
 import './Composer.css';
 
-type ComposerTab = ComposerTabKey;
+type ComposerTab = 'melody' | 'drums' | 'bass';
 
 const chordOptions = ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const;
 
 const tabLabels: Record<ComposerTab, string> = {
   melody: 'MELODY',
-  guitar: 'GUITAR',
   drums: 'DRUMS',
   bass: 'BASS',
 };
 
-const tabPickerLabels: Record<ComposerTab, string> = {
-  melody: '피아노',
-  guitar: '통기타',
-  drums: '드럼',
-  bass: '베이스',
-};
-
-const tabOrder: ComposerTab[] = ['melody', 'guitar', 'drums', 'bass'];
+const tabOrder: ComposerTab[] = ['melody', 'drums', 'bass'];
 const COLLAB_BAR_LENGTH = 16;
-
-function getCollabInstrumentForTab(tab: ComposerTab): CollabComposerInstrument {
-  return tab === 'guitar' ? 'melody' : tab;
-}
-
-function getVolumeInstrumentForTab(tab: ComposerTab): InstrumentKey {
-  return tab === 'guitar' ? 'melody' : tab;
-}
-
-function getMelodyInstrumentForTab(tab: ComposerTab): MelodyInstrument | null {
-  if (tab === 'melody') {
-    return 'piano';
-  }
-
-  if (tab === 'guitar') {
-    return 'acousticGuitar';
-  }
-
-  return null;
-}
 
 function clampGuideStepIndex(value: number) {
   const safeValue = Number.isFinite(value) ? Math.floor(value) : 0;
@@ -149,7 +117,6 @@ const drumTracks = [
   { name: 'Snare', hint: 'Backbeat snap', tone: 'snare' },
   { name: 'Hi-Hat', hint: 'Fast groove', tone: 'hat' },
   { name: 'Clap', hint: 'Accent layer', tone: 'clap' },
-  { name: 'Percussion', hint: 'Extra groove', tone: 'perc' },
 ] as const;
 
 const bassLaneColors = [
@@ -163,17 +130,6 @@ const bassLaneColors = [
   '#f97316',
   '#34d399',
   '#facc15',
-] as const;
-
-const guitarLaneColors = ['#f59e0b', '#fb923c', '#fbbf24', '#fdba74', '#f97316', '#fcd34d'] as const;
-
-const guitarGridLanes = [
-  { label: 'High E', hint: '1st string', note: 'E5' },
-  { label: 'B', hint: '2nd string', note: 'B4' },
-  { label: 'G', hint: '3rd string', note: 'G4' },
-  { label: 'D', hint: '4th string', note: 'D4' },
-  { label: 'A', hint: '5th string', note: 'A3' },
-  { label: 'Low E', hint: '6th string', note: 'E4' },
 ] as const;
 
 function getSubdivisionClassName(col: number) {
@@ -199,7 +155,6 @@ export function Composer() {
     bass,
     volumes,
     setInstrumentVolume,
-    toggleMelody,
     toggleDrum,
     toggleBass,
     applyChord,
@@ -210,7 +165,7 @@ export function Composer() {
     loadProject,
     applyRemoteProject,
   } = useSongStore();
-  const { activeTab, setActiveTab, setInstrument } = useUIStore();
+  const { activeTab, setActiveTab } = useUIStore();
   const projects = useCollabStore((state) => state.projects);
   const connectionStatus = useCollabStore((state) => state.connectionStatus);
   const connectionError = useCollabStore((state) => state.connectionError);
@@ -258,17 +213,11 @@ export function Composer() {
   const [openTabsState, setOpenTabsState] = useState<ComposerTab[]>(['melody']);
   const [isTabPickerOpen, setIsTabPickerOpen] = useState(false);
   const [playedTutorialOnce, setPlayedTutorialOnce] = useState(false);
-  const [tabPickerMenuPosition, setTabPickerMenuPosition] = useState<{
-    top: number;
-    left: number;
-    minWidth: number;
-  } | null>(null);
   const tutorialAdvanceTimeoutRef = useRef<number | null>(null);
   const lastAutoAdvancedStepRef = useRef<number | null>(null);
   const tutorialCameraTimeoutRef = useRef<number | null>(null);
   const tabStripRef = useRef<HTMLDivElement | null>(null);
   const tabPickerRef = useRef<HTMLDivElement | null>(null);
-  const tabAddButtonRef = useRef<HTMLButtonElement | null>(null);
   const mixerStripRef = useRef<HTMLDivElement | null>(null);
   const mainViewportRef = useRef<HTMLElement | null>(null);
   const melodyChordBarRef = useRef<HTMLElement | null>(null);
@@ -283,16 +232,9 @@ export function Composer() {
 
     return tabOrder.filter((tab) => openTabsState.includes(tab) || tab === activeTab);
   }, [activeTab, openTabsState, tutorialRequested]);
-  const tabPickerOptions = useMemo(() => tabOrder, []);
-  const guitarLanes = useMemo(
-    () =>
-      guitarGridLanes
-        .map((lane) => ({
-          ...lane,
-          row: MELODY_NOTE_TO_ROW[lane.note],
-        }))
-        .filter((lane): lane is (typeof guitarGridLanes)[number] & { row: number } => typeof lane.row === 'number'),
-    []
+  const closedTabs = useMemo(
+    () => tabOrder.filter((tab) => !openTabs.includes(tab)),
+    [openTabs]
   );
 
   const projectSnapshot = useMemo(
@@ -346,11 +288,9 @@ export function Composer() {
     [collabId, composerLocksByProject]
   );
   const currentTabLockMap = useMemo(() => {
-    const currentCollabInstrument = getCollabInstrumentForTab(activeTab);
-
     return activeComposerLocks.reduce<Record<number, { mine: boolean; name: string }>>(
       (map, lock) => {
-        if (lock.instrument !== currentCollabInstrument) {
+        if (lock.instrument !== activeTab) {
           return map;
         }
 
@@ -742,50 +682,6 @@ export function Composer() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!isTabPickerOpen || !tabAddButtonRef.current) {
-      if (!isTabPickerOpen) {
-        setTabPickerMenuPosition(null);
-      }
-      return;
-    }
-
-    const updateTabPickerPosition = () => {
-      if (!tabAddButtonRef.current) {
-        return;
-      }
-
-      const rect = tabAddButtonRef.current.getBoundingClientRect();
-      const minWidth = 188;
-      const viewportPadding = 12;
-      const maxLeft = Math.max(viewportPadding, window.innerWidth - minWidth - viewportPadding);
-
-      setTabPickerMenuPosition({
-        top: rect.bottom + 8,
-        left: Math.min(Math.max(viewportPadding, rect.left), maxLeft),
-        minWidth: minWidth,
-      });
-    };
-
-    updateTabPickerPosition();
-    window.addEventListener('resize', updateTabPickerPosition);
-    window.addEventListener('scroll', updateTabPickerPosition, true);
-
-    return () => {
-      window.removeEventListener('resize', updateTabPickerPosition);
-      window.removeEventListener('scroll', updateTabPickerPosition, true);
-    };
-  }, [isTabPickerOpen]);
-
-  useEffect(() => {
-    const nextInstrument = getMelodyInstrumentForTab(activeTab);
-    if (!nextInstrument) {
-      return;
-    }
-
-    setInstrument(nextInstrument);
-  }, [activeTab, setInstrument]);
-
   const syncGuideQuery = useCallback(
     (open: boolean, stepIndex = guideStepIndex) => {
       const nextParams = new URLSearchParams(searchParams);
@@ -831,8 +727,19 @@ export function Composer() {
   }, [syncGuideQuery, tutorialCompleted, tutorialRequested]);
 
   const handleTabPickerToggle = useCallback(() => {
-    setIsTabPickerOpen((current) => !current);
-  }, []);
+    const nextTab = closedTabs[0];
+
+    if (!nextTab) {
+      return;
+    }
+
+    setOpenTabsState((current) =>
+      tabOrder.filter((candidate) => candidate === nextTab || current.includes(candidate))
+    );
+    markVisitedTab(nextTab);
+    setActiveTab(nextTab);
+    setIsTabPickerOpen(false);
+  }, [closedTabs, markVisitedTab, setActiveTab]);
 
   const handleOpenTab = useCallback(
     (tab: ComposerTab) => {
@@ -841,13 +748,9 @@ export function Composer() {
       );
       markVisitedTab(tab);
       setActiveTab(tab);
-      const nextInstrument = getMelodyInstrumentForTab(tab);
-      if (nextInstrument) {
-        setInstrument(nextInstrument);
-      }
       setIsTabPickerOpen(false);
     },
-    [markVisitedTab, setActiveTab, setInstrument]
+    [markVisitedTab, setActiveTab]
   );
 
   const handleCloseTab = useCallback(
@@ -866,13 +769,9 @@ export function Composer() {
       if (activeTab === tab) {
         const fallbackTab = [...remainingTabs].reverse().find((candidate) => candidate !== tab) ?? 'melody';
         setActiveTab(fallbackTab);
-        const nextInstrument = getMelodyInstrumentForTab(fallbackTab);
-        if (nextInstrument) {
-          setInstrument(nextInstrument);
-        }
       }
     },
-    [activeTab, openTabsState, setActiveTab, setInstrument]
+    [activeTab, openTabsState, setActiveTab]
   );
 
   const handleStepLoopSelect = useCallback(
@@ -885,10 +784,6 @@ export function Composer() {
   );
 
   const getDrumTutorialCellClass = (row: number, col: number) => {
-    if (!isGuideOpen || guideStepIndex !== 3) {
-      return '';
-    }
-
     if (
       nextDrumTutorialTarget &&
       nextDrumTutorialTarget.row === row &&
@@ -907,10 +802,6 @@ export function Composer() {
   };
 
   const getBassTutorialCellClass = (row: number, col: number) => {
-    if (!isGuideOpen || guideStepIndex !== 4) {
-      return '';
-    }
-
     if (
       nextBassTutorialTarget &&
       nextBassTutorialTarget.row === row &&
@@ -929,8 +820,6 @@ export function Composer() {
   };
 
   const getDrumTutorialCellGuideLabel = (row: number, col: number) =>
-    isGuideOpen &&
-    guideStepIndex === 3 &&
     nextDrumTutorialTarget &&
     nextDrumTutorialTarget.row === row &&
     nextDrumTutorialTarget.col === col
@@ -938,8 +827,6 @@ export function Composer() {
       : '';
 
   const getBassTutorialCellGuideLabel = (row: number, col: number) =>
-    isGuideOpen &&
-    guideStepIndex === 4 &&
     nextBassTutorialTarget &&
     nextBassTutorialTarget.row === row &&
     nextBassTutorialTarget.col === col
@@ -1350,7 +1237,7 @@ export function Composer() {
       return;
     }
 
-    const focus = `composer:${getCollabInstrumentForTab(activeTab)}`;
+    const focus = `composer:${activeTab}`;
 
     void touchPresence(collabId, {
       email: user.email,
@@ -1378,9 +1265,7 @@ export function Composer() {
     };
   }, [activeTab, collabId, leavePresence, touchPresence, user]);
 
-  const handleMixerChange = (tab: ComposerTab, volume: number) => {
-    const instrument = getVolumeInstrumentForTab(tab);
-
+  const handleMixerChange = (instrument: InstrumentKey, volume: number) => {
     setInstrumentVolume(instrument, volume);
 
     if (!collabId || !canSyncCollab) {
@@ -1442,29 +1327,6 @@ export function Composer() {
     releaseComposerBarLock('bass', barIndex);
   };
 
-  const handleGuitarCellToggle = async (row: number, col: number) => {
-    const barIndex = Math.floor(col / COLLAB_BAR_LENGTH);
-    if (!(await requestComposerBarLock('melody', barIndex))) {
-      return;
-    }
-
-    const nextValue = !(useSongStore.getState().melody[row]?.[col] ?? false);
-    toggleMelody(row, col, nextValue ? 1 : 0);
-
-    if (nextValue) {
-      void playMelodyPreview(row, 1);
-    }
-
-    queueComposerOperation({
-      type: 'set-melody-note',
-      row,
-      col,
-      length: nextValue ? 1 : 0,
-      barIndex,
-    });
-    releaseComposerBarLock('melody', barIndex);
-  };
-
   const handleBassChordDrop = async (chord: string, col: number) => {
     const barIndex = Math.floor(col / COLLAB_BAR_LENGTH);
     if (!(await requestComposerBarLock('bass', barIndex))) {
@@ -1502,8 +1364,6 @@ export function Composer() {
     releaseComposerBarLock('drums', barIndex);
   };
 
-  const getTabVolume = (tab: ComposerTab) => volumes[getVolumeInstrumentForTab(tab)];
-
   return (
     <div
       className={`composer-page composer-page--${activeTab}${
@@ -1530,7 +1390,7 @@ export function Composer() {
                   className={`composer-tab-card is-${tab}${
                     activeTab === tab ? ' is-active' : ''
                   }${getTutorialTabClass(tab)}`}
-                  style={{ ['--composer-tab-volume' as string]: `${getTabVolume(tab)}%` }}
+                  style={{ ['--composer-tab-volume' as string]: `${volumes[tab]}%` }}
                 >
                   <button
                     type="button"
@@ -1538,10 +1398,6 @@ export function Composer() {
                     onClick={() => {
                       markVisitedTab(tab);
                       setActiveTab(tab);
-                      const nextInstrument = getMelodyInstrumentForTab(tab);
-                      if (nextInstrument) {
-                        setInstrument(nextInstrument);
-                      }
                     }}
                     aria-pressed={activeTab === tab}
                   >
@@ -1577,62 +1433,42 @@ export function Composer() {
                       type="range"
                       min={0}
                       max={100}
-                      value={getTabVolume(tab)}
+                      value={volumes[tab]}
                       onChange={(event) => handleMixerChange(tab, Number(event.target.value))}
                     />
                   </label>
                 </div>
               ))}
 
-              <div ref={tabPickerRef} className="composer-tab-picker">
-                <button
-                  ref={tabAddButtonRef}
-                  type="button"
-                  className={`composer-tab-add-button${isTabPickerOpen ? ' is-open' : ''}`}
-                  onClick={handleTabPickerToggle}
-                  aria-label="악기 선택"
-                  aria-expanded={isTabPickerOpen}
-                  aria-haspopup="menu"
-                >
-                  +
-                </button>
-
-                {isTabPickerOpen ? (
-                  <div
-                    className="composer-tab-picker-menu"
-                    role="menu"
-                    aria-label="선택 가능한 악기"
-                    style={
-                      tabPickerMenuPosition
-                        ? {
-                            top: `${tabPickerMenuPosition.top}px`,
-                            left: `${tabPickerMenuPosition.left}px`,
-                            minWidth: `${tabPickerMenuPosition.minWidth}px`,
-                          }
-                        : undefined
-                    }
+              {closedTabs.length ? (
+                <div ref={tabPickerRef} className="composer-tab-picker">
+                  <button
+                    type="button"
+                    className={`composer-tab-add-button${isTabPickerOpen ? ' is-open' : ''}`}
+                    onClick={handleTabPickerToggle}
+                    aria-label="악기 탭 추가"
+                    aria-expanded={isTabPickerOpen}
+                    aria-haspopup="menu"
                   >
-                    {tabPickerOptions.map((tab) => {
-                      const isOpen = openTabs.includes(tab);
-                      const isActive = activeTab === tab;
+                    +
+                  </button>
 
-                      return (
+                  {isTabPickerOpen ? (
+                    <div className="composer-tab-picker-menu" role="menu" aria-label="열 수 있는 악기">
+                      {closedTabs.map((tab) => (
                         <button
                           key={tab}
                           type="button"
-                          className={`composer-tab-picker-item is-${tab}${
-                            isActive ? ' is-active' : ''
-                          }${isOpen ? ' is-opened' : ''}`}
+                          className={`composer-tab-picker-item is-${tab}`}
                           onClick={() => handleOpenTab(tab)}
                         >
-                          <span>{tabPickerLabels[tab]}</span>
-                          <small>{isActive ? '현재 악기' : isOpen ? '열려 있음' : '추가'}</small>
+                          {tabLabels[tab]}
                         </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
             </div>
 
@@ -1718,109 +1554,6 @@ export function Composer() {
               />
             </section>
           </>
-        )}
-
-        {activeTab === 'guitar' && (
-          <section className="composer-bass-shell">
-            <div className="composer-drum-panel composer-drum-panel--bass">
-              <div className="composer-drums-wrap">
-                <div className="composer-sequencer-body">
-                  <div className="composer-sequencer-header composer-sequencer-header--bass">
-                    <div className="composer-drum-step-spacer">Guitar String</div>
-
-                    <div
-                      className="composer-step-grid composer-step-grid--bass"
-                      style={{
-                        gridTemplateColumns: `repeat(${steps}, ${DRUM_STEP_WIDTH}px)`,
-                        ['--sequencer-step-span' as string]: `calc(${DRUM_STEP_WIDTH}px + 10px)`,
-                      }}
-                    >
-                      {Array.from({ length: steps }).map((_, col) => (
-                        <button
-                          key={`guitar-header-${col}`}
-                          type="button"
-                          className={`composer-drum-step-number composer-drum-step-number--bass${
-                            col === currentStep ? ' is-current' : ''
-                          }${getSubdivisionClassName(col)}${
-                            loopRange && col >= loopRange.start && col <= loopRange.end
-                              ? ' is-loop-active'
-                              : ''
-                          }${loopRange?.end === col ? ' is-loop-end' : ''}`}
-                          onClick={() => handleStepLoopSelect(col)}
-                          aria-label={`${col + 1}번 위치까지 반복`}
-                          title={`${col + 1}번 위치까지 반복`}
-                        >
-                          <span className="sr-only">{col + 1}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="composer-sequencer-rows">
-                    {guitarLanes.map((lane, index) => {
-                      const guitarAccent = guitarLaneColors[index % guitarLaneColors.length];
-                      const guitarAccentStyle = {
-                        '--bass-accent': guitarAccent,
-                      } as CSSProperties;
-
-                      return (
-                        <div key={lane.label} className="composer-drum-row composer-drum-row--bass">
-                          <div
-                            className="composer-drum-track composer-drum-track--bass"
-                            style={guitarAccentStyle}
-                          >
-                            <strong>{lane.label}</strong>
-                            <span>{lane.hint}</span>
-                          </div>
-
-                          <div
-                            className="composer-drum-row-grid composer-drum-row-grid--bass"
-                            style={{
-                              gridTemplateColumns: `repeat(${steps}, ${DRUM_STEP_WIDTH}px)`,
-                              ['--sequencer-step-span' as string]: `calc(${DRUM_STEP_WIDTH}px + 10px)`,
-                            }}
-                          >
-                            {Array.from({ length: steps }).map((_, col) => {
-                              const active = melody[lane.row]?.[col];
-                              const isCurrent = col === currentStep;
-
-                              return (
-                                <button
-                                  key={`${lane.label}-${col}`}
-                                  type="button"
-                                  className={`composer-drum-cell composer-drum-cell--bass${
-                                    active ? ' is-active' : ''
-                                  }${isCurrent ? ' is-current' : ''}${getSubdivisionClassName(
-                                    col
-                                  )}${
-                                    currentTabLockMap[Math.floor(col / COLLAB_BAR_LENGTH)]?.mine
-                                      ? ' is-own-locked'
-                                      : currentTabLockMap[Math.floor(col / COLLAB_BAR_LENGTH)]
-                                        ? ' is-locked'
-                                        : ''
-                                  }`}
-                                  style={guitarAccentStyle}
-                                  onClick={() => {
-                                    void handleGuitarCellToggle(lane.row, col);
-                                  }}
-                                  disabled={
-                                    Boolean(
-                                      currentTabLockMap[Math.floor(col / COLLAB_BAR_LENGTH)] &&
-                                        !currentTabLockMap[Math.floor(col / COLLAB_BAR_LENGTH)].mine
-                                    ) || Boolean(collabId && !canSyncCollab)
-                                  }
-                                />
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
         )}
 
         {activeTab === 'bass' && (

@@ -14,8 +14,6 @@
 
   --accent: #3b82f6;   /* ?뚮? ?ъ씤??*/
   --accent-soft: #dbeafe;
-  --site-page-brightness: 1.075;
-  --site-page-overlay: 0.028;
 }
 
 *,
@@ -32,64 +30,11 @@ body,
   height: 100%;
 }
 
-#root {
-  min-height: 100%;
-}
-
 body {
   background: var(--bg-soft);
   color: var(--text-main);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-}
-
-.main-page,
-.composer-page,
-.profile-page,
-.auth-page,
-.community-page,
-.community-detail-page,
-.community-write-page,
-.music-share-page,
-.music-share-detail-page,
-.market-detail-page,
-.used-market-page,
-.shorts-page,
-.learn-page,
-.collab-page,
-.collab-room-page,
-.messages-page,
-.settings-page,
-.session-page {
-  position: relative;
-  isolation: isolate;
-  filter: brightness(var(--site-page-brightness));
-}
-
-.main-page::after,
-.composer-page::after,
-.profile-page::after,
-.auth-page::after,
-.community-page::after,
-.community-detail-page::after,
-.community-write-page::after,
-.music-share-page::after,
-.music-share-detail-page::after,
-.market-detail-page::after,
-.used-market-page::after,
-.shorts-page::after,
-.learn-page::after,
-.collab-page::after,
-.collab-room-page::after,
-.messages-page::after,
-.settings-page::after,
-.session-page::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: rgba(255, 255, 255, var(--site-page-overlay));
-  mix-blend-mode: screen;
 }
 
 .sr-only {

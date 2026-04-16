@@ -1,6 +1,6 @@
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-  arrayRemove, arrayUnion, increment
+  arrayRemove, arrayUnion, increment, query, limit, orderBy
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../firebase'; // ★ 주의: 실제 firebase.ts 경로에 맞게 수정하세요!
@@ -16,8 +16,11 @@ export type ShortsSnapshot = {
 
 export async function fetchShortsBootstrap(): Promise<ShortsSnapshot> {
   // 숏폼 게시글과 댓글을 각각 파이어베이스에서 가져옵니다.
-  const shortsSnap = await getDocs(collection(db, 'shorts'));
-  const commentsSnap = await getDocs(collection(db, 'shorts_comments'));
+  const shortsQuery = query(collection(db, 'shorts'), orderBy('createdAt', 'desc'), limit(10));
+  const shortsSnap = await getDocs(shortsQuery);
+
+  const commentsQuery = query(collection(db, 'shorts_comments'), orderBy('createdAt', 'desc'), limit(30));
+  const commentsSnap = await getDocs(commentsQuery);
 
   // 🌟 👇 에러 해결: 끝에 `as any`를 붙여서 타입스크립트를 안심시켜 줍니다!
   const shorts = shortsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));

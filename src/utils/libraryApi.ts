@@ -1,5 +1,5 @@
 import { 
-  collection, getDocs, doc, setDoc, deleteDoc, addDoc, updateDoc, increment, arrayUnion, arrayRemove, getDoc, query, orderBy 
+  collection, getDocs, doc, setDoc, deleteDoc, addDoc, updateDoc, increment, arrayUnion, arrayRemove, getDoc, query, orderBy, limit
 } from 'firebase/firestore';
 import { db, storage } from '../firebase'; // ★ 주의: 실제 firebase.ts 경로에 맞게 수정하세요!
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -61,7 +61,6 @@ function sanitizeForFirestore(data: any): any {
 }
 
 // 꺼낼 때: 포장된 문자열을 발견하면 원래의 2차원 배열로 완벽하게 복구합니다.
-// 꺼낼 때: 포장된 문자열을 발견하면 원래의 2차원 배열로 완벽하게 복구합니다.
 function restoreFromFirestore(data: any): any {
   // ★ 수정됨: 배열(Array)인지 가장 먼저 확인해야 합니다!
   if (Array.isArray(data)) {
@@ -109,7 +108,8 @@ async function fetchLibraryUserMetas() {
 // 🔥 4. 작곡 라이브러리 (내 프로젝트) API
 // ============================================================================
 export async function fetchComposerLibraryBootstrap(): Promise<ComposerLibrarySnapshot> {
-  const projectsSnap = await getDocs(collection(db, 'composer_projects'));
+  const q = query(collection(db, 'composer_projects'), limit(20)); // createdAt 필드가 있다면 orderBy도 추가하세요
+  const projectsSnap = await getDocs(q);  
   // 꺼낼 때 번역기를 거쳐서 원래 배열로 복구!
   const projects = projectsSnap.docs.map(doc => restoreFromFirestore({ id: doc.id, ...doc.data() }));
   const metas = await fetchLibraryUserMetas();

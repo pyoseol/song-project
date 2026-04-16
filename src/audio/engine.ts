@@ -11,8 +11,7 @@ import {
   pianoSynth,
 } from "./instruments.ts";
 import { useSongStore, type InstrumentVolumes } from "../store/songStore.ts";
-import { BASS_MIDI, MELODY_MIDI, MELODY_NOTE_TO_ROW } from "../constants/composer.ts";
-import { useUIStore, type MelodyInstrument } from "../store/uiStore.ts";
+import { BASS_MIDI, MELODY_MIDI } from "../constants/composer.ts";
 
 let loopId: number | null = null;
 
@@ -35,35 +34,15 @@ const PIANO_SAMPLE_URLS: Record<string, string> = {
 let cachedPianoBuffers: Record<string, AudioBuffer> | null = null;
 let lameLoadPromise: Promise<void> | null = null;
 
-const ACOUSTIC_GUITAR_ROW_NOTE_MAP: Record<number, string> = {
-  [MELODY_NOTE_TO_ROW["E5"]]: "E4",
-  [MELODY_NOTE_TO_ROW["B4"]]: "B4",
-  [MELODY_NOTE_TO_ROW["G4"]]: "G4",
-  [MELODY_NOTE_TO_ROW["D4"]]: "D4",
-  [MELODY_NOTE_TO_ROW["A3"]]: "A3",
-  [MELODY_NOTE_TO_ROW["E4"]]: "E4",
-};
+const GUITAR_TRACK_SAMPLE_NOTES = ["E4", "B4", "G4", "D4", "A3", "E4"] as const;
 
-function getSelectedMelodyInstrument(): MelodyInstrument {
-  return useUIStore.getState().selectedInstrument;
-}
-
-function getLiveMelodySynth() {
-  return getSelectedMelodyInstrument() === "acousticGuitar"
-    ? acousticGuitarSynth
-    : pianoSynth;
-}
-
-function getMelodyPlaybackNote(row: number, instrument: MelodyInstrument) {
-  if (instrument === "acousticGuitar") {
-    const mappedNote = ACOUSTIC_GUITAR_ROW_NOTE_MAP[row];
-    if (mappedNote) {
-      return mappedNote;
-    }
-  }
-
+function getMelodyPlaybackNote(row: number) {
   const midi = MELODY_MIDI[row] ?? MELODY_MIDI[MELODY_MIDI.length - 1];
   return Tone.Frequency(midi, "midi").toNote();
+}
+
+function getGuitarPlaybackNote(row: number) {
+  return GUITAR_TRACK_SAMPLE_NOTES[row] ?? GUITAR_TRACK_SAMPLE_NOTES[GUITAR_TRACK_SAMPLE_NOTES.length - 1];
 }
 
 function volumeToDb(volume: number) {
@@ -122,7 +101,21 @@ function triggerLiveMelodyNote(
   time?: number,
   velocity?: number
 ) {
-  getLiveMelodySynth().triggerAttackRelease(note, durationSeconds, time, velocity);
+  pianoSynth.triggerAttackRelease(note, durationSeconds, time, velocity);
+}
+
+function triggerLiveGuitarNote(
+  row: number,
+  durationSeconds: number,
+  time?: number,
+  velocity?: number
+) {
+  acousticGuitarSynth.triggerAttackRelease(
+    getGuitarPlaybackNote(row),
+    durationSeconds,
+    time,
+    velocity
+  );
 }
 
 export async function preparePlaybackEngine() {
@@ -181,6 +174,7 @@ export function initTransport() {
     const {
       melody,
       melodyLengths,
+      guitar,
       drums,
       bass,
       currentStep,
@@ -195,12 +189,10 @@ export function initTransport() {
     applyLiveVolumes(volumes);
 
     try {
-      const melodyInstrument = getSelectedMelodyInstrument();
-
       // 1. 멜로디 재생
       melody.forEach((rowArr, rowIndex) => {
         if (!rowArr[currentStep]) return;
-        const note = getMelodyPlaybackNote(rowIndex, melodyInstrument);
+        const note = getMelodyPlaybackNote(rowIndex);
         const durationSteps = Math.max(1, melodyLengths[rowIndex]?.[currentStep] ?? 1);
         triggerLiveMelodyNote(
           note,
@@ -210,7 +202,13 @@ export function initTransport() {
         );
       });
 
-      // 2. 베이스 재생
+      // 2. 기타 재생
+      guitar.forEach((rowArr, rowIndex) => {
+        if (!rowArr[currentStep]) return;
+        triggerLiveGuitarNote(rowIndex, getMelodyGateSeconds(1, bpm), time, 1);
+      });
+
+      // 3. 베이스 재생
       bass.forEach((rowArr, rowIndex) => {
         if (!rowArr[currentStep]) return;
         const midi = BASS_MIDI[rowIndex] ?? BASS_MIDI[BASS_MIDI.length - 1];
@@ -218,7 +216,7 @@ export function initTransport() {
         bassSampler.triggerAttackRelease(note, "8n", time);
       });
 
-      // 3. 드럼 재생
+      // 4. 드럼 재생
       if (drums[0]?.[currentStep]) {
         triggerLiveDrumSample(0, time);
       }
@@ -254,13 +252,20 @@ export async function playMelodyPreview(row: number, durationSteps = 1): Promise
   await Tone.loaded();
   applyLiveVolumes(useSongStore.getState().volumes);
   const bpm = useSongStore.getState().bpm;
-  const note = getMelodyPlaybackNote(row, getSelectedMelodyInstrument());
+  const note = getMelodyPlaybackNote(row);
   triggerLiveMelodyNote(
     note,
     getMelodyGateSeconds(durationSteps, bpm),
     Tone.now(),
     getMelodyVelocity(durationSteps)
   );
+}
+
+export async function playGuitarPreview(row: number): Promise<void> {
+  await Tone.start();
+  await Tone.loaded();
+  applyLiveVolumes(useSongStore.getState().volumes);
+  triggerLiveGuitarNote(row, getMelodyGateSeconds(1, useSongStore.getState().bpm), Tone.now(), 1);
 }
 
 export async function playDrumPreview(row: number): Promise<void> {
@@ -273,26 +278,21 @@ export async function playDrumPreview(row: number): Promise<void> {
 async function renderSongBuffer(): Promise<AudioBuffer> {
   await Tone.start();
   await loadLame();
-  const { melody, melodyLengths, drums, bass, steps, bpm, volumes } = useSongStore.getState();
-  const melodyInstrument = getSelectedMelodyInstrument();
-  const pianoBuffers = melodyInstrument === "piano" ? await loadPianoBuffers() : null;
+  const { melody, melodyLengths, guitar, drums, bass, steps, bpm, volumes } = useSongStore.getState();
+  const pianoBuffers = await loadPianoBuffers();
 
   const sixteenthSeconds = getSixteenthDurationSeconds(bpm);
   const durationSeconds = steps * sixteenthSeconds + 1.0;
 
   const rendered = await Tone.Offline(async ({ transport }) => {
-    const melodyBus =
-      melodyInstrument === "acousticGuitar"
-        ? new Tone.Reverb({ decay: 1.8, preDelay: 0.01, wet: 0.18 }).toDestination()
-        : new Tone.Reverb({ decay: 2.0, preDelay: 0.01, wet: 0.2 }).toDestination();
-    const melodySynth =
-      melodyInstrument === "acousticGuitar"
-        ? new Tone.Sampler({
-            urls: GUITAR_SAMPLE_URLS,
-            release: 1.2,
-            baseUrl: "/samples/guitar/",
-          }).connect(melodyBus)
-        : new Tone.Sampler({ urls: pianoBuffers ?? {}, release: 1 }).connect(melodyBus);
+    const melodyBus = new Tone.Reverb({ decay: 2.0, preDelay: 0.01, wet: 0.2 }).toDestination();
+    const guitarBus = new Tone.Reverb({ decay: 1.8, preDelay: 0.01, wet: 0.18 }).toDestination();
+    const melodySynth = new Tone.Sampler({ urls: pianoBuffers ?? {}, release: 1 }).connect(melodyBus);
+    const guitarSynth = new Tone.Sampler({
+      urls: GUITAR_SAMPLE_URLS,
+      release: 1.2,
+      baseUrl: "/samples/guitar/",
+    }).connect(guitarBus);
 
     const drumSamplerOffline = createDrumSampler();
     const bassSamplerOffline = createBassSampler();
@@ -303,7 +303,8 @@ async function renderSongBuffer(): Promise<AudioBuffer> {
     const drumsDb = volumeToDb(volumes.drums);
     const bassDb = volumeToDb(volumes.bass);
 
-    melodySynth.volume.value = melodyInstrument === "acousticGuitar" ? melodyDb - 1 : melodyDb;
+    melodySynth.volume.value = melodyDb;
+    guitarSynth.volume.value = melodyDb - 1;
     drumSamplerOffline.volume.value = drumsDb;
     bassSamplerOffline.volume.value = bassDb;
 
@@ -314,7 +315,7 @@ async function renderSongBuffer(): Promise<AudioBuffer> {
 
       for (let row = 0; row < melody.length; row += 1) {
         if (!melody[row]?.[col]) continue;
-        const note = getMelodyPlaybackNote(row, melodyInstrument);
+        const note = getMelodyPlaybackNote(row);
         const durationSteps = Math.max(1, melodyLengths[row]?.[col] ?? 1);
         melodySynth.triggerAttackRelease(
           note,
@@ -322,6 +323,11 @@ async function renderSongBuffer(): Promise<AudioBuffer> {
           time,
           getMelodyVelocity(durationSteps)
         );
+      }
+
+      for (let row = 0; row < guitar.length; row += 1) {
+        if (!guitar[row]?.[col]) continue;
+        guitarSynth.triggerAttackRelease(getGuitarPlaybackNote(row), getMelodyGateSeconds(1, bpm), time, 1);
       }
 
       for (let row = 0; row < bass.length; row += 1) {

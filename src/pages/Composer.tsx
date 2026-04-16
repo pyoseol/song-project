@@ -3,7 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import SiteHeader from '../components/layout/SiteHeader';
 import { PianoRoll } from '../components/PianoRoll.tsx';
 import { TransportBar } from '../components/TransportBar.tsx';
-import { initTransport, playBassPreview, playDrumPreview, playMelodyPreview } from '../audio/engine.ts';
+import {
+  initTransport,
+  playBassPreview,
+  playDrumPreview,
+  playGuitarPreview,
+} from '../audio/engine.ts';
 import {
   COMPOSER_GUIDE_STEPS,
   type ComposerGuideFocus,
@@ -17,7 +22,7 @@ import {
   type ComposerTutorialChordTarget,
   type ComposerTutorialNoteTarget,
 } from '../constants/composerTutorialGame.ts';
-import { BASS_CHORD_MAP, BASS_NOTES, DRUM_STEP_WIDTH, MELODY_NOTE_TO_ROW } from '../constants/composer.ts';
+import { BASS_CHORD_MAP, BASS_NOTES, DRUM_STEP_WIDTH } from '../constants/composer.ts';
 import { useAuthStore } from '../store/authStore.ts';
 import {
   COLLAB_PRESENCE_PING_INTERVAL_MS,
@@ -63,7 +68,7 @@ const tabOrder: ComposerTab[] = ['melody', 'guitar', 'drums', 'bass'];
 const COLLAB_BAR_LENGTH = 16;
 
 function getCollabInstrumentForTab(tab: ComposerTab): CollabComposerInstrument {
-  return tab === 'guitar' ? 'melody' : tab;
+  return tab;
 }
 
 function getVolumeInstrumentForTab(tab: ComposerTab): InstrumentKey {
@@ -195,11 +200,12 @@ export function Composer() {
     steps,
     melody,
     melodyLengths,
+    guitar,
     drums,
     bass,
     volumes,
     setInstrumentVolume,
-    toggleMelody,
+    toggleGuitar,
     toggleDrum,
     toggleBass,
     applyChord,
@@ -286,12 +292,10 @@ export function Composer() {
   const tabPickerOptions = useMemo(() => tabOrder, []);
   const guitarLanes = useMemo(
     () =>
-      guitarGridLanes
-        .map((lane) => ({
-          ...lane,
-          row: MELODY_NOTE_TO_ROW[lane.note],
-        }))
-        .filter((lane): lane is (typeof guitarGridLanes)[number] & { row: number } => typeof lane.row === 'number'),
+      guitarGridLanes.map((lane, row) => ({
+        ...lane,
+        row,
+      })),
     []
   );
 
@@ -303,10 +307,11 @@ export function Composer() {
         volumes,
         melody,
         melodyLengths,
+        guitar,
         drums,
         bass,
       }),
-    [bass, bpm, drums, melody, melodyLengths, steps, volumes]
+    [bass, bpm, drums, guitar, melody, melodyLengths, steps, volumes]
   );
   const projectSignature = useMemo(() => JSON.stringify(projectSnapshot), [projectSnapshot]);
 
@@ -966,6 +971,7 @@ export function Composer() {
         volumes: useSongStore.getState().volumes,
         melody: useSongStore.getState().melody,
         melodyLengths: useSongStore.getState().melodyLengths,
+        guitar: useSongStore.getState().guitar,
         drums: useSongStore.getState().drums,
         bass: useSongStore.getState().bass,
       })
@@ -997,7 +1003,13 @@ export function Composer() {
     if (existingLock) {
       showCollabNotice(
         `${existingLock.name}님이 ${
-          instrument === 'melody' ? '멜로디' : instrument === 'drums' ? '드럼' : '베이스'
+          instrument === 'melody'
+            ? '멜로디'
+            : instrument === 'guitar'
+              ? '기타'
+              : instrument === 'drums'
+                ? '드럼'
+                : '베이스'
         } ${barIndex + 1}마디를 편집 중입니다.`
       );
       return false;
@@ -1444,25 +1456,25 @@ export function Composer() {
 
   const handleGuitarCellToggle = async (row: number, col: number) => {
     const barIndex = Math.floor(col / COLLAB_BAR_LENGTH);
-    if (!(await requestComposerBarLock('melody', barIndex))) {
+    if (!(await requestComposerBarLock('guitar', barIndex))) {
       return;
     }
 
-    const nextValue = !(useSongStore.getState().melody[row]?.[col] ?? false);
-    toggleMelody(row, col, nextValue ? 1 : 0);
+    const nextValue = !(useSongStore.getState().guitar[row]?.[col] ?? false);
+    toggleGuitar(row, col);
 
     if (nextValue) {
-      void playMelodyPreview(row, 1);
+      void playGuitarPreview(row);
     }
 
     queueComposerOperation({
-      type: 'set-melody-note',
+      type: 'toggle-guitar-step',
       row,
       col,
-      length: nextValue ? 1 : 0,
+      nextValue,
       barIndex,
     });
-    releaseComposerBarLock('melody', barIndex);
+    releaseComposerBarLock('guitar', barIndex);
   };
 
   const handleBassChordDrop = async (chord: string, col: number) => {
@@ -1663,6 +1675,8 @@ export function Composer() {
                 {lock.name} -{' '}
                 {lock.instrument === 'melody'
                   ? '멜로디'
+                  : lock.instrument === 'guitar'
+                    ? '기타'
                   : lock.instrument === 'drums'
                     ? '드럼'
                     : '베이스'}{' '}
@@ -1781,7 +1795,7 @@ export function Composer() {
                             }}
                           >
                             {Array.from({ length: steps }).map((_, col) => {
-                              const active = melody[lane.row]?.[col];
+                              const active = guitar[lane.row]?.[col];
                               const isCurrent = col === currentStep;
 
                               return (

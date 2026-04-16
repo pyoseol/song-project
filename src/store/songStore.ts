@@ -21,6 +21,8 @@ export const FIXED_COMPOSER_STEPS = BAR_LENGTH * FIXED_BAR_COUNT;
 const DEFAULT_STEPS = FIXED_COMPOSER_STEPS;
 const MAX_HISTORY_LENGTH = 40;
 const MELODY_LENGTH_PRESETS = [1, 2, 4, 8, 16] as const;
+export const GUITAR_ROWS = 6;
+export const GUITAR_TRACK_LABELS = ['High E', 'B', 'G', 'D', 'A', 'Low E'] as const;
 
 export { BASS_ROWS, DRUM_ROWS, MELODY_ROWS };
 
@@ -44,6 +46,7 @@ type BarClipboard = {
   length: number;
   melody: boolean[][];
   melodyLengths: number[][];
+  guitar: boolean[][];
   drums: boolean[][];
   bass: boolean[][];
 } | null;
@@ -54,6 +57,7 @@ type SongHistorySnapshot = {
   currentStep: number;
   melody: boolean[][];
   melodyLengths: number[][];
+  guitar: boolean[][];
   drums: boolean[][];
   bass: boolean[][];
   loopRange: LoopRange | null;
@@ -67,6 +71,7 @@ export type SongState = {
   volumes: InstrumentVolumes;
   melody: boolean[][];
   melodyLengths: number[][];
+  guitar: boolean[][];
   drums: boolean[][];
   bass: boolean[][];
   loopRange: LoopRange | null;
@@ -76,6 +81,7 @@ export type SongState = {
   canUndo: boolean;
   canRedo: boolean;
   toggleMelody: (row: number, col: number, length?: number) => void;
+  toggleGuitar: (row: number, col: number) => void;
   toggleDrum: (row: number, col: number) => void;
   toggleBass: (row: number, col: number) => void;
   applyChord: (chord: string, col: number, isBass: boolean) => void;
@@ -104,6 +110,7 @@ export type SongProject = {
   volumes?: Partial<InstrumentVolumes>;
   tracks: {
     melody: MusicEvent[];
+    guitar?: MusicEvent[];
     drums: MusicEvent[];
     bass: MusicEvent[];
   };
@@ -111,7 +118,7 @@ export type SongProject = {
 
 type SongProjectSnapshotInput = Pick<
   SongState,
-  'bpm' | 'steps' | 'volumes' | 'melody' | 'melodyLengths' | 'drums' | 'bass'
+  'bpm' | 'steps' | 'volumes' | 'melody' | 'melodyLengths' | 'guitar' | 'drums' | 'bass'
 >;
 
 function createEmptyMatrix(rows: number, cols: number): boolean[][] {
@@ -247,7 +254,7 @@ function rangesOverlap(startA: number, lengthA: number, startB: number, lengthB:
 
 function createHistorySnapshot(state: Pick<
   SongState,
-  'bpm' | 'steps' | 'currentStep' | 'melody' | 'melodyLengths' | 'drums' | 'bass' | 'loopRange'
+  'bpm' | 'steps' | 'currentStep' | 'melody' | 'melodyLengths' | 'guitar' | 'drums' | 'bass' | 'loopRange'
 >): SongHistorySnapshot {
   return {
     bpm: state.bpm,
@@ -255,6 +262,7 @@ function createHistorySnapshot(state: Pick<
     currentStep: state.currentStep,
     melody: cloneMatrix(state.melody),
     melodyLengths: cloneLengthMatrix(state.melodyLengths),
+    guitar: cloneMatrix(state.guitar),
     drums: cloneMatrix(state.drums),
     bass: cloneMatrix(state.bass),
     loopRange: state.loopRange ? { ...state.loopRange } : null,
@@ -429,6 +437,7 @@ function normalizeBassMatrix(input: boolean[][] | undefined, cols: number): bool
 */
 export function buildSongProjectSnapshot(state: SongProjectSnapshotInput): SongProject {
   const melodyEvents: MusicEvent[] = [];
+  const guitarEvents: MusicEvent[] = [];
   const drumEvents: MusicEvent[] = [];
   const bassEvents: MusicEvent[] = [];
 
@@ -443,6 +452,14 @@ export function buildSongProjectSnapshot(state: SongProjectSnapshotInput): SongP
           duration: duration
         });
         s += (duration - 1); // duration만큼 건너뛰기
+      }
+    }
+  }
+
+  for (let r = 0; r < GUITAR_ROWS; r++) {
+    for (let s = 0; s < state.steps; s++) {
+      if (state.guitar[r]?.[s]) {
+        guitarEvents.push({ note: GUITAR_TRACK_LABELS[r], start: s, duration: 1 });
       }
     }
   }
@@ -477,6 +494,7 @@ export function buildSongProjectSnapshot(state: SongProjectSnapshotInput): SongP
     },
     tracks: {
       melody: melodyEvents,
+      guitar: guitarEvents,
       drums: drumEvents,
       bass: bassEvents,
     },
@@ -508,6 +526,7 @@ function restoreHistorySnapshot(
     isPlaying: false,
     melody: cloneMatrix(snapshot.melody),
     melodyLengths: cloneLengthMatrix(snapshot.melodyLengths),
+    guitar: cloneMatrix(snapshot.guitar),
     drums: cloneMatrix(snapshot.drums),
     bass: cloneMatrix(snapshot.bass),
     loopRange: snapshot.loopRange ? { ...snapshot.loopRange } : null,
@@ -521,6 +540,7 @@ function restoreHistorySnapshot(
 function parseV2TracksToGrids(project: SongProject, steps: number) {
   const melody = createEmptyMatrix(MELODY_ROWS, steps);
   const melodyLengths = createEmptyLengthMatrix(MELODY_ROWS, steps);
+  const guitar = createEmptyMatrix(GUITAR_ROWS, steps);
   const drums = createEmptyMatrix(DRUM_ROWS, steps);
   const bass = createEmptyMatrix(BASS_ROWS, steps);
 
@@ -533,6 +553,16 @@ function parseV2TracksToGrids(project: SongProject, steps: number) {
         // 💡 반복문 제거: 시작 위치 딱 한 칸만 true로 찍고 길이만 저장합니다.
         melody[row][e.start] = true;
         melodyLengths[row][e.start] = dur;
+      }
+    });
+
+    const guitarMap = Object.fromEntries(
+      GUITAR_TRACK_LABELS.map((label, index) => [label, index])
+    ) as Record<string, number>;
+    project.tracks.guitar?.forEach(e => {
+      const row = guitarMap[e.note || ''] ?? -1;
+      if (row !== -1 && e.start < steps) {
+        guitar[row][e.start] = true;
       }
     });
 
@@ -554,7 +584,7 @@ function parseV2TracksToGrids(project: SongProject, steps: number) {
       }
     });
   }
-  return { melody, melodyLengths, drums, bass };
+  return { melody, melodyLengths, guitar, drums, bass };
 }
 
 export const useSongStore = create<SongState>((set, get) => ({
@@ -569,6 +599,7 @@ export const useSongStore = create<SongState>((set, get) => ({
   },
   melody: createEmptyMatrix(MELODY_ROWS, DEFAULT_STEPS),
   melodyLengths: createEmptyLengthMatrix(MELODY_ROWS, DEFAULT_STEPS),
+  guitar: createEmptyMatrix(GUITAR_ROWS, DEFAULT_STEPS),
   drums: createEmptyMatrix(DRUM_ROWS, DEFAULT_STEPS),
   bass: createEmptyMatrix(BASS_ROWS, DEFAULT_STEPS),
   loopRange: null,
@@ -619,6 +650,14 @@ export const useSongStore = create<SongState>((set, get) => ({
       melodyLengths[row][col] = nextLength;
 
       return buildHistoryUpdate(state, { melody, melodyLengths });
+    }),
+
+  toggleGuitar: (row, col) =>
+    set((state) => {
+      const guitar = cloneMatrix(state.guitar);
+      guitar[row][col] = !guitar[row][col];
+
+      return buildHistoryUpdate(state, { guitar });
     }),
 
   toggleDrum: (row, col) =>
@@ -679,6 +718,7 @@ export const useSongStore = create<SongState>((set, get) => ({
         length: range.length,
         melody: extractBar(state.melody, range.start, range.length),
         melodyLengths: extractLengthBar(state.melodyLengths, range.start, range.length),
+        guitar: extractBar(state.guitar, range.start, range.length),
         drums: extractBar(state.drums, range.start, range.length),
         bass: extractBar(state.bass, range.start, range.length),
       },
@@ -706,6 +746,13 @@ export const useSongStore = create<SongState>((set, get) => ({
           state.barClipboard.melodyLengths,
           range.start,
           state.steps
+        ),
+        guitar: pasteBar(
+          state.guitar,
+          state.barClipboard.guitar,
+          range.start,
+          state.steps,
+          'replace'
         ),
         drums: pasteBar(
           state.drums,
@@ -747,6 +794,13 @@ export const useSongStore = create<SongState>((set, get) => ({
           nextStart,
           state.steps
         ),
+        guitar: pasteBar(
+          state.guitar,
+          extractBar(state.guitar, range.start, range.length),
+          nextStart,
+          state.steps,
+          'replace'
+        ),
         drums: pasteBar(
           state.drums,
           extractBar(state.drums, range.start, range.length),
@@ -777,6 +831,7 @@ export const useSongStore = create<SongState>((set, get) => ({
           range.start,
           state.steps
         ),
+        guitar: pasteBar(state.guitar, [], range.start, state.steps, 'clear'),
         drums: pasteBar(state.drums, [], range.start, state.steps, 'clear'),
         bass: pasteBar(state.bass, [], range.start, state.steps, 'clear'),
       });
@@ -863,6 +918,7 @@ export const useSongStore = create<SongState>((set, get) => ({
       const melody = resizeMatrix(state.melody, MELODY_ROWS, steps);
       const drums = resizeMatrix(state.drums, DRUM_ROWS, steps);
       const bass = resizeMatrix(state.bass, BASS_ROWS, steps);
+      const guitar = resizeMatrix(state.guitar, GUITAR_ROWS, steps);
       const melodyLengths = resizeLengthMatrix(
         state.melodyLengths,
         melody,
@@ -875,6 +931,7 @@ export const useSongStore = create<SongState>((set, get) => ({
         currentStep: clampStep(state.currentStep, steps),
         melody,
         melodyLengths,
+        guitar,
         drums,
         bass,
         loopRange: normalizeLoopRange(state.loopRange, steps),
@@ -895,6 +952,7 @@ export const useSongStore = create<SongState>((set, get) => ({
         currentStep: 0,
         melody: createEmptyMatrix(MELODY_ROWS, state.steps),
         melodyLengths: createEmptyLengthMatrix(MELODY_ROWS, state.steps),
+        guitar: createEmptyMatrix(GUITAR_ROWS, state.steps),
         drums: createEmptyMatrix(DRUM_ROWS, state.steps),
         bass: createEmptyMatrix(BASS_ROWS, state.steps),
       })
@@ -918,6 +976,7 @@ export const useSongStore = create<SongState>((set, get) => ({
         },
         melody: grids.melody,
         melodyLengths: grids.melodyLengths,
+        guitar: grids.guitar,
         drums: grids.drums,
         bass: grids.bass,
         loopRange: normalizeLoopRange(null, steps),
@@ -941,6 +1000,7 @@ export const useSongStore = create<SongState>((set, get) => ({
       },
       melody: grids.melody,
       melodyLengths: grids.melodyLengths,
+      guitar: grids.guitar,
       drums: grids.drums,
       bass: grids.bass,
       loopRange: normalizeLoopRange(state.loopRange, steps),

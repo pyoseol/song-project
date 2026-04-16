@@ -38,7 +38,7 @@ export type CollabProject = {
 export type CollabMessage = { id: string; projectId: string; authorEmail: string; authorName: string; content: string; createdAt: number; };
 export type CollabTask = { id: string; projectId: string; content: string; completed: boolean; assigneeName: string; createdAt: number; };
 export type CollabPresence = { sessionId: string; projectId: string; email: string; name: string; focus?: string; lastSeenAt: number; };
-export type CollabComposerInstrument = 'melody' | 'drums' | 'bass';
+export type CollabComposerInstrument = 'melody' | 'guitar' | 'drums' | 'bass';
 export type CollabComposerLock = { projectId: string; instrument: CollabComposerInstrument; barIndex: number; sessionId: string; email: string; name: string; lockedAt: number; expiresAt: number; };
 export type CollabComposerHistoryEntry = { id: string; projectId: string; instrument: CollabComposerInstrument | 'transport'; barIndex: number | null; authorEmail: string; authorName: string; action: string; summary: string; createdAt: number; revision: number; };
 
@@ -46,6 +46,7 @@ type CreateCollabFromComposerPayload = { sourceProjectId: string; title: string;
 type UpdateComposerPayload = { snapshot: SongProject; email: string; name: string; sessionId?: string; baseRevision?: number; };
 export type CollabComposerOperation = 
   | { type: 'set-melody-note'; row: number; col: number; length: number; barIndex: number; }
+  | { type: 'toggle-guitar-step'; row: number; col: number; nextValue: boolean; barIndex: number; }
   | { type: 'toggle-drum-step'; row: number; col: number; nextValue: boolean; barIndex: number; }
   | { type: 'toggle-bass-step'; row: number; col: number; nextValue: boolean; barIndex: number; }
   | { type: 'apply-chord'; chord: string; col: number; isBass: boolean; rows: number[]; barIndex: number; }

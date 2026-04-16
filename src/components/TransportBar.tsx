@@ -7,7 +7,7 @@ import {
   preparePlaybackEngine,
 } from '../audio/engine.ts';
 import type { SongProject } from '../store/songStore.ts';
-import { useSongStore, buildSongProjectSnapshot } from '../store/songStore.ts';
+import { useSongStore } from '../store/songStore.ts';
 import { useAuthStore } from '../store/authStore.ts';
 import { useComposerLibraryStore } from '../store/composerLibraryStore.ts';
 import { fetchAiMusic } from '../utils/ai';
@@ -111,6 +111,10 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
     setPlaying,
     currentStep,
     setCurrentStep,
+    melody,
+    melodyLengths,
+    drums,
+    bass,
     volumes,
     loopRange,
     undo,
@@ -152,9 +156,16 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
   const currentBar = Math.floor(currentStep / BAR_LENGTH) + 1;
   const totalBars = Math.max(1, Math.ceil(steps / BAR_LENGTH));
 
-  const createProjectSnapshot = (): SongProject => {
-    return buildSongProjectSnapshot(useSongStore.getState());
-  };
+  const createProjectSnapshot = (): SongProject => ({
+    version: 1,
+    bpm,
+    steps,
+    volumes,
+    melody,
+    melodyLengths,
+    drums,
+    bass,
+  });
 
   const openDialog = (dialog: Exclude<ComposerDialog, null>) => {
     setIsAiPanelOpen(false);

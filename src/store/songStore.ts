@@ -1,18 +1,16 @@
 import { create } from 'zustand';
 import {
   BASS_CHORD_MAP,
-  //BASS_MIGRATION_MAP,
+  BASS_MIGRATION_MAP,
   BASS_NOTE_TO_ROW,
   BASS_ROWS,
   DRUM_ROWS,
-  //LEGACY_BASS_NOTES,
-  //LEGACY_EXTENDED_BASS_NOTES,
-  //LEGACY_MELODY_NOTES,
+  LEGACY_BASS_NOTES,
+  LEGACY_EXTENDED_BASS_NOTES,
+  LEGACY_MELODY_NOTES,
   MELODY_CHORD_MAP,
   MELODY_NOTE_TO_ROW,
   MELODY_ROWS,
-  MELODY_NOTES,
-  BASS_NOTES
 } from '../constants/composer.ts';
 
 const BAR_LENGTH = 16;
@@ -27,13 +25,6 @@ export { BASS_ROWS, DRUM_ROWS, MELODY_ROWS };
 type LoopRange = {
   start: number;
   end: number;
-};
-
-export type MusicEvent = {
-  note?: string;
-  type?: string;
-  start: number;
-  duration?: number;
 };
 
 export type InstrumentKey = 'melody' | 'drums' | 'bass';
@@ -98,15 +89,14 @@ export type SongState = {
 };
 
 export type SongProject = {
-  version: 2;
+  version: 1;
   bpm: number;
   steps: number;
   volumes?: Partial<InstrumentVolumes>;
-  tracks: {
-    melody: MusicEvent[];
-    drums: MusicEvent[];
-    bass: MusicEvent[];
-  };
+  melody: boolean[][];
+  melodyLengths?: number[][];
+  drums: boolean[][];
+  bass?: boolean[][];
 };
 
 type SongProjectSnapshotInput = Pick<
@@ -316,7 +306,7 @@ function pasteLengthBar(target: number[][], source: number[][], start: number, s
 
   return next;
 }
-/*
+
 function normalizeMatrix(
   input: boolean[][] | undefined,
   rows: number,
@@ -360,7 +350,6 @@ function normalizeMelodyMatrix(input: boolean[][] | undefined, cols: number): bo
 
   return normalizeMatrix(input, MELODY_ROWS, cols);
 }
-
 
 function normalizeMelodyLengthMatrix(
   input: number[][] | undefined,
@@ -426,62 +415,24 @@ function normalizeBassMatrix(input: boolean[][] | undefined, cols: number): bool
 
   return normalizeMatrix(input, BASS_ROWS, cols);
 }
-*/
+
 export function buildSongProjectSnapshot(state: SongProjectSnapshotInput): SongProject {
-  const melodyEvents: MusicEvent[] = [];
-  const drumEvents: MusicEvent[] = [];
-  const bassEvents: MusicEvent[] = [];
-
-  // 1. 멜로디 압축
-  for (let r = 0; r < MELODY_ROWS; r++) {
-    for (let s = 0; s < state.steps; s++) {
-      if (state.melody[r][s]) {
-        const duration = state.melodyLengths[r][s] || 1;
-        melodyEvents.push({
-          note: MELODY_NOTES[r] as string, 
-          start: s,
-          duration: duration
-        });
-        s += (duration - 1); // duration만큼 건너뛰기
-      }
-    }
-  }
-
-  // 2. 드럼 압축
-  const drumNames = ['Kick', 'Snare', 'HiHatClosed', 'HiHatOpen'];
-  for (let r = 0; r < DRUM_ROWS; r++) {
-    for (let s = 0; s < state.steps; s++) {
-      if (state.drums[r][s]) {
-        drumEvents.push({ type: drumNames[r], start: s });
-      }
-    }
-  }
-
-  // 3. 베이스 압축
-  for (let r = 0; r < BASS_ROWS; r++) {
-    for (let s = 0; s < state.steps; s++) {
-      if (state.bass[r][s]) {
-        bassEvents.push({ note: BASS_NOTES[r] as string, start: s, duration: 1 });
-      }
-    }
-  }
-
   return {
-    version: 2,
+    version: 1,
     bpm: state.bpm,
     steps: state.steps,
     volumes: {
-      melody: clampVolume(state.volumes.melody ?? 82),
-      drums: clampVolume(state.volumes.drums ?? 78),
-      bass: clampVolume(state.volumes.bass ?? 84),
+      melody: clampVolume(state.volumes.melody),
+      drums: clampVolume(state.volumes.drums),
+      bass: clampVolume(state.volumes.bass),
     },
-    tracks: {
-      melody: melodyEvents,
-      drums: drumEvents,
-      bass: bassEvents,
-    },
+    melody: cloneMatrix(state.melody),
+    melodyLengths: cloneLengthMatrix(state.melodyLengths),
+    drums: cloneMatrix(state.drums),
+    bass: cloneMatrix(state.bass),
   };
 }
+
 function buildHistoryUpdate(state: SongState, nextState: Partial<SongState>) {
   const historyPast = [...state.historyPast, createHistorySnapshot(state)].slice(
     -MAX_HISTORY_LENGTH
@@ -516,45 +467,6 @@ function restoreHistorySnapshot(
     canUndo: historyPast.length > 0,
     canRedo: historyFuture.length > 0,
   };
-}
-
-function parseV2TracksToGrids(project: SongProject, steps: number) {
-  const melody = createEmptyMatrix(MELODY_ROWS, steps);
-  const melodyLengths = createEmptyLengthMatrix(MELODY_ROWS, steps);
-  const drums = createEmptyMatrix(DRUM_ROWS, steps);
-  const bass = createEmptyMatrix(BASS_ROWS, steps);
-
-  if (project.tracks) {
-    // 1. 멜로디 파싱
-    project.tracks.melody?.forEach(e => {
-      const row = MELODY_NOTE_TO_ROW[e.note as keyof typeof MELODY_NOTE_TO_ROW] ?? -1;
-      if (row !== -1 && e.start < steps) {
-        const dur = e.duration || 1;
-        // 💡 반복문 제거: 시작 위치 딱 한 칸만 true로 찍고 길이만 저장합니다.
-        melody[row][e.start] = true;
-        melodyLengths[row][e.start] = dur;
-      }
-    });
-
-    // 2. 드럼 파싱
-    const drumMap: Record<string, number> = { Kick: 0, Snare: 1, HiHatClosed: 2, HiHatOpen: 3 };
-    project.tracks.drums?.forEach(e => {
-      const row = drumMap[e.type || ''] ?? -1;
-      if (row !== -1 && e.start < steps) {
-        drums[row][e.start] = true;
-      }
-    });
-
-    // 3. 베이스 파싱
-    project.tracks.bass?.forEach(e => {
-      const row = BASS_NOTE_TO_ROW[e.note as keyof typeof BASS_NOTE_TO_ROW] ?? -1;
-      if (row !== -1 && e.start < steps) {
-        // 💡 베이스 역시 반복문 제거: 시작점만 true로 찍습니다.
-        bass[row][e.start] = true;
-      }
-    });
-  }
-  return { melody, melodyLengths, drums, bass };
 }
 
 export const useSongStore = create<SongState>((set, get) => ({
@@ -903,7 +815,6 @@ export const useSongStore = create<SongState>((set, get) => ({
   loadProject: (project) => {
     const steps = FIXED_COMPOSER_STEPS;
     const bpm = typeof project.bpm === 'number' && project.bpm > 0 ? project.bpm : 100;
-    const grids = parseV2TracksToGrids(project, steps); // V2 파싱
 
     set((state) =>
       buildHistoryUpdate(state, {
@@ -916,10 +827,10 @@ export const useSongStore = create<SongState>((set, get) => ({
           drums: clampVolume(project.volumes?.drums ?? 78),
           bass: clampVolume(project.volumes?.bass ?? 84),
         },
-        melody: grids.melody,
-        melodyLengths: grids.melodyLengths,
-        drums: grids.drums,
-        bass: grids.bass,
+        melody: normalizeMelodyMatrix(project.melody, steps),
+        melodyLengths: normalizeMelodyLengthMatrix(project.melodyLengths, project.melody, steps),
+        drums: normalizeMatrix(project.drums, DRUM_ROWS, steps),
+        bass: normalizeBassMatrix(project.bass, steps),
         loopRange: normalizeLoopRange(null, steps),
       })
     );
@@ -928,7 +839,6 @@ export const useSongStore = create<SongState>((set, get) => ({
   applyRemoteProject: (project) => {
     const steps = FIXED_COMPOSER_STEPS;
     const bpm = typeof project.bpm === 'number' && project.bpm > 0 ? project.bpm : 100;
-    const grids = parseV2TracksToGrids(project, steps); // V2 파싱
 
     set((state) => ({
       bpm,
@@ -939,10 +849,10 @@ export const useSongStore = create<SongState>((set, get) => ({
         drums: clampVolume(project.volumes?.drums ?? 78),
         bass: clampVolume(project.volumes?.bass ?? 84),
       },
-      melody: grids.melody,
-      melodyLengths: grids.melodyLengths,
-      drums: grids.drums,
-      bass: grids.bass,
+      melody: normalizeMelodyMatrix(project.melody, steps),
+      melodyLengths: normalizeMelodyLengthMatrix(project.melodyLengths, project.melody, steps),
+      drums: normalizeMatrix(project.drums, DRUM_ROWS, steps),
+      bass: normalizeBassMatrix(project.bass, steps),
       loopRange: normalizeLoopRange(state.loopRange, steps),
       historyPast: [],
       historyFuture: [],

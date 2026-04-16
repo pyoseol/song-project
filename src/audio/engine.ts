@@ -1,30 +1,18 @@
 ﻿// src/audio/engine.ts
 import * as Tone from "tone";
-import { melodySynth, kickSynth, snareSynth } from "./instruments.ts";
+import {
+  acousticGuitarSynth,
+  bassSampler,
+  createBassSampler,
+  createDrumSampler,
+  DRUM_SAMPLE_NOTE_BY_ROW,
+  drumSampler,
+  GUITAR_SAMPLE_URLS,
+  pianoSynth,
+} from "./instruments.ts";
 import { useSongStore, type InstrumentVolumes } from "../store/songStore.ts";
-import { BASS_MIDI, MELODY_MIDI } from "../constants/composer.ts";
-
-// 💡 추가 악기들 설정 (frequency 속성 제거)
-const hihatClosedSynth = new Tone.MetalSynth({
-  envelope: { attack: 0.001, decay: 0.1, release: 0.01 },
-  harmonicity: 5.1,
-  modulationIndex: 32,
-  resonance: 4000,
-  octaves: 1.5,
-}).toDestination();
-
-const hihatOpenSynth = new Tone.MetalSynth({
-  envelope: { attack: 0.001, decay: 0.3, release: 0.1 },
-  harmonicity: 5.1,
-  modulationIndex: 32,
-  resonance: 4000,
-  octaves: 1.5,
-}).toDestination();
-
-const bassSynth = new Tone.Synth({
-  oscillator: { type: "triangle8" }, 
-  envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.5 },
-}).toDestination();
+import { BASS_MIDI, MELODY_MIDI, MELODY_NOTE_TO_ROW } from "../constants/composer.ts";
+import { useUIStore, type MelodyInstrument } from "../store/uiStore.ts";
 
 let loopId: number | null = null;
 
@@ -47,6 +35,37 @@ const PIANO_SAMPLE_URLS: Record<string, string> = {
 let cachedPianoBuffers: Record<string, AudioBuffer> | null = null;
 let lameLoadPromise: Promise<void> | null = null;
 
+const ACOUSTIC_GUITAR_ROW_NOTE_MAP: Record<number, string> = {
+  [MELODY_NOTE_TO_ROW["E5"]]: "E4",
+  [MELODY_NOTE_TO_ROW["B4"]]: "B4",
+  [MELODY_NOTE_TO_ROW["G4"]]: "G4",
+  [MELODY_NOTE_TO_ROW["D4"]]: "D4",
+  [MELODY_NOTE_TO_ROW["A3"]]: "A3",
+  [MELODY_NOTE_TO_ROW["E4"]]: "E4",
+};
+
+function getSelectedMelodyInstrument(): MelodyInstrument {
+  return useUIStore.getState().selectedInstrument;
+}
+
+function getLiveMelodySynth() {
+  return getSelectedMelodyInstrument() === "acousticGuitar"
+    ? acousticGuitarSynth
+    : pianoSynth;
+}
+
+function getMelodyPlaybackNote(row: number, instrument: MelodyInstrument) {
+  if (instrument === "acousticGuitar") {
+    const mappedNote = ACOUSTIC_GUITAR_ROW_NOTE_MAP[row];
+    if (mappedNote) {
+      return mappedNote;
+    }
+  }
+
+  const midi = MELODY_MIDI[row] ?? MELODY_MIDI[MELODY_MIDI.length - 1];
+  return Tone.Frequency(midi, "midi").toNote();
+}
+
 function volumeToDb(volume: number) {
   if (volume <= 0) {
     return -60;
@@ -55,17 +74,33 @@ function volumeToDb(volume: number) {
   return Tone.gainToDb(volume / 100);
 }
 
+const DRUM_SAMPLE_DURATION_BY_ROW = ["8n", "16n", "32n", "8n", "8n"] as const;
+
+function getDrumSampleNote(row: number) {
+  return DRUM_SAMPLE_NOTE_BY_ROW[row] ?? DRUM_SAMPLE_NOTE_BY_ROW[0];
+}
+
+function getDrumSampleDuration(row: number) {
+  return DRUM_SAMPLE_DURATION_BY_ROW[row] ?? "16n";
+}
+
+function triggerLiveDrumSample(row: number, time?: number) {
+  drumSampler.triggerAttackRelease(
+    getDrumSampleNote(row),
+    getDrumSampleDuration(row),
+    time
+  );
+}
+
 function applyLiveVolumes(volumes: InstrumentVolumes) {
   const melodyDb = volumeToDb(volumes.melody);
   const drumsDb = volumeToDb(volumes.drums);
   const bassDb = volumeToDb(volumes.bass);
 
-  melodySynth.volume.value = melodyDb;
-  kickSynth.volume.value = drumsDb;
-  snareSynth.volume.value = drumsDb;
-  hihatClosedSynth.volume.value = drumsDb - 2;
-  hihatOpenSynth.volume.value = drumsDb - 1;
-  bassSynth.volume.value = bassDb;
+  pianoSynth.volume.value = melodyDb;
+  acousticGuitarSynth.volume.value = melodyDb - 1;
+  drumSampler.volume.value = drumsDb;
+  bassSampler.volume.value = bassDb;
 }
 
 function getSixteenthDurationSeconds(bpm: number) {
@@ -79,6 +114,15 @@ function getMelodyGateSeconds(durationSteps: number, bpm: number) {
 function getMelodyVelocity(durationSteps: number) {
   void durationSteps;
   return 1;
+}
+
+function triggerLiveMelodyNote(
+  note: string,
+  durationSeconds: number,
+  time?: number,
+  velocity?: number
+) {
+  getLiveMelodySynth().triggerAttackRelease(note, durationSeconds, time, velocity);
 }
 
 export async function preparePlaybackEngine() {
@@ -151,13 +195,14 @@ export function initTransport() {
     applyLiveVolumes(volumes);
 
     try {
+      const melodyInstrument = getSelectedMelodyInstrument();
+
       // 1. 멜로디 재생
       melody.forEach((rowArr, rowIndex) => {
         if (!rowArr[currentStep]) return;
-        const midi = MELODY_MIDI[rowIndex] ?? MELODY_MIDI[MELODY_MIDI.length - 1];
-        const note = Tone.Frequency(midi, "midi").toNote();
+        const note = getMelodyPlaybackNote(rowIndex, melodyInstrument);
         const durationSteps = Math.max(1, melodyLengths[rowIndex]?.[currentStep] ?? 1);
-        melodySynth.triggerAttackRelease(
+        triggerLiveMelodyNote(
           note,
           getMelodyGateSeconds(durationSteps, bpm),
           time,
@@ -170,21 +215,24 @@ export function initTransport() {
         if (!rowArr[currentStep]) return;
         const midi = BASS_MIDI[rowIndex] ?? BASS_MIDI[BASS_MIDI.length - 1];
         const note = Tone.Frequency(midi, "midi").toNote();
-        bassSynth.triggerAttackRelease(note, "8n", time);
+        bassSampler.triggerAttackRelease(note, "8n", time);
       });
 
       // 3. 드럼 재생
       if (drums[0]?.[currentStep]) {
-        kickSynth.triggerAttackRelease("C2", "8n", time);
+        triggerLiveDrumSample(0, time);
       }
       if (drums[1]?.[currentStep]) {
-        snareSynth.triggerAttackRelease("16n", time);
+        triggerLiveDrumSample(1, time);
       }
       if (drums[2]?.[currentStep]) {
-        hihatClosedSynth.triggerAttackRelease(200, "32n", time);
+        triggerLiveDrumSample(2, time);
       }
       if (drums[3]?.[currentStep]) {
-        hihatOpenSynth.triggerAttackRelease(200, "8n", time);
+        triggerLiveDrumSample(3, time);
+      }
+      if (drums[4]?.[currentStep]) {
+        triggerLiveDrumSample(4, time);
       }
     } catch (error) {
       console.error("Playback tick failed:", error);
@@ -203,11 +251,11 @@ export function initTransport() {
 
 export async function playMelodyPreview(row: number, durationSteps = 1): Promise<void> {
   await Tone.start();
+  await Tone.loaded();
   applyLiveVolumes(useSongStore.getState().volumes);
   const bpm = useSongStore.getState().bpm;
-  const midi = MELODY_MIDI[row] ?? MELODY_MIDI[MELODY_MIDI.length - 1];
-  const note = Tone.Frequency(midi, "midi").toNote();
-  melodySynth.triggerAttackRelease(
+  const note = getMelodyPlaybackNote(row, getSelectedMelodyInstrument());
+  triggerLiveMelodyNote(
     note,
     getMelodyGateSeconds(durationSteps, bpm),
     Tone.now(),
@@ -217,87 +265,47 @@ export async function playMelodyPreview(row: number, durationSteps = 1): Promise
 
 export async function playDrumPreview(row: number): Promise<void> {
   await Tone.start();
+  await Tone.loaded();
   applyLiveVolumes(useSongStore.getState().volumes);
-  if (row === 0) {
-    kickSynth.triggerAttackRelease("C2", "8n");
-    return;
-  }
-  if (row === 1) {
-    snareSynth.triggerAttackRelease("16n");
-    return;
-  }
-  // 💡 프리뷰 재생 시에도 주파수 200 전달
-  if (row === 2) {
-    hihatClosedSynth.triggerAttackRelease(200, "32n");
-    return;
-  }
-  if (row === 3) {
-    hihatOpenSynth.triggerAttackRelease(200, "8n");
-    return;
-  }
+  triggerLiveDrumSample(row, Tone.now());
 }
 
 async function renderSongBuffer(): Promise<AudioBuffer> {
   await Tone.start();
   await loadLame();
   const { melody, melodyLengths, drums, bass, steps, bpm, volumes } = useSongStore.getState();
-  const pianoBuffers = await loadPianoBuffers();
+  const melodyInstrument = getSelectedMelodyInstrument();
+  const pianoBuffers = melodyInstrument === "piano" ? await loadPianoBuffers() : null;
 
   const sixteenthSeconds = getSixteenthDurationSeconds(bpm);
   const durationSeconds = steps * sixteenthSeconds + 1.0;
 
   const rendered = await Tone.Offline(async ({ transport }) => {
-    const reverb = new Tone.Reverb({ decay: 2.0, preDelay: 0.01, wet: 0.2 }).toDestination();
-    const sampler = new Tone.Sampler({ urls: pianoBuffers, release: 1 }).connect(reverb);
+    const melodyBus =
+      melodyInstrument === "acousticGuitar"
+        ? new Tone.Reverb({ decay: 1.8, preDelay: 0.01, wet: 0.18 }).toDestination()
+        : new Tone.Reverb({ decay: 2.0, preDelay: 0.01, wet: 0.2 }).toDestination();
+    const melodySynth =
+      melodyInstrument === "acousticGuitar"
+        ? new Tone.Sampler({
+            urls: GUITAR_SAMPLE_URLS,
+            release: 1.2,
+            baseUrl: "/samples/guitar/",
+          }).connect(melodyBus)
+        : new Tone.Sampler({ urls: pianoBuffers ?? {}, release: 1 }).connect(melodyBus);
 
-    const kick = new Tone.MembraneSynth({
-      pitchDecay: 0.02,
-      octaves: 4,
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.3 },
-    }).toDestination();
+    const drumSamplerOffline = createDrumSampler();
+    const bassSamplerOffline = createBassSampler();
 
-    const snare = new Tone.NoiseSynth({
-      noise: { type: "white" },
-      envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.05 },
-    }).toDestination();
-
-    // 💡 MP3 렌더링용 추가 악기 세팅 (frequency 제거)
-    const hihatC = new Tone.MetalSynth({
-      envelope: { attack: 0.001, decay: 0.1, release: 0.01 },
-      harmonicity: 5.1,
-      modulationIndex: 32,
-      resonance: 4000,
-      octaves: 1.5,
-    }).toDestination();
-
-    const hihatO = new Tone.MetalSynth({
-      envelope: { attack: 0.001, decay: 0.3, release: 0.1 },
-      harmonicity: 5.1,
-      modulationIndex: 32,
-      resonance: 4000,
-      octaves: 1.5,
-    }).toDestination();
-
-    const bSynth = new Tone.FMSynth({
-      harmonicity: 1,
-      modulationIndex: 1,
-      oscillator: { type: "triangle" },
-      envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.5 },
-      modulation: { type: "square" },
-      modulationEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.1 },
-    }).toDestination();
+    await Tone.loaded();
 
     const melodyDb = volumeToDb(volumes.melody);
     const drumsDb = volumeToDb(volumes.drums);
     const bassDb = volumeToDb(volumes.bass);
 
-    sampler.volume.value = melodyDb;
-    kick.volume.value = drumsDb;
-    snare.volume.value = drumsDb;
-    hihatC.volume.value = drumsDb - 2;
-    hihatO.volume.value = drumsDb - 1;
-    bSynth.volume.value = bassDb;
+    melodySynth.volume.value = melodyInstrument === "acousticGuitar" ? melodyDb - 1 : melodyDb;
+    drumSamplerOffline.volume.value = drumsDb;
+    bassSamplerOffline.volume.value = bassDb;
 
     transport.bpm.value = bpm;
 
@@ -306,10 +314,9 @@ async function renderSongBuffer(): Promise<AudioBuffer> {
 
       for (let row = 0; row < melody.length; row += 1) {
         if (!melody[row]?.[col]) continue;
-        const midi = MELODY_MIDI[row] ?? MELODY_MIDI[MELODY_MIDI.length - 1];
-        const note = Tone.Frequency(midi, "midi").toNote();
+        const note = getMelodyPlaybackNote(row, melodyInstrument);
         const durationSteps = Math.max(1, melodyLengths[row]?.[col] ?? 1);
-        sampler.triggerAttackRelease(
+        melodySynth.triggerAttackRelease(
           note,
           getMelodyGateSeconds(durationSteps, bpm),
           time,
@@ -321,15 +328,17 @@ async function renderSongBuffer(): Promise<AudioBuffer> {
         if (!bass[row]?.[col]) continue;
         const midi = BASS_MIDI[row] ?? BASS_MIDI[BASS_MIDI.length - 1];
         const note = Tone.Frequency(midi, "midi").toNote();
-        bSynth.triggerAttackRelease(note, "8n", time);
+        bassSamplerOffline.triggerAttackRelease(note, "8n", time);
       }
 
-      if (drums[0]?.[col]) kick.triggerAttackRelease("C2", "8n", time);
-      if (drums[1]?.[col]) snare.triggerAttackRelease("16n", time);
-      
-      // 💡 렌더링 시에도 주파수 200 전달
-      if (drums[2]?.[col]) hihatC.triggerAttackRelease(200, "32n", time);
-      if (drums[3]?.[col]) hihatO.triggerAttackRelease(200, "8n", time);
+      for (let row = 0; row < drums.length; row += 1) {
+        if (!drums[row]?.[col]) continue;
+        drumSamplerOffline.triggerAttackRelease(
+          getDrumSampleNote(row),
+          getDrumSampleDuration(row),
+          time
+        );
+      }
     }
 
     transport.start(0);
@@ -512,8 +521,9 @@ function loadLame(): Promise<void> {
 
 export async function playBassPreview(row: number): Promise<void> {
   await Tone.start();
+  await Tone.loaded();
   applyLiveVolumes(useSongStore.getState().volumes);
   const midi = BASS_MIDI[row] ?? BASS_MIDI[BASS_MIDI.length - 1];
   const note = Tone.Frequency(midi, "midi").toNote();
-  bassSynth.triggerAttackRelease(note, "8n");
+  bassSampler.triggerAttackRelease(note, "8n");
 }

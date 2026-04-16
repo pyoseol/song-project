@@ -1,11 +1,14 @@
 import { create } from 'zustand';
 
+export type ComposerTabKey = 'melody' | 'guitar' | 'drums' | 'bass';
+export type MelodyInstrument = 'piano' | 'acousticGuitar';
+
 type UIState = {
-  activeTab: 'melody' | 'drums' | 'bass';
+  activeTab: ComposerTabKey;
   setActiveTab: (tab: UIState['activeTab']) => void;
   isPlaying: boolean;
   setIsPlaying: (value: boolean) => void;
-  selectedInstrument: 'marimba' | 'piano' | 'synth';
+  selectedInstrument: MelodyInstrument;
   setInstrument: (value: UIState['selectedInstrument']) => void;
 };
 
@@ -14,6 +17,6 @@ export const useUIStore = create<UIState>((set) => ({
   setActiveTab: (tab) => set({ activeTab: tab }),
   isPlaying: false,
   setIsPlaying: (value) => set({ isPlaying: value }),
-  selectedInstrument: 'marimba',
+  selectedInstrument: 'piano',
   setInstrument: (value) => set({ selectedInstrument: value }),
 }));

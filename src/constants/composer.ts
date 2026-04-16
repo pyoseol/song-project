@@ -106,7 +106,7 @@ export const BASS_MIDI = [48, 47, 45, 43, 41, 40, 38, 36, 35, 33] as const;
 
 export const MELODY_ROWS = MELODY_NOTES.length;
 export const BASS_ROWS = BASS_NOTES.length;
-export const DRUM_ROWS = 4;
+export const DRUM_ROWS = 5;
 
 function createNoteToRowMap(notes: readonly string[]) {
   return notes.reduce<Record<string, number>>((map, note, index) => {

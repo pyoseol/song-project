@@ -25,6 +25,48 @@ const MELODY_ACCENTS = [
   '#6ff40e',
 ];
 
+const GUITAR_ACCENTS = [
+  '#f59e0b',
+  '#fb923c',
+  '#f6ad55',
+  '#f59e0b',
+  '#fbbf24',
+  '#fb923c',
+  '#f59e0b',
+  '#fcd34d',
+];
+
+const GUITAR_DISPLAY_NOTES = [
+  'E5',
+  'D#5',
+  'D5',
+  'C#5',
+  'C5',
+  'B4',
+  'A#4',
+  'A4',
+  'G#4',
+  'G4',
+  'F#4',
+  'F4',
+  'E4',
+  'D#4',
+  'D4',
+  'C#4',
+  'C4',
+  'B3',
+  'A#3',
+  'A3',
+  'G#3',
+  'G3',
+  'F#3',
+  'F3',
+  'E3',
+  'D#3',
+  'D3',
+  'C#3',
+] as const;
+
 const BASS_ACCENTS = ['#f6d28a', '#e7b869', '#d49a58', '#b37b43'];
 const PIANO_GRID_GAP = 8;
 const PIANO_HEADER_HEIGHT = 36;
@@ -85,8 +127,8 @@ function getSubdivisionClassName(col: number) {
   }${col % 16 === 0 ? ' is-bar' : ''}`;
 }
 
-function getAccentColor(index: number, isBass: boolean) {
-  const palette = isBass ? BASS_ACCENTS : MELODY_ACCENTS;
+function getAccentColor(index: number, isBass: boolean, isGuitar: boolean) {
+  const palette = isBass ? BASS_ACCENTS : isGuitar ? GUITAR_ACCENTS : MELODY_ACCENTS;
   return palette[index % palette.length];
 }
 
@@ -122,6 +164,7 @@ export const PianoRoll = ({
 }: PianoRollProps) => {
   const { activeTab } = useUIStore();
   const isBass = activeTab === 'bass';
+  const isGuitar = activeTab === 'guitar';
   const { melody, melodyLengths, bass, steps, toggleMelody, toggleBass, applyChord, currentStep } =
     useSongStore();
 
@@ -161,7 +204,7 @@ export const PianoRoll = ({
   );
 
   const currentGrid = isBass ? bass : melody;
-  const currentLabels = isBass ? BASS_NOTES : MELODY_NOTES;
+  const currentLabels = isBass ? BASS_NOTES : isGuitar ? GUITAR_DISPLAY_NOTES : MELODY_NOTES;
   const modeClass = isBass ? 'bass' : 'melody';
   const rowCount = currentGrid.length;
   const gridGap = isBass ? PIANO_GRID_GAP : 2;
@@ -257,7 +300,7 @@ export const PianoRoll = ({
 
   const sidebarNotes = currentLabels.map((note, row) => {
     const noteStyle = {
-      '--key-accent': getAccentColor(row, isBass),
+      '--key-accent': getAccentColor(row, isBass, isGuitar),
     } as CSSProperties;
 
     return (
@@ -309,7 +352,7 @@ export const PianoRoll = ({
       const isLocked = Boolean(barLock && !barLock.mine);
       const tutorialGhostNote = !isBass ? tutorialGhostNoteMap[`${row}-${col}`] : null;
       const cellStyle = {
-        '--cell-accent': getAccentColor(row, isBass),
+        '--cell-accent': getAccentColor(row, isBass, isGuitar),
         ...(!isBass && melodyNoteInfo ? { '--note-span-steps': `${melodyNoteInfo.length}` } : {}),
       } as CSSProperties;
 
@@ -468,14 +511,19 @@ export const PianoRoll = ({
   if (!isBass) {
     return (
       <div
-        className="piano-roll piano-roll--melody piano-roll--melody-detached"
+        className={`piano-roll piano-roll--melody piano-roll--melody-detached${
+          isGuitar ? ' piano-roll--guitar' : ''
+        }`}
         style={pianoRollStyle}
         onMouseUp={finalizeMelodyDraw}
         onMouseLeave={finalizeMelodyDraw}
       >
         <div className="piano-roll-melody-topbar">
           <div className="piano-roll-melody-corner" aria-hidden="true" />
-          <div className="piano-roll-length-bar" aria-label="Melody note length">
+          <div
+            className="piano-roll-length-bar"
+            aria-label={isGuitar ? 'Guitar note length' : 'Melody note length'}
+          >
             <div className="piano-roll-length-controls">
               {MELODY_NOTE_LENGTH_OPTIONS.map((option) => (
                 <button
@@ -491,12 +539,15 @@ export const PianoRoll = ({
               ))}
             </div>
 
-            <div className="piano-roll-chord-actions" aria-label="Melody chords">
+            <div
+              className="piano-roll-chord-actions"
+              aria-label={isGuitar ? 'Guitar chords' : 'Melody chords'}
+            >
               {MELODY_CHORD_OPTIONS.map((chord) => (
                 <button
                   key={chord}
                   type="button"
-                  className="piano-roll-chord-chip"
+                  className={`piano-roll-chord-chip${isGuitar ? ' is-guitar' : ''}`}
                   draggable
                   onDragStart={(event) => {
                     event.dataTransfer.setData('text/plain', chord);

@@ -1,10 +1,10 @@
-import { BASS_NOTES, MELODY_NOTES } from '../constants/composer.ts';
+import { BASS_NOTES, MELODY_NOTES, GUITAR_TRACK_LABELS, DRUM_TRACK_LABELS } from '../constants/composer.ts';
 
 const GITHUB_TOKEN = import.meta.env.VITE_API_KEY;
 const GITHUB_ENDPOINT = 'https://models.inference.ai.azure.com/chat/completions';
 
 const TOTAL_STEPS = 640;
-const DRUM_TYPES = ['Kick', 'Snare', 'HiHatClosed', 'HiHatOpen'];
+const DRUM_TYPES = ['Kick', 'Snare', 'HiHat', 'Clap', 'Percussion'];
 
 /**
  * 공통 모델 호출 함수
@@ -42,20 +42,45 @@ async function composeMusicText(prompt: string): Promise<string> {
       {
         role: 'system',
         content: `
-You are a professional music producer.
+You are an expert MIDI programmer and step sequencer engineer.
 
-Create an 8-bar loop for the user's genre.
+Your job is NOT to simplify the music.
+Your job is to faithfully translate the musical description into a rich, dense 128-step sequence.
 
-Think like a real composer:
-- Choose a chord progression
-- Describe the drum groove
-- Describe the bass rhythm and relationship with drums
-- Describe the melody phrasing and note lengths
-- Explain repetition and variation across 8 bars
-- The loop must feel full, energetic, and continuously moving. Avoid minimalism.
+CRITICAL RULES:
 
-Do NOT use JSON.
-Explain the music like you are talking to another producer.
+- Fill the sequence like a real produced loop.
+- Do NOT leave empty space unless the music description clearly implies silence.
+- Use MANY notes.
+- Use varied durations (2,4,8,16,32).
+- Create rhythmic patterns, not sparse hits.
+- Drums must have continuous groove (especially hi-hats).
+- Bass must create rhythm, not single hits.
+- Melody must form phrases across bars.
+- Guitar must create rhythmic harmony patterns, not long static notes.
+
+Technical limits:
+- 128 steps (0~127), 16 steps per bar.
+- Melody notes: ${MELODY_NOTES.join(', ')}
+- Guitar notes: ${GUITAR_TRACK_LABELS.join(', ')}
+- Bass notes: ${BASS_NOTES.join(', ')}
+- Drums: ${DRUM_TRACK_LABELS.join(', ')}
+
+IMPORTANT DRUM RULE:
+- Use field name "note" for drums, NOT "type".
+- Each drum hit must have duration 1.
+
+Output ONLY valid JSON in THIS exact format:
+
+{
+  "bpm": number,
+  "tracks": {
+    "melody": [{ "note": "", "start": 0, "duration": 0 }],
+    "guitar": [{ "note": "", "start": 0, "duration": 0 }],
+    "drums": [{ "note": "", "start": 0, "duration": 1 }],
+    "bass": [{ "note": "", "start": 0, "duration": 0 }]
+  }
+}
 `,
       },
       { role: 'user', content: prompt },
@@ -113,11 +138,22 @@ Output ONLY valid JSON:
   );
 
   try {
-    return JSON.parse(jsonText);
+    const clean = extractJson(jsonText);
+    return JSON.parse(clean);
   } catch (e) {
     console.error('Invalid JSON from AI:', jsonText);
     throw new Error('AI generated invalid JSON');
   }
+}
+
+function extractJson(text: string) {
+  const match = text.match(/```json\s*([\s\S]*?)\s*```/);
+  if (match) return match[1];
+
+  const fallback = text.match(/\{[\s\S]*\}/);
+  if (fallback) return fallback[0];
+
+  throw new Error('No JSON found in AI response');
 }
 
 /**

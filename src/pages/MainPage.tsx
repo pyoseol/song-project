@@ -1,13 +1,87 @@
-﻿import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SiteHeader from '../components/layout/SiteHeader';
-import { LESSON_LIBRARY } from '../dummy/learnData';
 import { LATEST_TRACKS, TRENDING_TRACKS } from '../dummy/mockData';
 import { useCommunityStore } from '../store/communityStore';
+import type { CommunityTrack, Post } from '../types/community';
 import './MainPage.css';
+
+const TRACK_DISPLAY: Record<string, { title: string; mood: string }> = {
+  'trend-1': { title: '야경 루프', mood: '오늘의 추천' },
+  'trend-2': { title: '시티팝 리프', mood: '인기 리메이크' },
+  'trend-3': { title: '감성 브리지', mood: '반복하기 좋은 구조' },
+  'trend-4': { title: '미드나잇 훅', mood: '후렴 강조' },
+  'trend-5': { title: '딥 하우스 라인', mood: '밤 작업용' },
+  'trend-6': { title: '필름 OST 테마', mood: '서정적인 진행' },
+  'trend-7': { title: '몽환 신스 팝', mood: '공간감 있는 사운드' },
+  'trend-8': { title: '그루브 스케치', mood: '가볍게 듣기 좋은 곡' },
+  'latest-1': { title: '펑크 스케치', mood: '새로 올라온 곡' },
+  'latest-2': { title: '청량 밴드 루프', mood: '밴드 작곡용 루프' },
+  'latest-3': { title: '발라드 베이스 아이디어', mood: '입문자용 진행' },
+  'latest-4': { title: '모던 재즈 훅', mood: '리듬 변주형 진행' },
+};
+
+const POST_DISPLAY: Record<string, { title: string; category: string }> = {
+  '1': { title: '코드 진행 질문: 후렴이 자연스럽게 안 이어져요', category: '질문' },
+  '2': { title: '작곡 피드백 받을 사람 같이 들어봐요', category: '피드백' },
+  '3': { title: '멜로디를 먼저 만들까요, 코드를 먼저 만들까요?', category: '작곡' },
+  '4': { title: '음악 이론 정리: 다이아토닉 코드 활용', category: '정보' },
+  '5': { title: '베이스 라인 만들 때 리듬부터 잡는 법', category: '작곡' },
+  '6': { title: 'MIDI 컨트롤러 입문 추천 부탁해요', category: '장비' },
+  '7': { title: '기타 코드 톤을 얇게 만드는 방법이 궁금해요', category: '장비' },
+  '8': { title: 'DAW 처음 시작할 때 뭐가 좋을까요?', category: '질문' },
+};
+
+const STUDIO_KITS = [
+  {
+    label: 'LOOP STARTER',
+    title: '첫 8마디 스케치',
+    body: '코드와 리듬을 먼저 잡고 바로 피아노롤로 이어가기',
+    route: '/composer',
+  },
+  {
+    label: 'TOPLINE',
+    title: '후렴 멜로디 찾기',
+    body: '마음에 드는 진행 위에 훅 아이디어를 얹어보기',
+    route: '/community/music',
+  },
+  {
+    label: 'SESSION',
+    title: '같이 완성할 파트 찾기',
+    body: '보컬, 기타, 믹싱 파트를 연결해서 곡을 끝까지 밀기',
+    route: '/collab',
+  },
+] as const;
 
 function formatCount(value: number | undefined) {
   return (value ?? 0).toLocaleString('ko-KR');
+}
+
+function getTrackDisplay(track: CommunityTrack) {
+  return TRACK_DISPLAY[track.id] ?? { title: track.title, mood: track.mood };
+}
+
+function getPostDisplay(post: Post) {
+  return POST_DISPLAY[post.id] ?? { title: post.title, category: post.category ?? '자유' };
+}
+
+function getCoverflowStyle(index: number, activeIndex: number, total: number): CSSProperties {
+  const rawOffset = index - activeIndex;
+  const offset =
+    rawOffset > total / 2
+      ? rawOffset - total
+      : rawOffset < -total / 2
+        ? rawOffset + total
+        : rawOffset;
+  const distance = Math.abs(offset);
+  const clampedOffset = Math.max(-2, Math.min(2, offset));
+
+  return {
+    opacity: distance > 2 ? 0 : Math.max(0.38, 1 - distance * 0.28),
+    zIndex: 20 - distance,
+    pointerEvents: distance > 2 ? 'none' : 'auto',
+    transform: `translateX(calc(-50% + ${clampedOffset * 170}px)) translateY(${distance * 18}px) rotateY(${clampedOffset * -7}deg) scale(${offset === 0 ? 1 : 0.8 - distance * 0.04})`,
+  };
 }
 
 function getCategoryTone(category?: string) {
@@ -38,101 +112,11 @@ function getCategoryTone(category?: string) {
   return 'slate';
 }
 
-function getCoverflowCardStyle(index: number, activeIndex: number, total: number): CSSProperties {
-  const rawOffset = index - activeIndex;
-  const wrappedOffset =
-    rawOffset > total / 2
-      ? rawOffset - total
-      : rawOffset < -total / 2
-        ? rawOffset + total
-        : rawOffset;
-  const offset = wrappedOffset;
-  const distance = Math.abs(offset);
-  const scale = offset === 0 ? 1.16 : Math.max(0.62, 1 - distance * 0.22);
-
-  return {
-    left: '50%',
-    zIndex: 100 - Math.round(distance * 10),
-    opacity: Math.max(0.08, 1 - distance * 0.28),
-    pointerEvents: distance > 2 ? 'none' : 'auto',
-    transform: `translateX(calc(-50% + ${offset * 186}px)) translateY(${distance * 20}px) rotateY(${offset * -28}deg) scale(${scale})`,
-  };
-}
-
-function renderTrackCoverflow(
-  tracks: typeof TRENDING_TRACKS,
-  navigate: ReturnType<typeof useNavigate>,
-  activeIndex: number,
-  setActiveIndex: (value: number | ((prev: number) => number)) => void
-) {
-  return (
-    <div
-      className="main-track-coverflow"
-      role="list"
-      onWheel={(event) => {
-        if (Math.abs(event.deltaX) < 8 && Math.abs(event.deltaY) < 8) {
-          return;
-        }
-
-        setActiveIndex((current) =>
-          event.deltaY > 0 || event.deltaX > 0
-            ? (current + 1) % tracks.length
-            : (current - 1 + tracks.length) % tracks.length
-        );
-      }}
-    >
-      <button
-        type="button"
-        className="main-track-coverflow-arrow is-left"
-        onClick={() => setActiveIndex((current) => (current - 1 + tracks.length) % tracks.length)}
-        aria-label="이전 음악"
-      >
-        {'<'}
-      </button>
-      {tracks.map((track, index) => (
-        <button
-          key={track.id}
-          type="button"
-          className={`main-track-coverflow-card${index === activeIndex ? ' is-active' : ''}`}
-          style={{
-            ...getCoverflowCardStyle(index, activeIndex, tracks.length),
-            backgroundImage: track.palette,
-          }}
-          onClick={() => {
-            if (index !== activeIndex) {
-              setActiveIndex(index);
-              return;
-            }
-
-            navigate('/community/music');
-          }}
-          aria-label={`${track.title} ${track.progression}`}
-        >
-          <span className="main-track-mood">{track.mood}</span>
-          <div className="main-track-coverflow-copy">
-            <strong>{track.title}</strong>
-            <span>{track.progression}</span>
-          </div>
-        </button>
-      ))}
-      <button
-        type="button"
-        className="main-track-coverflow-arrow is-right"
-        onClick={() => setActiveIndex((current) => (current + 1) % tracks.length)}
-        aria-label="다음 음악"
-      >
-        {'>'}
-      </button>
-    </div>
-  );
-}
-
 export default function MainPage() {
   const navigate = useNavigate();
-  const [activeTrendingIndex, setActiveTrendingIndex] = useState(0);
+  const [activeCoverIndex, setActiveCoverIndex] = useState(0);
   const posts = useCommunityStore((state) => state.posts);
   const seedCommunity = useCommunityStore((state) => state.seedCommunity);
-  const recommendedLessonIds = ['money-code', 'major-progression', 'arrangement'] as const;
 
   useEffect(() => {
     void seedCommunity().catch((error) => {
@@ -146,248 +130,226 @@ export default function MainPage() {
         (right.viewCount ?? 0) - (left.viewCount ?? 0) ||
         (right.likeCount ?? 0) - (left.likeCount ?? 0)
     )
-    .slice(0, 8);
+    .slice(0, 6);
 
-  const recommendedLessons = recommendedLessonIds.map((id) => LESSON_LIBRARY[id]);
-  const totalComments = posts.reduce((sum, post) => sum + (post.commentCount ?? 0), 0);
-  const totalViews = posts.reduce((sum, post) => sum + (post.viewCount ?? 0), 0);
-  const hotPostCount = posts.filter((post) => post.isHot).length;
-
-  const communitySpaces = [
-    {
-      label: '커뮤니티 게시판',
-      title: '질문과 피드백을 빠르게 주고받는 공간',
-      description: '조회 수가 높은 글부터 둘러보고, 궁금한 주제로 바로 들어갈 수 있습니다.',
-      action: '게시판 보기',
-      route: '/community',
-    },
-    {
-      label: '음악 공유',
-      title: '코드 진행과 루프 아이디어를 모아보는 공간',
-      description: '공유된 곡을 이어 들어보고, 마음에 드는 곡은 저장해 다시 참고할 수 있습니다.',
-      action: '음악 공유 보기',
-      route: '/community/music',
-    },
-    {
-      label: '중고 거래',
-      title: '필요한 장비만 모아서 볼 수 있는 거래 공간',
-      description: '커뮤니티 흐름 안에서 장비 탐색까지 자연스럽게 이어집니다.',
-      action: '중고 거래 보기',
-      route: '/community/market',
-    },
+  const coverflowTracks = TRENDING_TRACKS.slice(0, 5);
+  const featuredTrack = coverflowTracks[activeCoverIndex];
+  const spotlightTracks = TRENDING_TRACKS.slice(5, 8);
+  const latestTracks = LATEST_TRACKS.slice(0, 4);
+  const quickLinks = [
+    { title: '새 곡 만들기', body: '피아노롤과 코드 가이드로 바로 시작', route: '/composer' },
+    { title: '협업 찾기', body: '세션과 팀원을 모아 프로젝트 진행', route: '/collab' },
+    { title: '음악 공유', body: '커뮤니티의 루프와 진행을 탐색', route: '/community/music' },
   ];
-
-  const summaryMetrics = [
-    { label: '전체 게시글', value: formatCount(posts.length) },
-    { label: '전체 댓글', value: formatCount(totalComments) },
-    { label: '전체 조회', value: formatCount(totalViews) },
-    { label: 'HOT 게시글', value: formatCount(hotPostCount) },
-  ];
+  const featuredTrackDisplay = getTrackDisplay(featuredTrack);
 
   return (
     <div className="main-page">
       <SiteHeader />
 
       <main className="main-shell">
-        <section className="main-hero-card">
-          <div className="main-hero-copy">
-            <span className="main-hero-eyebrow">SONG MAKER HUB</span>
-            <h1 className="main-hero-title">
-              작곡부터 커뮤니티까지,
-              <br />
-              한 번에 이어가기
-            </h1>
-            <p className="main-hero-description">
-              지금 필요한 흐름만 골라서 바로 시작할 수 있도록 메인 화면을 정리했습니다.
-              음악 탐색과 커뮤니티 탐색도 페이지 안에서 자연스럽게 이어집니다.
-            </p>
-
-            <div className="main-hero-actions">
-              <button
-                type="button"
-                className="main-hero-button is-primary"
-                onClick={() => navigate('/composer')}
-              >
-                바로 작곡하기
-              </button>
-              <button
-                type="button"
-                className="main-hero-button"
-                onClick={() => navigate('/community')}
-              >
-                커뮤니티 둘러보기
-              </button>
-            </div>
+        <section className="main-hero-head">
+          <span className="main-label">SONG MAKER RADIO</span>
+          <div>
+            <h1>오늘 만들고 싶은 사운드를 먼저 들어보세요.</h1>
+            <p>커버를 넘기며 레퍼런스를 찾고, 마음에 드는 흐름에서 바로 작곡을 시작합니다.</p>
           </div>
-
-          <div className="main-hero-metrics">
-            {summaryMetrics.map((metric) => (
-              <article key={metric.label} className="main-hero-metric">
-                <span>{metric.label}</span>
-                <strong>{metric.value}</strong>
-              </article>
-            ))}
+          <div className="main-hero-actions">
+            <button type="button" className="main-button is-primary" onClick={() => navigate('/composer')}>
+              스튜디오 열기
+            </button>
+            <button type="button" className="main-button" onClick={() => navigate('/community')}>
+              차트 둘러보기
+            </button>
           </div>
         </section>
 
-        <section className="main-section-group">
-          <div className="main-group-head">
-            <span className="main-group-kicker">MUSIC FLOW</span>
-            <h2>음악 탐색</h2>
-            <p>지금 뜨는 음악은 커버플로우로 크게 보고, 최근 추가된 음악은 바로 훑어볼 수 있게 구성했습니다.</p>
-          </div>
-
-          <div className="main-section-stack">
-            <section className="main-section">
-              <div className="main-section-head">
-                <h2 className="main-section-title">
-                  <span className="main-section-icon" aria-hidden="true">
-                    ♪
-                  </span>
-                  지금 뜨는 음악
-                </h2>
+        <section className="main-hero">
+          <div className="main-coverflow-panel">
+            <div className="main-now-playing">
+              <span>NOW PLAYING</span>
+              <strong>{featuredTrackDisplay.title}</strong>
+              <small>{featuredTrack.progression}</small>
+              <div className="main-eq" aria-hidden="true">
+                {Array.from({ length: 18 }, (_, index) => (
+                  <i key={index} style={{ '--delay': `${index * 0.07}s` } as CSSProperties} />
+                ))}
               </div>
+            </div>
 
-              {renderTrackCoverflow(
-                TRENDING_TRACKS,
-                navigate,
-                activeTrendingIndex,
-                setActiveTrendingIndex
-              )}
-            </section>
+            <div className="main-coverflow" role="list" aria-label="추천 음악 커버 플로우">
+              <button
+                type="button"
+                className="main-coverflow-arrow is-left"
+                onClick={() =>
+                  setActiveCoverIndex((current) =>
+                    (current - 1 + coverflowTracks.length) % coverflowTracks.length
+                  )
+                }
+                aria-label="이전 음악"
+              >
+                ‹
+              </button>
 
-            <section className="main-section">
-              <div className="main-section-head">
-                <h2 className="main-section-title">
-                  <span className="main-section-icon" aria-hidden="true">
-                    +
-                  </span>
-                  최근 추가된 음악
-                </h2>
-              </div>
+              {coverflowTracks.map((track, index) => {
+                const displayTrack = getTrackDisplay(track);
+                const isActive = index === activeCoverIndex;
 
-              <div className="main-track-grid">
-                {LATEST_TRACKS.slice(0, 4).map((track) => (
+                return (
                   <button
                     key={track.id}
                     type="button"
-                    className="main-track-card"
-                    style={{ backgroundImage: track.palette } as CSSProperties}
-                    onClick={() => navigate('/community/music')}
-                    aria-label={`${track.title} ${track.progression}`}
-                  >
-                    <div className="main-track-footer">
-                      <span className="main-track-progression">{track.progression}</span>
-                      <span className="main-track-favorite" aria-hidden="true">
-                        PLAY
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </section>
+                    className={`main-cover-card${isActive ? ' is-active' : ''}`}
+                    style={{
+                      ...getCoverflowStyle(index, activeCoverIndex, coverflowTracks.length),
+                      backgroundImage: track.palette,
+                    }}
+                    onClick={() => {
+                      if (!isActive) {
+                        setActiveCoverIndex(index);
+                        return;
+                      }
 
-            <section className="main-section">
-              <div className="main-section-head is-between">
-                <h2 className="main-section-title">
-                  <span className="main-section-icon" aria-hidden="true">
-                    #
-                  </span>
-                  추천 작곡
-                </h2>
-              </div>
-
-              <div className="main-lesson-grid">
-                {recommendedLessons.map((lesson) => (
-                  <button
-                    key={lesson.id}
-                    type="button"
-                    className="main-lesson-card"
-                    onClick={() => navigate('/composer')}
+                      navigate('/community/music');
+                    }}
+                    aria-label={`${displayTrack.title} ${track.progression}`}
                   >
-                    <span className="main-lesson-section">{lesson.section}</span>
-                    <strong>{lesson.title}</strong>
-                    <p>{lesson.summary}</p>
-                    <div className="main-lesson-footer">
-                      <span>{lesson.tempo} BPM</span>
-                      <span>{lesson.examples.length} examples</span>
-                    </div>
+                    <span>{displayTrack.mood}</span>
+                    <strong>{displayTrack.title}</strong>
+                    <small>{track.progression}</small>
                   </button>
-                ))}
-              </div>
-            </section>
+                );
+              })}
+
+              <button
+                type="button"
+                className="main-coverflow-arrow is-right"
+                onClick={() =>
+                  setActiveCoverIndex((current) => (current + 1) % coverflowTracks.length)
+                }
+                aria-label="다음 음악"
+              >
+                ›
+              </button>
+            </div>
           </div>
         </section>
 
-        <section className="main-section-group">
-          <div className="main-group-head">
-            <span className="main-group-kicker">COMMUNITY FLOW</span>
-            <h2>커뮤니티 탐색</h2>
-            <p>게시판, 음악 공유, 중고 거래를 한 흐름 안에서 바로 이어볼 수 있게 정리했습니다.</p>
-          </div>
+        <section className="main-quick-grid" aria-label="음악 작업 바로가기">
+          {quickLinks.map((link, index) => (
+            <button key={link.title} type="button" onClick={() => navigate(link.route)}>
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <strong>{link.title}</strong>
+              <small>{link.body}</small>
+            </button>
+          ))}
+        </section>
 
-          <div className="main-section-stack">
-            <section className="main-section">
-              <div className="main-section-head is-between">
-                <h2 className="main-section-title">
-                  <span className="main-section-icon" aria-hidden="true">
-                    #
-                  </span>
-                  인기 있는 게시물
-                </h2>
-
-                <button
-                  type="button"
-                  className="main-section-link"
-                  onClick={() => navigate('/community')}
-                >
-                  전체보기 {'>'}
+        <section className="main-layout">
+          <div className="main-left">
+            <section className="main-panel main-panel--music">
+              <div className="main-panel-head">
+                <div>
+                  <span className="main-label">MIX ROOM</span>
+                  <h2>무드별 추천 사운드</h2>
+                </div>
+                <button type="button" onClick={() => navigate('/community/music')}>
+                  더보기
                 </button>
               </div>
 
-              <div className="main-board">
+              <div className="main-spotlight-grid">
+                {spotlightTracks.map((track) => {
+                  const displayTrack = getTrackDisplay(track);
+
+                  return (
+                    <button
+                      key={track.id}
+                      type="button"
+                      className="main-spotlight-card"
+                      style={{ backgroundImage: track.palette } as CSSProperties}
+                      onClick={() => navigate('/community/music')}
+                      aria-label={`${displayTrack.title} ${track.progression}`}
+                    >
+                      <span>{displayTrack.mood}</span>
+                      <strong>{displayTrack.title}</strong>
+                      <small>{track.progression}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="main-panel">
+              <div className="main-panel-head">
+                <div>
+                  <span className="main-label">COMMUNITY</span>
+                  <h2>인기 게시물</h2>
+                </div>
+                <button type="button" onClick={() => navigate('/community')}>
+                  더보기
+                </button>
+              </div>
+
+              <div className="main-post-list">
                 {popularPosts.map((post, index) => {
-                  const tone = getCategoryTone(post.category);
+                  const displayPost = getPostDisplay(post);
+                  const tone = getCategoryTone(displayPost.category);
 
                   return (
                     <button
                       key={post.id}
                       type="button"
-                      className="main-board-row"
+                      className="main-post-row"
                       onClick={() => navigate(`/community/${post.id}`)}
                     >
-                      <span className={`main-board-rank${index < 3 ? ' is-top' : ''}`}>
+                      <span className={`main-post-rank${index < 3 ? ' is-top' : ''}`}>
                         {index + 1}
                       </span>
-
-                      <span className={`main-board-chip main-board-chip--${tone}`}>
-                        {post.category ?? '자유'}
+                      <span className={`main-post-chip main-post-chip--${tone}`}>
+                        {displayPost.category}
                       </span>
-
-                      <span className="main-board-title-wrap">
-                        <span className="main-board-title">{post.title}</span>
-                        {post.isHot ? <span className="main-board-hot">HOT</span> : null}
+                      <span className="main-post-title">
+                        <strong>{displayPost.title}</strong>
+                        {post.isHot ? <small>HOT</small> : null}
                       </span>
+                      <span className="main-post-meta">{formatCount(post.viewCount)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
 
-                      <span className="main-board-stats">
-                        <span className="main-board-stat">
-                          <span className="main-board-stat-icon" aria-hidden="true">
-                            VIEW
-                          </span>
-                          {formatCount(post.viewCount)}
-                        </span>
-                        <span className="main-board-stat">
-                          <span className="main-board-stat-icon" aria-hidden="true">
-                            RE
-                          </span>
-                          {formatCount(post.commentCount)}
-                        </span>
-                        <span className="main-board-stat is-like">
-                          <span className="main-board-stat-icon" aria-hidden="true">
-                            LIKE
-                          </span>
-                          {formatCount(post.likeCount)}
-                        </span>
+          <aside className="main-right">
+            <section className="main-panel">
+              <div className="main-panel-head">
+                <div>
+                  <span className="main-label">NEW DROPS</span>
+                  <h2>새로 올라온 트랙</h2>
+                </div>
+              </div>
+
+              <div className="main-track-list">
+                {latestTracks.map((track, index) => {
+                  const displayTrack = getTrackDisplay(track);
+
+                  return (
+                    <button
+                      key={track.id}
+                      type="button"
+                      className="main-track-row"
+                      onClick={() => navigate('/community/music')}
+                    >
+                      <span className="main-track-index">{String(index + 1).padStart(2, '0')}</span>
+                      <span
+                        className="main-track-thumb"
+                        style={{ backgroundImage: track.palette } as CSSProperties}
+                        aria-hidden="true"
+                      />
+                      <span className="main-track-copy">
+                        <strong>{displayTrack.title}</strong>
+                        <small>{track.progression}</small>
                       </span>
                     </button>
                   );
@@ -395,40 +357,34 @@ export default function MainPage() {
               </div>
             </section>
 
-            <section className="main-section">
-              <div className="main-section-head is-between">
-                <h2 className="main-section-title">
-                  <span className="main-section-icon" aria-hidden="true">
-                    +
-                  </span>
-                  커뮤니티 공간
-                </h2>
-
-                <button
-                  type="button"
-                  className="main-section-link"
-                  onClick={() => navigate('/community')}
-                >
-                  전체 커뮤니티 보기 {'>'}
-                </button>
-              </div>
-
-              <div className="main-space-grid">
-                {communitySpaces.map((space) => (
-                  <button
-                    key={space.title}
-                    type="button"
-                    className="main-space-card"
-                    onClick={() => navigate(space.route)}
-                  >
-                    <span className="main-space-label">{space.label}</span>
-                    <strong>{space.title}</strong>
-                    <p>{space.description}</p>
-                    <span className="main-space-action">{space.action}</span>
-                  </button>
-                ))}
-              </div>
+            <section className="main-panel main-cta-panel">
+              <span className="main-label">GUIDE</span>
+              <h2>막히면 추천 작곡부터</h2>
+              <p>코드 진행과 예시 루프를 참고해서 바로 곡을 이어갈 수 있습니다.</p>
+              <button type="button" onClick={() => navigate('/composer')}>
+                작곡 가이드 열기
+              </button>
             </section>
+          </aside>
+        </section>
+
+        <section className="main-panel main-studio-panel">
+          <div className="main-panel-head">
+            <div>
+              <span className="main-label">STUDIO KIT</span>
+              <h2>오늘 바로 써먹는 작업 아이디어</h2>
+            </div>
+          </div>
+
+          <div className="main-studio-grid">
+            {STUDIO_KITS.map((kit) => (
+              <button key={kit.label} type="button" onClick={() => navigate(kit.route)}>
+                <span>{kit.label}</span>
+                <strong>{kit.title}</strong>
+                <small>{kit.body}</small>
+                <i aria-hidden="true" />
+              </button>
+            ))}
           </div>
         </section>
       </main>

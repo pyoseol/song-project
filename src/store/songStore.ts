@@ -12,7 +12,8 @@ import {
   MELODY_NOTE_TO_ROW,
   MELODY_ROWS,
   MELODY_NOTES,
-  BASS_NOTES
+  BASS_NOTES,
+  DRUM_TRACK_LABELS
 } from '../constants/composer.ts';
 
 const BAR_LENGTH = 16;
@@ -38,8 +39,7 @@ export type MusicEvent = {
   duration?: number;
 };
 
-export type InstrumentKey = 'melody' | 'drums' | 'bass';
-
+export type InstrumentKey = 'melody' | 'drums' | 'bass' | 'guitar';
 export type InstrumentVolumes = Record<InstrumentKey, number>;
 
 type BarClipboard = {
@@ -110,7 +110,7 @@ export type SongProject = {
   volumes?: Partial<InstrumentVolumes>;
   tracks: {
     melody: MusicEvent[];
-    guitar?: MusicEvent[];
+    guitar: MusicEvent[];
     drums: MusicEvent[];
     bass: MusicEvent[];
   };
@@ -465,14 +465,18 @@ export function buildSongProjectSnapshot(state: SongProjectSnapshotInput): SongP
   }
 
   // 2. 드럼 압축
-  const drumNames = ['Kick', 'Snare', 'HiHatClosed', 'HiHatOpen'];
-  for (let r = 0; r < DRUM_ROWS; r++) {
-    for (let s = 0; s < state.steps; s++) {
-      if (state.drums[r][s]) {
-        drumEvents.push({ type: drumNames[r], start: s });
-      }
+  
+  for (let r = 0; r < DRUM_TRACK_LABELS.length; r++) {
+  for (let s = 0; s < state.steps; s++) {
+    if (state.drums[r]?.[s]) {
+      drumEvents.push({
+        note: DRUM_TRACK_LABELS[r],
+        start: s,
+        duration: 1,
+      });
     }
   }
+}
 
   // 3. 베이스 압축
   for (let r = 0; r < BASS_ROWS; r++) {
@@ -491,6 +495,7 @@ export function buildSongProjectSnapshot(state: SongProjectSnapshotInput): SongP
       melody: clampVolume(state.volumes.melody ?? 82),
       drums: clampVolume(state.volumes.drums ?? 78),
       bass: clampVolume(state.volumes.bass ?? 84),
+      guitar: clampVolume(state.volumes.guitar ?? 80),
     },
     tracks: {
       melody: melodyEvents,
@@ -541,7 +546,7 @@ function parseV2TracksToGrids(project: SongProject, steps: number) {
   const melody = createEmptyMatrix(MELODY_ROWS, steps);
   const melodyLengths = createEmptyLengthMatrix(MELODY_ROWS, steps);
   const guitar = createEmptyMatrix(GUITAR_ROWS, steps);
-  const drums = createEmptyMatrix(DRUM_ROWS, steps);
+  const drums = createEmptyMatrix(DRUM_TRACK_LABELS.length, steps);
   const bass = createEmptyMatrix(BASS_ROWS, steps);
 
   if (project.tracks) {
@@ -567,10 +572,16 @@ function parseV2TracksToGrids(project: SongProject, steps: number) {
     });
 
     // 2. 드럼 파싱
-    const drumMap: Record<string, number> = { Kick: 0, Snare: 1, HiHatClosed: 2, HiHatOpen: 3 };
+    // 1) 라벨 기반 row 맵 생성
+    const drumRowMap: Record<string, number> = {};
+    DRUM_TRACK_LABELS.forEach((label, idx) => {
+      drumRowMap[label] = idx;
+    });
+
+    // 2) 복원
     project.tracks.drums?.forEach(e => {
-      const row = drumMap[e.type || ''] ?? -1;
-      if (row !== -1 && e.start < steps) {
+      const row = drumRowMap[e.note || ''];
+      if (row !== undefined && e.start < steps) {
         drums[row][e.start] = true;
       }
     });
@@ -596,6 +607,7 @@ export const useSongStore = create<SongState>((set, get) => ({
     melody: 82,
     drums: 78,
     bass: 84,
+    guitar: 80,
   },
   melody: createEmptyMatrix(MELODY_ROWS, DEFAULT_STEPS),
   melodyLengths: createEmptyLengthMatrix(MELODY_ROWS, DEFAULT_STEPS),
@@ -958,11 +970,13 @@ export const useSongStore = create<SongState>((set, get) => ({
       })
     ),
 
+    
   loadProject: (project) => {
     const steps = FIXED_COMPOSER_STEPS;
     const bpm = typeof project.bpm === 'number' && project.bpm > 0 ? project.bpm : 100;
     const grids = parseV2TracksToGrids(project, steps); // V2 파싱
 
+    
     set((state) =>
       buildHistoryUpdate(state, {
         bpm,
@@ -973,6 +987,7 @@ export const useSongStore = create<SongState>((set, get) => ({
           melody: clampVolume(project.volumes?.melody ?? 82),
           drums: clampVolume(project.volumes?.drums ?? 78),
           bass: clampVolume(project.volumes?.bass ?? 84),
+          guitar: clampVolume(project.volumes?.bass ?? 84),
         },
         melody: grids.melody,
         melodyLengths: grids.melodyLengths,
@@ -997,6 +1012,7 @@ export const useSongStore = create<SongState>((set, get) => ({
         melody: clampVolume(project.volumes?.melody ?? 82),
         drums: clampVolume(project.volumes?.drums ?? 78),
         bass: clampVolume(project.volumes?.bass ?? 84),
+        guitar: clampVolume(project.volumes?.guitar ?? 80),
       },
       melody: grids.melody,
       melodyLengths: grids.melodyLengths,

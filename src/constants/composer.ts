@@ -106,7 +106,29 @@ export const BASS_MIDI = [48, 47, 45, 43, 41, 40, 38, 36, 35, 33] as const;
 
 export const MELODY_ROWS = MELODY_NOTES.length;
 export const BASS_ROWS = BASS_NOTES.length;
-export const DRUM_ROWS = 5;
+
+export const DRUM_TRACK_LABELS = [
+  'Kick',
+  'Snare',
+  'HiHat',
+  'Clap',
+  'Percussion',
+  // 새로 추가한 드럼들 여기에 계속 추가
+] as const;
+
+export const DRUM_ROWS = DRUM_TRACK_LABELS.length;
+
+
+export const GUITAR_TRACK_LABELS = [
+  'E3',
+  'A3',
+  'D4',
+  'G4',
+  'B4',
+  'E5',
+] as const;
+
+export const GUITAR_ROWS = GUITAR_TRACK_LABELS.length;
 
 function createNoteToRowMap(notes: readonly string[]) {
   return notes.reduce<Record<string, number>>((map, note, index) => {

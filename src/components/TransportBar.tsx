@@ -366,7 +366,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
 
       clearShareCover();
       closeDialog();
-      alert('?? ?? ???? ?? ???????.');
+      alert('테스트');
     } catch (error) {
       console.error('Project share failed:', error);
       const message = error instanceof Error ? error.message : String(error);
@@ -388,7 +388,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
     const prompt = [
       summary ? `한 줄 설명: ${summary}` : '',
       details ? `상세 요청:\n${details}` : '',
-      `프로젝트 설정:\n- BPM: ${bpm}\n- Steps: ${steps}\n- Melody Volume: ${volumes.melody}\n- Drums Volume: ${volumes.drums}\n- Bass Volume: ${volumes.bass}`,
+      `프로젝트 설정:\n- BPM: ${bpm}\n- Steps: ${steps}\n- Melody Volume: ${volumes.melody}\n- Drums Volume: ${volumes.drums}\n- Bass Volume: ${volumes.bass} \n Guitar Volume: ${volumes.guitar}`,
     ]
       .filter(Boolean)
       .join('\n\n');
@@ -665,9 +665,9 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                     </select>
                   </label>
                   <label className="transport-dialog-field">
-                    <span>?? ???</span>
+                    <span>파일 업로드</span>
                     <input type="file" accept="image/*" onChange={handleSelectShareCover} />
-                    <small>?? ?? ??? ?? ??? ?? ???? ?????.</small>
+                    <small>업로드할 파일을 선택해주세요 (20mb 이하).</small>
                   </label>
                   {shareCoverPreviewUrl ? (
                     <div className="transport-dialog-image-preview">
@@ -678,7 +678,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                       <div className="transport-dialog-image-preview-copy">
                         <strong>{shareCoverFile?.name ?? '?? ???'}</strong>
                         <button type="button" onClick={clearShareCover}>
-                          ??? ??
+                          저장하기
                         </button>
                       </div>
                     </div>

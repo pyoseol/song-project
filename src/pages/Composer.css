@@ -687,6 +687,14 @@
   --composer-tab-accent: #4ade80;
 }
 
+.composer-tab-card.is-violin {
+  --composer-tab-accent: #fb7185;
+}
+
+.composer-tab-card.is-saxophone {
+  --composer-tab-accent: #facc15;
+}
+
 .composer-tab-card.is-guitar {
   --composer-tab-accent: #f59e0b;
 }
@@ -702,6 +710,16 @@
 .composer-tab-card.is-melody.is-active {
   border-color: rgba(74, 222, 128, 0.5);
   color: #4ade80;
+}
+
+.composer-tab-card.is-violin.is-active {
+  border-color: rgba(251, 113, 133, 0.5);
+  color: #fb7185;
+}
+
+.composer-tab-card.is-saxophone.is-active {
+  border-color: rgba(250, 204, 21, 0.52);
+  color: #facc15;
 }
 
 .composer-tab-card.is-guitar.is-active {
@@ -928,6 +946,14 @@
 
 .composer-tab-picker-item.is-melody:hover {
   background: rgba(52, 211, 153, 0.12);
+}
+
+.composer-tab-picker-item.is-violin:hover {
+  background: rgba(251, 113, 133, 0.12);
+}
+
+.composer-tab-picker-item.is-saxophone:hover {
+  background: rgba(250, 204, 21, 0.12);
 }
 
 .composer-tab-picker-item.is-guitar:hover {

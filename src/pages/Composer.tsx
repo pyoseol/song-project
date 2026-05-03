@@ -8,6 +8,8 @@ import {
   playBassPreview,
   playDrumPreview,
   playGuitarPreview,
+  playSaxophonePreview,
+  playViolinPreview,
 } from '../audio/engine.ts';
 import {
   COMPOSER_GUIDE_STEPS,
@@ -22,7 +24,13 @@ import {
   type ComposerTutorialChordTarget,
   type ComposerTutorialNoteTarget,
 } from '../constants/composerTutorialGame.ts';
-import { BASS_CHORD_MAP, BASS_NOTES, DRUM_STEP_WIDTH } from '../constants/composer.ts';
+import {
+  BASS_CHORD_MAP,
+  BASS_NOTES,
+  DRUM_STEP_WIDTH,
+  SAXOPHONE_ROWS,
+  VIOLIN_ROWS,
+} from '../constants/composer.ts';
 import { useAuthStore } from '../store/authStore.ts';
 import {
   COLLAB_PRESENCE_PING_INTERVAL_MS,
@@ -52,6 +60,8 @@ const chordOptions = ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const;
 
 const tabLabels: Record<ComposerTab, string> = {
   melody: 'MELODY',
+  violin: 'VIOLIN',
+  saxophone: 'SAXOPHONE',
   guitar: 'GUITAR',
   drums: 'DRUMS',
   bass: 'BASS',
@@ -59,12 +69,23 @@ const tabLabels: Record<ComposerTab, string> = {
 
 const tabPickerLabels: Record<ComposerTab, string> = {
   melody: '피아노',
+  violin: '바이올린',
+  saxophone: '색소폰',
   guitar: '통기타',
   drums: '드럼',
   bass: '베이스',
 };
 
-const tabOrder: ComposerTab[] = ['melody', 'guitar', 'drums', 'bass'];
+const composerInstrumentLabels: Record<ComposerTab, string> = {
+  melody: '멜로디',
+  violin: '바이올린',
+  saxophone: '색소폰',
+  guitar: '기타',
+  drums: '드럼',
+  bass: '베이스',
+};
+
+const tabOrder: ComposerTab[] = ['melody', 'violin', 'saxophone', 'guitar', 'drums', 'bass'];
 const COLLAB_BAR_LENGTH = 16;
 
 function getCollabInstrumentForTab(tab: ComposerTab): CollabComposerInstrument {
@@ -72,16 +93,12 @@ function getCollabInstrumentForTab(tab: ComposerTab): CollabComposerInstrument {
 }
 
 function getVolumeInstrumentForTab(tab: ComposerTab): InstrumentKey {
-  return tab === 'guitar' ? 'melody' : tab;
+  return tab;
 }
 
 function getMelodyInstrumentForTab(tab: ComposerTab): MelodyInstrument | null {
   if (tab === 'melody') {
     return 'piano';
-  }
-
-  if (tab === 'guitar') {
-    return 'acousticGuitar';
   }
 
   return null;
@@ -171,6 +188,8 @@ const bassLaneColors = [
 ] as const;
 
 const guitarLaneColors = ['#f59e0b', '#fb923c', '#fbbf24', '#fdba74', '#f97316', '#fcd34d'] as const;
+const violinLaneColors = ['#fb7185', '#f472b6', '#c084fc', '#f9a8d4', '#fb7185', '#c084fc'] as const;
+const saxophoneLaneColors = ['#facc15', '#f59e0b', '#f97316', '#fcd34d', '#fbbf24', '#f59e0b'] as const;
 
 const guitarGridLanes = [
   { label: 'High E', hint: '1st string', note: 'E5' },
@@ -180,6 +199,27 @@ const guitarGridLanes = [
   { label: 'A', hint: '5th string', note: 'A3' },
   { label: 'Low E', hint: '6th string', note: 'E4' },
 ] as const;
+
+const violinGridLanes = [
+  { label: 'E', hint: '1st string' },
+  { label: 'A', hint: '2nd string' },
+  { label: 'D', hint: '3rd string' },
+  { label: 'G', hint: '4th string' },
+] as const;
+
+const saxophonePhraseLanes = [
+  { label: 'Lead', hint: 'main riff' },
+  { label: 'Answer', hint: 'call back' },
+  { label: 'Stab', hint: 'short hit' },
+  { label: 'Fall', hint: 'slide down' },
+  { label: 'Long', hint: 'held tone' },
+] as const;
+
+type SequencerLane = {
+  label: string;
+  hint: string;
+  row: number;
+};
 
 function getSubdivisionClassName(col: number) {
   return `${col % 2 === 0 ? ' is-eighth' : ''}${col % 4 === 0 ? ' is-quarter' : ''}${
@@ -200,17 +240,22 @@ export function Composer() {
     steps,
     melody,
     melodyLengths,
+    violin,
+    saxophone,
     guitar,
     drums,
     bass,
     volumes,
     setInstrumentVolume,
+    toggleViolin,
+    toggleSaxophone,
     toggleGuitar,
     toggleDrum,
     toggleBass,
     applyChord,
     currentStep,
     setCurrentStep,
+    setSteps,
     loopRange,
     setLoopRange,
     loadProject,
@@ -290,14 +335,24 @@ export function Composer() {
     return tabOrder.filter((tab) => openTabsState.includes(tab) || tab === activeTab);
   }, [activeTab, openTabsState, tutorialRequested]);
   const tabPickerOptions = useMemo(() => tabOrder, []);
-  const guitarLanes = useMemo(
-    () =>
-      guitarGridLanes.map((lane, row) => ({
-        ...lane,
-        row,
-      })),
-    []
-  );
+  const guitarLanes = guitarGridLanes.map((lane, row) => ({
+    ...lane,
+    row,
+  }));
+  const violinLanes = violinGridLanes.map((lane, row) => ({
+    ...lane,
+    row,
+  }));
+  const saxophoneLanes = saxophonePhraseLanes.map((lane, row) => ({
+    ...lane,
+    row,
+  }));
+
+  useEffect(() => {
+    if (violin.length !== VIOLIN_ROWS || saxophone.length !== SAXOPHONE_ROWS) {
+      setSteps(steps);
+    }
+  }, [saxophone.length, setSteps, steps, violin.length]);
 
   const projectSnapshot = useMemo(
     () =>
@@ -307,11 +362,13 @@ export function Composer() {
         volumes,
         melody,
         melodyLengths,
+        violin,
+        saxophone,
         guitar,
         drums,
         bass,
       }),
-    [bass, bpm, drums, guitar, melody, melodyLengths, steps, volumes]
+    [bass, bpm, drums, guitar, melody, melodyLengths, saxophone, steps, violin, volumes]
   );
   const projectSignature = useMemo(() => JSON.stringify(projectSnapshot), [projectSnapshot]);
 
@@ -971,6 +1028,8 @@ export function Composer() {
         volumes: useSongStore.getState().volumes,
         melody: useSongStore.getState().melody,
         melodyLengths: useSongStore.getState().melodyLengths,
+        violin: useSongStore.getState().violin,
+        saxophone: useSongStore.getState().saxophone,
         guitar: useSongStore.getState().guitar,
         drums: useSongStore.getState().drums,
         bass: useSongStore.getState().bass,
@@ -1002,15 +1061,9 @@ export function Composer() {
 
     if (existingLock) {
       showCollabNotice(
-        `${existingLock.name}님이 ${
-          instrument === 'melody'
-            ? '멜로디'
-            : instrument === 'guitar'
-              ? '기타'
-              : instrument === 'drums'
-                ? '드럼'
-                : '베이스'
-        } ${barIndex + 1}마디를 편집 중입니다.`
+        `${existingLock.name}님이 ${composerInstrumentLabels[instrument]} ${
+          barIndex + 1
+        }마디를 편집 중입니다.`
       );
       return false;
     }
@@ -1454,6 +1507,52 @@ export function Composer() {
     releaseComposerBarLock('bass', barIndex);
   };
 
+  const handleViolinCellToggle = async (row: number, col: number) => {
+    const barIndex = Math.floor(col / COLLAB_BAR_LENGTH);
+    if (!(await requestComposerBarLock('violin', barIndex))) {
+      return;
+    }
+
+    const nextValue = !(useSongStore.getState().violin[row]?.[col] ?? false);
+    toggleViolin(row, col);
+
+    if (nextValue) {
+      void playViolinPreview(row);
+    }
+
+    queueComposerOperation({
+      type: 'toggle-violin-step',
+      row,
+      col,
+      nextValue,
+      barIndex,
+    });
+    releaseComposerBarLock('violin', barIndex);
+  };
+
+  const handleSaxophoneCellToggle = async (row: number, col: number) => {
+    const barIndex = Math.floor(col / COLLAB_BAR_LENGTH);
+    if (!(await requestComposerBarLock('saxophone', barIndex))) {
+      return;
+    }
+
+    const nextValue = !(useSongStore.getState().saxophone[row]?.[col] ?? false);
+    toggleSaxophone(row, col);
+
+    if (nextValue) {
+      void playSaxophonePreview(row);
+    }
+
+    queueComposerOperation({
+      type: 'toggle-saxophone-step',
+      row,
+      col,
+      nextValue,
+      barIndex,
+    });
+    releaseComposerBarLock('saxophone', barIndex);
+  };
+
   const handleGuitarCellToggle = async (row: number, col: number) => {
     const barIndex = Math.floor(col / COLLAB_BAR_LENGTH);
     if (!(await requestComposerBarLock('guitar', barIndex))) {
@@ -1515,6 +1614,104 @@ export function Composer() {
   };
 
   const getTabVolume = (tab: ComposerTab) => volumes[getVolumeInstrumentForTab(tab)];
+
+  const renderPitchedSequencer = (
+    instrument: 'violin' | 'saxophone',
+    lanes: readonly SequencerLane[],
+    grid: boolean[][],
+    colors: readonly string[],
+    onToggle: (row: number, col: number) => void,
+    stepSpacer: string
+  ) => (
+    <section className="composer-bass-shell" key={`${instrument}-${lanes.map((lane) => lane.label).join('-')}`}>
+      <div className="composer-drum-panel composer-drum-panel--bass">
+        <div className="composer-drums-wrap">
+          <div className="composer-sequencer-body">
+            <div className="composer-sequencer-header composer-sequencer-header--bass">
+              <div className="composer-drum-step-spacer">{stepSpacer}</div>
+
+              <div
+                className="composer-step-grid composer-step-grid--bass"
+                style={{
+                  gridTemplateColumns: `repeat(${steps}, ${DRUM_STEP_WIDTH}px)`,
+                  ['--sequencer-step-span' as string]: `calc(${DRUM_STEP_WIDTH}px + 10px)`,
+                }}
+              >
+                {Array.from({ length: steps }).map((_, col) => (
+                  <button
+                    key={`${instrument}-header-${col}`}
+                    type="button"
+                    className={`composer-drum-step-number composer-drum-step-number--bass${
+                      col === currentStep ? ' is-current' : ''
+                    }${getSubdivisionClassName(col)}${
+                      loopRange && col >= loopRange.start && col <= loopRange.end
+                        ? ' is-loop-active'
+                        : ''
+                    }${loopRange?.end === col ? ' is-loop-end' : ''}`}
+                    onClick={() => handleStepLoopSelect(col)}
+                    aria-label={`${col + 1}번 위치까지 반복`}
+                    title={`${col + 1}번 위치까지 반복`}
+                  >
+                    <span className="sr-only">{col + 1}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="composer-sequencer-rows">
+              {lanes.map((lane, index) => {
+                const accent = colors[index % colors.length];
+                const accentStyle = {
+                  '--bass-accent': accent,
+                } as CSSProperties;
+
+                return (
+                  <div key={`${instrument}-${lane.label}`} className="composer-drum-row composer-drum-row--bass">
+                    <div
+                      className="composer-drum-track composer-drum-track--bass"
+                      style={accentStyle}
+                    >
+                      <strong>{lane.label}</strong>
+                      <span>{lane.hint}</span>
+                    </div>
+
+                    <div
+                      className="composer-drum-row-grid composer-drum-row-grid--bass"
+                      style={{
+                        gridTemplateColumns: `repeat(${steps}, ${DRUM_STEP_WIDTH}px)`,
+                        ['--sequencer-step-span' as string]: `calc(${DRUM_STEP_WIDTH}px + 10px)`,
+                      }}
+                    >
+                      {Array.from({ length: steps }).map((_, col) => {
+                        const active = grid[lane.row]?.[col];
+                        const isCurrent = col === currentStep;
+                        const lock = currentTabLockMap[Math.floor(col / COLLAB_BAR_LENGTH)];
+
+                        return (
+                          <button
+                            key={`${instrument}-${lane.label}-${col}`}
+                            type="button"
+                            className={`composer-drum-cell composer-drum-cell--bass${
+                              active ? ' is-active' : ''
+                            }${isCurrent ? ' is-current' : ''}${getSubdivisionClassName(col)}${
+                              lock?.mine ? ' is-own-locked' : lock ? ' is-locked' : ''
+                            }`}
+                            style={accentStyle}
+                            onClick={() => onToggle(lane.row, col)}
+                            disabled={Boolean((lock && !lock.mine) || (collabId && !canSyncCollab))}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 
   return (
     <div
@@ -1672,15 +1869,7 @@ export function Composer() {
                 key={`${lock.instrument}-${lock.barIndex}-${lock.sessionId}`}
                 className="composer-collab-chip composer-collab-chip--lock"
               >
-                {lock.name} -{' '}
-                {lock.instrument === 'melody'
-                  ? '멜로디'
-                  : lock.instrument === 'guitar'
-                    ? '기타'
-                  : lock.instrument === 'drums'
-                    ? '드럼'
-                    : '베이스'}{' '}
-                {lock.barIndex + 1}마디
+                {lock.name} - {composerInstrumentLabels[lock.instrument]} {lock.barIndex + 1}마디
               </span>
             ))}
             {conflictNotice ? (
@@ -1733,6 +1922,26 @@ export function Composer() {
             </section>
           </>
         )}
+
+        {activeTab === 'violin' &&
+          renderPitchedSequencer(
+            'violin',
+            violinLanes,
+            violin,
+            violinLaneColors,
+            handleViolinCellToggle,
+            'Violin String'
+          )}
+
+        {activeTab === 'saxophone' &&
+          renderPitchedSequencer(
+            'saxophone',
+            saxophoneLanes,
+            saxophone,
+            saxophoneLaneColors,
+            handleSaxophoneCellToggle,
+            'Sax Note'
+          )}
 
         {activeTab === 'guitar' && (
           <section className="composer-bass-shell">

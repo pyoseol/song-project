@@ -9,9 +9,13 @@ import {
   drumSampler,
   GUITAR_SAMPLE_URLS,
   pianoSynth,
+  SAXOPHONE_SAMPLE_URLS,
+  saxophoneSynth,
+  VIOLIN_SAMPLE_URLS,
+  violinSynth,
 } from "./instruments.ts";
 import { useSongStore, type InstrumentVolumes } from "../store/songStore.ts";
-import { BASS_MIDI, MELODY_MIDI } from "../constants/composer.ts";
+import { BASS_MIDI, MELODY_MIDI, SAXOPHONE_NOTES, VIOLIN_NOTES } from "../constants/composer.ts";
 
 let loopId: number | null = null;
 
@@ -35,6 +39,23 @@ let cachedPianoBuffers: Record<string, AudioBuffer> | null = null;
 let lameLoadPromise: Promise<void> | null = null;
 
 const GUITAR_TRACK_SAMPLE_NOTES = ["E4", "B4", "G4", "D4", "A3", "E4"] as const;
+const SAXOPHONE_PHRASE_EVENTS = [
+  [
+    { note: "G3", offsetSteps: 0, durationSteps: 2.4, velocity: 0.82 },
+    { note: "A3", offsetSteps: 1.5, durationSteps: 1.1, velocity: 0.72 },
+  ],
+  [
+    { note: "D3", offsetSteps: 0, durationSteps: 1.4, velocity: 0.76 },
+    { note: "F3", offsetSteps: 1.2, durationSteps: 1.2, velocity: 0.7 },
+  ],
+  [{ note: "C3", offsetSteps: 0, durationSteps: 0.8, velocity: 0.9 }],
+  [
+    { note: "A3", offsetSteps: 0, durationSteps: 0.8, velocity: 0.82 },
+    { note: "G3", offsetSteps: 0.8, durationSteps: 0.7, velocity: 0.72 },
+    { note: "F3", offsetSteps: 1.5, durationSteps: 1.0, velocity: 0.64 },
+  ],
+  [{ note: "F2", offsetSteps: 0, durationSteps: 5.2, velocity: 0.74 }],
+] as const;
 
 function getMelodyPlaybackNote(row: number) {
   const midi = MELODY_MIDI[row] ?? MELODY_MIDI[MELODY_MIDI.length - 1];
@@ -43,6 +64,10 @@ function getMelodyPlaybackNote(row: number) {
 
 function getGuitarPlaybackNote(row: number) {
   return GUITAR_TRACK_SAMPLE_NOTES[row] ?? GUITAR_TRACK_SAMPLE_NOTES[GUITAR_TRACK_SAMPLE_NOTES.length - 1];
+}
+
+function getViolinPlaybackNote(row: number) {
+  return VIOLIN_NOTES[row] ?? VIOLIN_NOTES[VIOLIN_NOTES.length - 1];
 }
 
 function volumeToDb(volume: number) {
@@ -73,11 +98,16 @@ function triggerLiveDrumSample(row: number, time?: number) {
 
 function applyLiveVolumes(volumes: InstrumentVolumes) {
   const melodyDb = volumeToDb(volumes.melody);
+  const violinDb = volumeToDb(volumes.violin);
+  const saxophoneDb = volumeToDb(volumes.saxophone);
+  const guitarDb = volumeToDb(volumes.guitar);
   const drumsDb = volumeToDb(volumes.drums);
   const bassDb = volumeToDb(volumes.bass);
 
   pianoSynth.volume.value = melodyDb;
-  acousticGuitarSynth.volume.value = melodyDb - 1;
+  acousticGuitarSynth.volume.value = guitarDb;
+  violinSynth.volume.value = violinDb;
+  saxophoneSynth.volume.value = saxophoneDb;
   drumSampler.volume.value = drumsDb;
   bassSampler.volume.value = bassDb;
 }
@@ -88,6 +118,22 @@ function getSixteenthDurationSeconds(bpm: number) {
 
 function getMelodyGateSeconds(durationSteps: number, bpm: number) {
   return getSixteenthDurationSeconds(bpm) * Math.max(1, durationSteps);
+}
+
+function getViolinGateSeconds(bpm: number) {
+  return Math.max(0.58, getSixteenthDurationSeconds(bpm) * 4.25);
+}
+
+function getSaxophonePhraseEvents(row: number, bpm: number) {
+  const sixteenthSeconds = getSixteenthDurationSeconds(bpm);
+  const phrase = SAXOPHONE_PHRASE_EVENTS[row] ?? SAXOPHONE_PHRASE_EVENTS[0];
+
+  return phrase.map((event) => ({
+    note: event.note,
+    offsetSeconds: event.offsetSteps * sixteenthSeconds,
+    durationSeconds: Math.max(0.12, event.durationSteps * sixteenthSeconds),
+    velocity: event.velocity,
+  }));
 }
 
 function getMelodyVelocity(durationSteps: number) {
@@ -116,6 +162,31 @@ function triggerLiveGuitarNote(
     time,
     velocity
   );
+}
+
+function triggerLiveViolinNote(
+  row: number,
+  durationSeconds: number,
+  time?: number,
+  velocity?: number
+) {
+  violinSynth.triggerAttackRelease(getViolinPlaybackNote(row), durationSeconds, time, velocity);
+}
+
+function triggerLiveSaxophonePhrase(
+  row: number,
+  time?: number,
+  bpm = useSongStore.getState().bpm
+) {
+  const startTime = time ?? Tone.now();
+  getSaxophonePhraseEvents(row, bpm).forEach((event) => {
+    saxophoneSynth.triggerAttackRelease(
+      event.note,
+      event.durationSeconds,
+      startTime + event.offsetSeconds,
+      event.velocity
+    );
+  });
 }
 
 export async function preparePlaybackEngine() {
@@ -174,6 +245,8 @@ export function initTransport() {
     const {
       melody,
       melodyLengths,
+      violin,
+      saxophone,
       guitar,
       drums,
       bass,
@@ -202,13 +275,25 @@ export function initTransport() {
         );
       });
 
-      // 2. 기타 재생
+      // 2. 바이올린 재생
+      violin.slice(0, VIOLIN_NOTES.length).forEach((rowArr, rowIndex) => {
+        if (!rowArr[currentStep]) return;
+        triggerLiveViolinNote(rowIndex, getViolinGateSeconds(bpm), time, 0.86);
+      });
+
+      // 3. 색소폰 재생
+      saxophone.slice(0, SAXOPHONE_NOTES.length).forEach((rowArr, rowIndex) => {
+        if (!rowArr[currentStep]) return;
+        triggerLiveSaxophonePhrase(rowIndex, time, bpm);
+      });
+
+      // 4. 기타 재생
       guitar.forEach((rowArr, rowIndex) => {
         if (!rowArr[currentStep]) return;
         triggerLiveGuitarNote(rowIndex, getMelodyGateSeconds(1, bpm), time, 1);
       });
 
-      // 3. 베이스 재생
+      // 5. 베이스 재생
       bass.forEach((rowArr, rowIndex) => {
         if (!rowArr[currentStep]) return;
         const midi = BASS_MIDI[rowIndex] ?? BASS_MIDI[BASS_MIDI.length - 1];
@@ -216,7 +301,7 @@ export function initTransport() {
         bassSampler.triggerAttackRelease(note, "8n", time);
       });
 
-      // 4. 드럼 재생
+      // 6. 드럼 재생
       if (drums[0]?.[currentStep]) {
         triggerLiveDrumSample(0, time);
       }
@@ -261,6 +346,20 @@ export async function playMelodyPreview(row: number, durationSteps = 1): Promise
   );
 }
 
+export async function playViolinPreview(row: number): Promise<void> {
+  await Tone.start();
+  await Tone.loaded();
+  applyLiveVolumes(useSongStore.getState().volumes);
+  triggerLiveViolinNote(row, getViolinGateSeconds(useSongStore.getState().bpm), Tone.now(), 0.86);
+}
+
+export async function playSaxophonePreview(row: number): Promise<void> {
+  await Tone.start();
+  await Tone.loaded();
+  applyLiveVolumes(useSongStore.getState().volumes);
+  triggerLiveSaxophonePhrase(row, Tone.now(), useSongStore.getState().bpm);
+}
+
 export async function playGuitarPreview(row: number): Promise<void> {
   await Tone.start();
   await Tone.loaded();
@@ -278,7 +377,7 @@ export async function playDrumPreview(row: number): Promise<void> {
 async function renderSongBuffer(): Promise<AudioBuffer> {
   await Tone.start();
   await loadLame();
-  const { melody, melodyLengths, guitar, drums, bass, steps, bpm, volumes } = useSongStore.getState();
+  const { melody, melodyLengths, violin, saxophone, guitar, drums, bass, steps, bpm, volumes } = useSongStore.getState();
   const pianoBuffers = await loadPianoBuffers();
 
   const sixteenthSeconds = getSixteenthDurationSeconds(bpm);
@@ -286,8 +385,22 @@ async function renderSongBuffer(): Promise<AudioBuffer> {
 
   const rendered = await Tone.Offline(async ({ transport }) => {
     const melodyBus = new Tone.Reverb({ decay: 2.0, preDelay: 0.01, wet: 0.2 }).toDestination();
+    const violinBus = new Tone.Reverb({ decay: 1.65, preDelay: 0.012, wet: 0.16 }).toDestination();
+    const saxophoneBus = new Tone.Reverb({ decay: 1.15, preDelay: 0.008, wet: 0.11 }).toDestination();
     const guitarBus = new Tone.Reverb({ decay: 1.8, preDelay: 0.01, wet: 0.18 }).toDestination();
     const melodySynth = new Tone.Sampler({ urls: pianoBuffers ?? {}, release: 1 }).connect(melodyBus);
+    const violinSynthOffline = new Tone.Sampler({
+      urls: VIOLIN_SAMPLE_URLS,
+      attack: 0.018,
+      release: 0.58,
+      baseUrl: "/samples/violin/",
+    }).connect(violinBus);
+    const saxophoneSynthOffline = new Tone.Sampler({
+      urls: SAXOPHONE_SAMPLE_URLS,
+      attack: 0.008,
+      release: 0.28,
+      baseUrl: "/samples/sax/",
+    }).connect(saxophoneBus);
     const guitarSynth = new Tone.Sampler({
       urls: GUITAR_SAMPLE_URLS,
       release: 1.2,
@@ -300,11 +413,16 @@ async function renderSongBuffer(): Promise<AudioBuffer> {
     await Tone.loaded();
 
     const melodyDb = volumeToDb(volumes.melody);
+    const violinDb = volumeToDb(volumes.violin);
+    const saxophoneDb = volumeToDb(volumes.saxophone);
+    const guitarDb = volumeToDb(volumes.guitar);
     const drumsDb = volumeToDb(volumes.drums);
     const bassDb = volumeToDb(volumes.bass);
 
     melodySynth.volume.value = melodyDb;
-    guitarSynth.volume.value = melodyDb - 1;
+    violinSynthOffline.volume.value = violinDb;
+    saxophoneSynthOffline.volume.value = saxophoneDb;
+    guitarSynth.volume.value = guitarDb;
     drumSamplerOffline.volume.value = drumsDb;
     bassSamplerOffline.volume.value = bassDb;
 
@@ -323,6 +441,28 @@ async function renderSongBuffer(): Promise<AudioBuffer> {
           time,
           getMelodyVelocity(durationSteps)
         );
+      }
+
+      for (let row = 0; row < Math.min(violin.length, VIOLIN_NOTES.length); row += 1) {
+        if (!violin[row]?.[col]) continue;
+        violinSynthOffline.triggerAttackRelease(
+          getViolinPlaybackNote(row),
+          getViolinGateSeconds(bpm),
+          time,
+          0.86
+        );
+      }
+
+      for (let row = 0; row < Math.min(saxophone.length, SAXOPHONE_NOTES.length); row += 1) {
+        if (!saxophone[row]?.[col]) continue;
+        getSaxophonePhraseEvents(row, bpm).forEach((event) => {
+          saxophoneSynthOffline.triggerAttackRelease(
+            event.note,
+            event.durationSeconds,
+            time + event.offsetSeconds,
+            event.velocity
+          );
+        });
       }
 
       for (let row = 0; row < guitar.length; row += 1) {

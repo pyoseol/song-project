@@ -97,6 +97,21 @@ export const BASS_NOTES = [
   'A1',
 ] as const;
 
+export const VIOLIN_NOTES = [
+  'E4',
+  'A4',
+  'D4',
+  'G3',
+] as const;
+
+export const SAXOPHONE_NOTES = [
+  'G3',
+  'D3',
+  'C3',
+  'A2',
+  'F2',
+] as const;
+
 export const MELODY_MIDI = [
   84, 83, 82, 81, 80, 79, 78, 77, 76, 75, 74, 73, 72, 71, 70, 69, 68, 67,
   66, 65, 64, 63, 62, 61, 60, 59, 58, 57,
@@ -106,6 +121,8 @@ export const BASS_MIDI = [48, 47, 45, 43, 41, 40, 38, 36, 35, 33] as const;
 
 export const MELODY_ROWS = MELODY_NOTES.length;
 export const BASS_ROWS = BASS_NOTES.length;
+export const VIOLIN_ROWS = VIOLIN_NOTES.length;
+export const SAXOPHONE_ROWS = SAXOPHONE_NOTES.length;
 
 export const DRUM_TRACK_LABELS = [
   'Kick',
@@ -153,6 +170,8 @@ function mapChordNotesToRows(
 
 export const MELODY_NOTE_TO_ROW = createNoteToRowMap(MELODY_NOTES);
 export const BASS_NOTE_TO_ROW = createNoteToRowMap(BASS_NOTES);
+export const VIOLIN_NOTE_TO_ROW = createNoteToRowMap(VIOLIN_NOTES);
+export const SAXOPHONE_NOTE_TO_ROW = createNoteToRowMap(SAXOPHONE_NOTES);
 
 export const BASS_MIGRATION_MAP: Record<string, string> = {
   C5: 'C3',

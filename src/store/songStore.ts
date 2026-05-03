@@ -13,7 +13,13 @@ import {
   MELODY_ROWS,
   MELODY_NOTES,
   BASS_NOTES,
-  DRUM_TRACK_LABELS
+  DRUM_TRACK_LABELS,
+  SAXOPHONE_NOTE_TO_ROW,
+  SAXOPHONE_NOTES,
+  SAXOPHONE_ROWS,
+  VIOLIN_NOTE_TO_ROW,
+  VIOLIN_NOTES,
+  VIOLIN_ROWS
 } from '../constants/composer.ts';
 
 const BAR_LENGTH = 16;
@@ -39,13 +45,15 @@ export type MusicEvent = {
   duration?: number;
 };
 
-export type InstrumentKey = 'melody' | 'drums' | 'bass' | 'guitar';
+export type InstrumentKey = 'melody' | 'violin' | 'saxophone' | 'drums' | 'bass' | 'guitar';
 export type InstrumentVolumes = Record<InstrumentKey, number>;
 
 type BarClipboard = {
   length: number;
   melody: boolean[][];
   melodyLengths: number[][];
+  violin: boolean[][];
+  saxophone: boolean[][];
   guitar: boolean[][];
   drums: boolean[][];
   bass: boolean[][];
@@ -57,6 +65,8 @@ type SongHistorySnapshot = {
   currentStep: number;
   melody: boolean[][];
   melodyLengths: number[][];
+  violin: boolean[][];
+  saxophone: boolean[][];
   guitar: boolean[][];
   drums: boolean[][];
   bass: boolean[][];
@@ -71,6 +81,8 @@ export type SongState = {
   volumes: InstrumentVolumes;
   melody: boolean[][];
   melodyLengths: number[][];
+  violin: boolean[][];
+  saxophone: boolean[][];
   guitar: boolean[][];
   drums: boolean[][];
   bass: boolean[][];
@@ -81,6 +93,8 @@ export type SongState = {
   canUndo: boolean;
   canRedo: boolean;
   toggleMelody: (row: number, col: number, length?: number) => void;
+  toggleViolin: (row: number, col: number) => void;
+  toggleSaxophone: (row: number, col: number) => void;
   toggleGuitar: (row: number, col: number) => void;
   toggleDrum: (row: number, col: number) => void;
   toggleBass: (row: number, col: number) => void;
@@ -110,6 +124,8 @@ export type SongProject = {
   volumes?: Partial<InstrumentVolumes>;
   tracks: {
     melody: MusicEvent[];
+    violin: MusicEvent[];
+    saxophone: MusicEvent[];
     guitar: MusicEvent[];
     drums: MusicEvent[];
     bass: MusicEvent[];
@@ -118,7 +134,7 @@ export type SongProject = {
 
 type SongProjectSnapshotInput = Pick<
   SongState,
-  'bpm' | 'steps' | 'volumes' | 'melody' | 'melodyLengths' | 'guitar' | 'drums' | 'bass'
+  'bpm' | 'steps' | 'volumes' | 'melody' | 'melodyLengths' | 'violin' | 'saxophone' | 'guitar' | 'drums' | 'bass'
 >;
 
 function createEmptyMatrix(rows: number, cols: number): boolean[][] {
@@ -254,7 +270,7 @@ function rangesOverlap(startA: number, lengthA: number, startB: number, lengthB:
 
 function createHistorySnapshot(state: Pick<
   SongState,
-  'bpm' | 'steps' | 'currentStep' | 'melody' | 'melodyLengths' | 'guitar' | 'drums' | 'bass' | 'loopRange'
+  'bpm' | 'steps' | 'currentStep' | 'melody' | 'melodyLengths' | 'violin' | 'saxophone' | 'guitar' | 'drums' | 'bass' | 'loopRange'
 >): SongHistorySnapshot {
   return {
     bpm: state.bpm,
@@ -262,6 +278,8 @@ function createHistorySnapshot(state: Pick<
     currentStep: state.currentStep,
     melody: cloneMatrix(state.melody),
     melodyLengths: cloneLengthMatrix(state.melodyLengths),
+    violin: cloneMatrix(state.violin),
+    saxophone: cloneMatrix(state.saxophone),
     guitar: cloneMatrix(state.guitar),
     drums: cloneMatrix(state.drums),
     bass: cloneMatrix(state.bass),
@@ -437,6 +455,8 @@ function normalizeBassMatrix(input: boolean[][] | undefined, cols: number): bool
 */
 export function buildSongProjectSnapshot(state: SongProjectSnapshotInput): SongProject {
   const melodyEvents: MusicEvent[] = [];
+  const violinEvents: MusicEvent[] = [];
+  const saxophoneEvents: MusicEvent[] = [];
   const guitarEvents: MusicEvent[] = [];
   const drumEvents: MusicEvent[] = [];
   const bassEvents: MusicEvent[] = [];
@@ -452,6 +472,22 @@ export function buildSongProjectSnapshot(state: SongProjectSnapshotInput): SongP
           duration: duration
         });
         s += (duration - 1); // duration만큼 건너뛰기
+      }
+    }
+  }
+
+  for (let r = 0; r < VIOLIN_ROWS; r++) {
+    for (let s = 0; s < state.steps; s++) {
+      if (state.violin[r]?.[s]) {
+        violinEvents.push({ note: VIOLIN_NOTES[r] as string, start: s, duration: 1 });
+      }
+    }
+  }
+
+  for (let r = 0; r < SAXOPHONE_ROWS; r++) {
+    for (let s = 0; s < state.steps; s++) {
+      if (state.saxophone[r]?.[s]) {
+        saxophoneEvents.push({ note: SAXOPHONE_NOTES[r] as string, start: s, duration: 1 });
       }
     }
   }
@@ -493,12 +529,16 @@ export function buildSongProjectSnapshot(state: SongProjectSnapshotInput): SongP
     steps: state.steps,
     volumes: {
       melody: clampVolume(state.volumes.melody ?? 82),
+      violin: clampVolume(state.volumes.violin ?? 78),
+      saxophone: clampVolume(state.volumes.saxophone ?? 80),
       drums: clampVolume(state.volumes.drums ?? 78),
       bass: clampVolume(state.volumes.bass ?? 84),
       guitar: clampVolume(state.volumes.guitar ?? 80),
     },
     tracks: {
       melody: melodyEvents,
+      violin: violinEvents,
+      saxophone: saxophoneEvents,
       guitar: guitarEvents,
       drums: drumEvents,
       bass: bassEvents,
@@ -531,6 +571,8 @@ function restoreHistorySnapshot(
     isPlaying: false,
     melody: cloneMatrix(snapshot.melody),
     melodyLengths: cloneLengthMatrix(snapshot.melodyLengths),
+    violin: cloneMatrix(snapshot.violin),
+    saxophone: cloneMatrix(snapshot.saxophone),
     guitar: cloneMatrix(snapshot.guitar),
     drums: cloneMatrix(snapshot.drums),
     bass: cloneMatrix(snapshot.bass),
@@ -545,6 +587,8 @@ function restoreHistorySnapshot(
 function parseV2TracksToGrids(project: SongProject, steps: number) {
   const melody = createEmptyMatrix(MELODY_ROWS, steps);
   const melodyLengths = createEmptyLengthMatrix(MELODY_ROWS, steps);
+  const violin = createEmptyMatrix(VIOLIN_ROWS, steps);
+  const saxophone = createEmptyMatrix(SAXOPHONE_ROWS, steps);
   const guitar = createEmptyMatrix(GUITAR_ROWS, steps);
   const drums = createEmptyMatrix(DRUM_TRACK_LABELS.length, steps);
   const bass = createEmptyMatrix(BASS_ROWS, steps);
@@ -558,6 +602,20 @@ function parseV2TracksToGrids(project: SongProject, steps: number) {
         // 💡 반복문 제거: 시작 위치 딱 한 칸만 true로 찍고 길이만 저장합니다.
         melody[row][e.start] = true;
         melodyLengths[row][e.start] = dur;
+      }
+    });
+
+    project.tracks.violin?.forEach(e => {
+      const row = VIOLIN_NOTE_TO_ROW[e.note as keyof typeof VIOLIN_NOTE_TO_ROW] ?? -1;
+      if (row !== -1 && e.start < steps) {
+        violin[row][e.start] = true;
+      }
+    });
+
+    project.tracks.saxophone?.forEach(e => {
+      const row = SAXOPHONE_NOTE_TO_ROW[e.note as keyof typeof SAXOPHONE_NOTE_TO_ROW] ?? -1;
+      if (row !== -1 && e.start < steps) {
+        saxophone[row][e.start] = true;
       }
     });
 
@@ -595,7 +653,7 @@ function parseV2TracksToGrids(project: SongProject, steps: number) {
       }
     });
   }
-  return { melody, melodyLengths, guitar, drums, bass };
+  return { melody, melodyLengths, violin, saxophone, guitar, drums, bass };
 }
 
 export const useSongStore = create<SongState>((set, get) => ({
@@ -605,12 +663,16 @@ export const useSongStore = create<SongState>((set, get) => ({
   isPlaying: false,
   volumes: {
     melody: 82,
+    violin: 78,
+    saxophone: 80,
     drums: 78,
     bass: 84,
     guitar: 80,
   },
   melody: createEmptyMatrix(MELODY_ROWS, DEFAULT_STEPS),
   melodyLengths: createEmptyLengthMatrix(MELODY_ROWS, DEFAULT_STEPS),
+  violin: createEmptyMatrix(VIOLIN_ROWS, DEFAULT_STEPS),
+  saxophone: createEmptyMatrix(SAXOPHONE_ROWS, DEFAULT_STEPS),
   guitar: createEmptyMatrix(GUITAR_ROWS, DEFAULT_STEPS),
   drums: createEmptyMatrix(DRUM_ROWS, DEFAULT_STEPS),
   bass: createEmptyMatrix(BASS_ROWS, DEFAULT_STEPS),
@@ -662,6 +724,22 @@ export const useSongStore = create<SongState>((set, get) => ({
       melodyLengths[row][col] = nextLength;
 
       return buildHistoryUpdate(state, { melody, melodyLengths });
+    }),
+
+  toggleViolin: (row, col) =>
+    set((state) => {
+      const violin = cloneMatrix(state.violin);
+      violin[row][col] = !violin[row][col];
+
+      return buildHistoryUpdate(state, { violin });
+    }),
+
+  toggleSaxophone: (row, col) =>
+    set((state) => {
+      const saxophone = cloneMatrix(state.saxophone);
+      saxophone[row][col] = !saxophone[row][col];
+
+      return buildHistoryUpdate(state, { saxophone });
     }),
 
   toggleGuitar: (row, col) =>
@@ -730,6 +808,8 @@ export const useSongStore = create<SongState>((set, get) => ({
         length: range.length,
         melody: extractBar(state.melody, range.start, range.length),
         melodyLengths: extractLengthBar(state.melodyLengths, range.start, range.length),
+        violin: extractBar(state.violin, range.start, range.length),
+        saxophone: extractBar(state.saxophone, range.start, range.length),
         guitar: extractBar(state.guitar, range.start, range.length),
         drums: extractBar(state.drums, range.start, range.length),
         bass: extractBar(state.bass, range.start, range.length),
@@ -758,6 +838,20 @@ export const useSongStore = create<SongState>((set, get) => ({
           state.barClipboard.melodyLengths,
           range.start,
           state.steps
+        ),
+        violin: pasteBar(
+          state.violin,
+          state.barClipboard.violin,
+          range.start,
+          state.steps,
+          'replace'
+        ),
+        saxophone: pasteBar(
+          state.saxophone,
+          state.barClipboard.saxophone,
+          range.start,
+          state.steps,
+          'replace'
         ),
         guitar: pasteBar(
           state.guitar,
@@ -806,6 +900,20 @@ export const useSongStore = create<SongState>((set, get) => ({
           nextStart,
           state.steps
         ),
+        violin: pasteBar(
+          state.violin,
+          extractBar(state.violin, range.start, range.length),
+          nextStart,
+          state.steps,
+          'replace'
+        ),
+        saxophone: pasteBar(
+          state.saxophone,
+          extractBar(state.saxophone, range.start, range.length),
+          nextStart,
+          state.steps,
+          'replace'
+        ),
         guitar: pasteBar(
           state.guitar,
           extractBar(state.guitar, range.start, range.length),
@@ -844,6 +952,8 @@ export const useSongStore = create<SongState>((set, get) => ({
           state.steps
         ),
         guitar: pasteBar(state.guitar, [], range.start, state.steps, 'clear'),
+        violin: pasteBar(state.violin, [], range.start, state.steps, 'clear'),
+        saxophone: pasteBar(state.saxophone, [], range.start, state.steps, 'clear'),
         drums: pasteBar(state.drums, [], range.start, state.steps, 'clear'),
         bass: pasteBar(state.bass, [], range.start, state.steps, 'clear'),
       });
@@ -923,13 +1033,24 @@ export const useSongStore = create<SongState>((set, get) => ({
 
   setSteps: (steps) =>
     set((state) => {
-      if (state.steps === steps) {
+      const hasExpectedShape =
+        state.melody.length === MELODY_ROWS &&
+        state.melodyLengths.length === MELODY_ROWS &&
+        state.violin.length === VIOLIN_ROWS &&
+        state.saxophone.length === SAXOPHONE_ROWS &&
+        state.guitar.length === GUITAR_ROWS &&
+        state.drums.length === DRUM_ROWS &&
+        state.bass.length === BASS_ROWS;
+
+      if (state.steps === steps && hasExpectedShape) {
         return {};
       }
 
       const melody = resizeMatrix(state.melody, MELODY_ROWS, steps);
       const drums = resizeMatrix(state.drums, DRUM_ROWS, steps);
       const bass = resizeMatrix(state.bass, BASS_ROWS, steps);
+      const violin = resizeMatrix(state.violin, VIOLIN_ROWS, steps);
+      const saxophone = resizeMatrix(state.saxophone, SAXOPHONE_ROWS, steps);
       const guitar = resizeMatrix(state.guitar, GUITAR_ROWS, steps);
       const melodyLengths = resizeLengthMatrix(
         state.melodyLengths,
@@ -943,6 +1064,8 @@ export const useSongStore = create<SongState>((set, get) => ({
         currentStep: clampStep(state.currentStep, steps),
         melody,
         melodyLengths,
+        violin,
+        saxophone,
         guitar,
         drums,
         bass,
@@ -964,6 +1087,8 @@ export const useSongStore = create<SongState>((set, get) => ({
         currentStep: 0,
         melody: createEmptyMatrix(MELODY_ROWS, state.steps),
         melodyLengths: createEmptyLengthMatrix(MELODY_ROWS, state.steps),
+        violin: createEmptyMatrix(VIOLIN_ROWS, state.steps),
+        saxophone: createEmptyMatrix(SAXOPHONE_ROWS, state.steps),
         guitar: createEmptyMatrix(GUITAR_ROWS, state.steps),
         drums: createEmptyMatrix(DRUM_ROWS, state.steps),
         bass: createEmptyMatrix(BASS_ROWS, state.steps),
@@ -985,12 +1110,16 @@ export const useSongStore = create<SongState>((set, get) => ({
         isPlaying: false,
         volumes: {
           melody: clampVolume(project.volumes?.melody ?? 82),
+          violin: clampVolume(project.volumes?.violin ?? 78),
+          saxophone: clampVolume(project.volumes?.saxophone ?? 80),
           drums: clampVolume(project.volumes?.drums ?? 78),
           bass: clampVolume(project.volumes?.bass ?? 84),
-          guitar: clampVolume(project.volumes?.bass ?? 84),
+          guitar: clampVolume(project.volumes?.guitar ?? 80),
         },
         melody: grids.melody,
         melodyLengths: grids.melodyLengths,
+        violin: grids.violin,
+        saxophone: grids.saxophone,
         guitar: grids.guitar,
         drums: grids.drums,
         bass: grids.bass,
@@ -1010,12 +1139,16 @@ export const useSongStore = create<SongState>((set, get) => ({
       currentStep: clampStep(state.currentStep, steps),
       volumes: {
         melody: clampVolume(project.volumes?.melody ?? 82),
+        violin: clampVolume(project.volumes?.violin ?? 78),
+        saxophone: clampVolume(project.volumes?.saxophone ?? 80),
         drums: clampVolume(project.volumes?.drums ?? 78),
         bass: clampVolume(project.volumes?.bass ?? 84),
         guitar: clampVolume(project.volumes?.guitar ?? 80),
       },
       melody: grids.melody,
       melodyLengths: grids.melodyLengths,
+      violin: grids.violin,
+      saxophone: grids.saxophone,
       guitar: grids.guitar,
       drums: grids.drums,
       bass: grids.bass,

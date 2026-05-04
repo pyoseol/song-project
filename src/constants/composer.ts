@@ -1,6 +1,6 @@
 export const PIANO_STEP_WIDTH = 132;
 export const PIANO_ROW_HEIGHT = 56;
-export const MELODY_PIANO_ROW_HEIGHT = 20;
+export const MELODY_PIANO_ROW_HEIGHT = 24;
 export const DRUM_STEP_WIDTH = 84;
 
 export const MELODY_NOTES = [
@@ -85,31 +85,96 @@ export const LEGACY_EXTENDED_BASS_NOTES = [
 ] as const;
 
 export const BASS_NOTES = [
+  'B3',
+  'A#3',
+  'A3',
+  'G#3',
+  'G3',
+  'F#3',
+  'F3',
+  'E3',
+  'D#3',
+  'D3',
+  'C#3',
   'C3',
   'B2',
+  'A#2',
   'A2',
+  'G#2',
   'G2',
+  'F#2',
   'F2',
   'E2',
+  'D#2',
   'D2',
+  'C#2',
   'C2',
-  'B1',
-  'A1',
 ] as const;
 
 export const VIOLIN_NOTES = [
-  'E4',
+  'B4',
+  'A#4',
   'A4',
+  'G#4',
+  'G4',
+  'F#4',
+  'F4',
+  'E4',
+  'D#4',
   'D4',
+  'C#4',
+  'C4',
+  'B3',
+  'A#3',
+  'A3',
+  'G#3',
   'G3',
+  'F#3',
+  'F3',
+  'E3',
+  'D#3',
+  'D3',
+  'C#3',
+  'C3',
 ] as const;
 
 export const SAXOPHONE_NOTES = [
+  'B4',
+  'A#4',
+  'A4',
+  'G#4',
+  'G4',
+  'F#4',
+  'F4',
+  'E4',
+  'D#4',
+  'D4',
+  'C#4',
+  'C4',
+  'B3',
+  'A#3',
+  'A3',
+  'G#3',
   'G3',
+  'F#3',
+  'F3',
+  'E3',
+  'D#3',
   'D3',
+  'C#3',
   'C3',
+  'B2',
+  'A#2',
   'A2',
+  'G#2',
+  'G2',
+  'F#2',
   'F2',
+  'E2',
+  'D#2',
+  'D2',
+  'C#2',
+  'C2',
 ] as const;
 
 export const MELODY_MIDI = [
@@ -117,7 +182,10 @@ export const MELODY_MIDI = [
   66, 65, 64, 63, 62, 61, 60, 59, 58, 57,
 ] as const;
 
-export const BASS_MIDI = [48, 47, 45, 43, 41, 40, 38, 36, 35, 33] as const;
+export const BASS_MIDI = [
+  59, 58, 57, 56, 55, 54, 53, 52, 51, 50, 49, 48,
+  47, 46, 45, 44, 43, 42, 41, 40, 39, 38, 37, 36,
+] as const;
 
 export const MELODY_ROWS = MELODY_NOTES.length;
 export const BASS_ROWS = BASS_NOTES.length;
@@ -137,12 +205,43 @@ export const DRUM_ROWS = DRUM_TRACK_LABELS.length;
 
 
 export const GUITAR_TRACK_LABELS = [
-  'E3',
-  'A3',
-  'D4',
-  'G4',
-  'B4',
+  'C6',
+  'G#5',
+  'G5',
+  'F#5',
+  'F5',
   'E5',
+  'D#5',
+  'D5',
+  'C#5',
+  'C5',
+  'B5',
+  'A#5',
+  'A5',
+  'G#4',
+  'G4',
+  'F#4',
+  'F4',
+  'E4',
+  'D#4',
+  'D4',
+  'C#4',
+  'C4',
+  'B4',
+  'A#4',
+  'A4',
+  'G#3',
+  'G3',
+  'F#3',
+  'F3',
+  'E3',
+  'D#3',
+  'D3',
+  'C#3',
+  'C3',
+  'B3',
+  'A#3',
+  'A3',
 ] as const;
 
 export const GUITAR_ROWS = GUITAR_TRACK_LABELS.length;

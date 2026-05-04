@@ -24,8 +24,30 @@ const saxophoneReverb = new Tone.Reverb({
   wet: 0.11,
 }).toDestination();
 
+const SHARP_TO_FLAT_NOTE: Record<string, string> = {
+  "C#": "Db",
+  "D#": "Eb",
+  "F#": "Gb",
+  "G#": "Ab",
+  "A#": "Bb",
+};
+
+function withFlatAliases<T extends Record<string, string>>(urls: T): Record<string, string> {
+  const aliasedUrls: Record<string, string> = { ...urls };
+
+  Object.entries(urls).forEach(([note, file]) => {
+    const flatNote = note.replace(/^([A-G]#)(-?\d+)$/, (_match, root: string, octave: string) => {
+      return `${SHARP_TO_FLAT_NOTE[root] ?? root}${octave}`;
+    });
+
+    aliasedUrls[flatNote] = file;
+  });
+
+  return aliasedUrls;
+}
+
 export const pianoSynth = new Tone.Sampler({
-  urls: {
+  urls: withFlatAliases({
     "A#4": "A_sharp4.mp3",
     A4: "A4.mp3",
     B4: "B4.mp3",
@@ -39,12 +61,12 @@ export const pianoSynth = new Tone.Sampler({
     F4: "F4.mp3",
     "G#4": "G_sharp4.mp3",
     G4: "G4.mp3",
-  },
+  }),
   release: 1,
   baseUrl: "/samples/piano/",
 }).connect(pianoReverb);
 
-export const GUITAR_SAMPLE_URLS = {
+export const GUITAR_SAMPLE_URLS = withFlatAliases({
   A3: "A3.mp3",
   "A#3": "A_sharp3.mp3",
   B3: "B3.mp3",
@@ -82,7 +104,7 @@ export const GUITAR_SAMPLE_URLS = {
   G5: "G5.mp3",
   "G#5": "G_sharp5.mp3",
   C6: "C6.mp3",
-} as const;
+} as const);
 
 export const acousticGuitarSynth = new Tone.Sampler({
   urls: GUITAR_SAMPLE_URLS,
@@ -90,7 +112,7 @@ export const acousticGuitarSynth = new Tone.Sampler({
   baseUrl: "/samples/guitar/",
 }).connect(guitarReverb);
 
-export const VIOLIN_SAMPLE_URLS = {
+export const VIOLIN_SAMPLE_URLS = withFlatAliases({
   C3: "C3.mp3",
   "C#3": "C_sharp3.mp3",
   D3: "D3.mp3",
@@ -115,9 +137,9 @@ export const VIOLIN_SAMPLE_URLS = {
   A4: "A4.mp3",
   "A#4": "A_sharp4.mp3",
   B4: "B4.mp3",
-} as const;
+} as const);
 
-export const SAXOPHONE_SAMPLE_URLS = {
+export const SAXOPHONE_SAMPLE_URLS = withFlatAliases({
   C2: "C2.mp3",
   "C#2": "C_sharp2.mp3",
   D2: "D2.mp3",
@@ -154,7 +176,7 @@ export const SAXOPHONE_SAMPLE_URLS = {
   A4: "A4.mp3",
   "A#4": "A_sharp4.mp3",
   B4: "B4.mp3",
-} as const;
+} as const);
 
 export const violinSynth = new Tone.Sampler({
   urls: VIOLIN_SAMPLE_URLS,
@@ -170,7 +192,7 @@ export const saxophoneSynth = new Tone.Sampler({
   baseUrl: "/samples/sax/",
 }).connect(saxophoneReverb);
 
-export const BASS_SAMPLE_URLS = {
+export const BASS_SAMPLE_URLS = withFlatAliases({
   C2: "01_C2.mp3",
   "C#2": "02_C_sharp2.mp3",
   D2: "03_D2.mp3",
@@ -195,7 +217,7 @@ export const BASS_SAMPLE_URLS = {
   A3: "22_A3.mp3",
   "A#3": "23_A_sharp3.mp3",
   B3: "24_B3.mp3",
-} as const;
+} as const);
 
 export const DRUM_SAMPLE_URLS = {
   C2: "kick_punch.mp3",

@@ -12,13 +12,6 @@
     #13151a;
 }
 
-.piano-roll--guitar {
-  background:
-    radial-gradient(circle at top right, rgba(245, 158, 11, 0.16), transparent 28%),
-    linear-gradient(180deg, #1d1710 0%, #14100c 100%),
-    #14100c;
-}
-
 .piano-roll--bass {
   background:
     linear-gradient(180deg, rgba(34, 20, 11, 0.96), rgba(18, 10, 5, 0.98)),
@@ -36,15 +29,6 @@
 .piano-roll--melody .piano-roll-sidebar {
   background: #111317;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.piano-roll--guitar .piano-roll-sidebar {
-  background: #17110c;
-  border-right: 1px solid rgba(245, 158, 11, 0.16);
-}
-
-.piano-roll--guitar .piano-roll-sidebar-notes {
-  padding: 0 8px 12px;
 }
 
 .piano-roll-sidebar-cover {
@@ -115,34 +99,6 @@
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.06);
 }
 
-.piano-roll--guitar .piano-roll-key.is-melody.is-natural {
-  min-width: 52px;
-  justify-content: center;
-  padding-right: 0;
-  margin: 0;
-  border: 1px solid rgba(245, 158, 11, 0.14);
-  border-radius: 10px;
-  background: linear-gradient(180deg, #f1d8b1, #c99257);
-  color: #24160a;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -1px 0 rgba(61, 38, 15, 0.22);
-}
-
-.piano-roll--guitar .piano-roll-key.is-melody.is-sharp {
-  min-width: 52px;
-  justify-content: center;
-  padding-right: 0;
-  margin: 0;
-  border: 1px solid rgba(120, 72, 28, 0.42);
-  border-radius: 10px;
-  background: linear-gradient(180deg, #5a3418, #26170c);
-  color: #f9e6c8;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 240, 214, 0.06),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.22);
-}
-
 .piano-roll-key.is-bass {
   border: 1px solid rgba(245, 191, 74, 0.22);
   background: linear-gradient(180deg, #3f2816, #24160d);
@@ -199,10 +155,6 @@
   background: #111317;
 }
 
-.piano-roll--guitar .piano-roll-length-bar {
-  background: #17110c;
-}
-
 .piano-roll--melody .piano-roll-length-bar > * {
   position: relative;
   z-index: 1;
@@ -219,11 +171,6 @@
   content: '';
   pointer-events: none;
   z-index: 0;
-}
-
-.piano-roll--guitar .piano-roll-length-bar::before {
-  background: #17110c;
-  border-right: 1px solid rgba(245, 158, 11, 0.16);
 }
 
 .piano-roll-length-button {
@@ -243,12 +190,6 @@
   border-color: rgba(137, 255, 54, 0.42);
   background: rgba(137, 255, 54, 0.14);
   color: #f4ffe8;
-}
-
-.piano-roll--guitar .piano-roll-length-button.is-active {
-  border-color: rgba(245, 158, 11, 0.42);
-  background: rgba(245, 158, 11, 0.16);
-  color: #fff7ed;
 }
 
 .piano-roll-chord-actions {
@@ -276,81 +217,6 @@
   font-weight: 700;
   cursor: grab;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
-}
-
-.piano-roll-chord-chip.is-guitar {
-  border-color: rgba(245, 158, 11, 0.22);
-  background: linear-gradient(180deg, #3f2a16, #24170d);
-  color: #fff3de;
-}
-
-.piano-roll--guitar .piano-roll-step-header--melody {
-  background:
-    linear-gradient(180deg, rgba(52, 33, 19, 0.98), rgba(28, 18, 11, 0.98)),
-    #24170d;
-}
-
-.piano-roll--guitar .piano-roll-step-header-viewport {
-  background: #21150c;
-  border-bottom: 1px solid rgba(245, 158, 11, 0.12);
-}
-
-.piano-roll--guitar .piano-roll-step-number {
-  color: #f7d9b2;
-}
-
-.piano-roll--guitar .piano-roll-step-number.is-current {
-  background: rgba(245, 158, 11, 0.14);
-}
-
-.piano-roll--guitar .piano-roll-grid--melody {
-  background-image:
-    repeating-linear-gradient(
-      to bottom,
-      rgba(255, 255, 255, 0.06) 0 1px,
-      transparent 1px var(--piano-row-span)
-    ),
-    repeating-linear-gradient(
-      to right,
-      transparent 0 calc(var(--piano-step-span) * 2 - 1px),
-      rgba(255, 214, 153, 0.08) calc(var(--piano-step-span) * 2 - 1px) calc(var(--piano-step-span) * 2)
-    ),
-    repeating-linear-gradient(
-      to right,
-      transparent 0 calc(var(--piano-step-span) * 4 - 1px),
-      rgba(245, 158, 11, 0.12) calc(var(--piano-step-span) * 4 - 1px) calc(var(--piano-step-span) * 4)
-    ),
-    linear-gradient(180deg, rgba(51, 33, 19, 0.96), rgba(28, 18, 11, 0.98));
-}
-
-.piano-roll--guitar .piano-roll-cell.is-melody {
-  border: 1px solid rgba(245, 158, 11, 0.06);
-  border-radius: 8px;
-  background: rgba(255, 240, 214, 0.015);
-}
-
-.piano-roll--guitar .piano-roll-cell.is-melody:hover {
-  background: rgba(245, 158, 11, 0.08);
-}
-
-.piano-roll--guitar .piano-roll-cell.is-melody.is-sharp:not(.is-active) {
-  background: rgba(255, 240, 214, 0.03);
-}
-
-.piano-roll--guitar .piano-roll-cell.is-melody.is-current::after {
-  border-color: rgba(255, 228, 186, 0.42);
-  border-radius: 8px;
-}
-
-.piano-roll--guitar .piano-roll-note-block {
-  border-color: rgba(255, 228, 186, 0.34);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(255, 244, 219, 0.2), rgba(255, 255, 255, 0.03)),
-    var(--cell-accent);
-  box-shadow:
-    inset 0 -1px 0 rgba(74, 47, 18, 0.24),
-    0 8px 16px rgba(61, 38, 15, 0.22);
 }
 
 .piano-roll-chord-chip:active {
@@ -759,7 +625,7 @@
 }
 
 .piano-roll-melody-topbar {
-  padding: 8px 0 0;
+  padding: 0;
 }
 
 .piano-roll-melody-corner {
@@ -779,7 +645,7 @@
   z-index: 1;
   flex: 1;
   margin: 0;
-  padding: 0 10px 8px;
+  padding: 6px 10px;
 }
 
 .piano-roll--melody-detached .piano-roll-length-bar::before {

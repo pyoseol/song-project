@@ -209,7 +209,7 @@ export const PianoRoll = ({
   const rowCount = currentGrid.length;
   const gridGap = isBass ? PIANO_GRID_GAP : 2;
   const rowHeight = isBass ? PIANO_ROW_HEIGHT : MELODY_PIANO_ROW_HEIGHT;
-  const stepWidth = isBass ? PIANO_STEP_WIDTH : 56;
+  const stepWidth = isBass ? PIANO_STEP_WIDTH : 64;
   const headerHeight = isBass ? PIANO_HEADER_HEIGHT : 24;
   const headerMargin = isBass ? PIANO_HEADER_MARGIN : 8;
   const bodyTopPadding = isBass ? PIANO_BODY_TOP_PADDING : 8;
@@ -295,7 +295,7 @@ export const PianoRoll = ({
     '--piano-row-span': `calc(${rowHeight}px + ${gridGap}px)`,
     '--piano-row-count': `${rowCount}`,
     '--piano-sidebar-offset': `${sidebarTopOffset}px`,
-    '--piano-sidebar-width': `${isBass ? 102 : 60}px`,
+    '--piano-sidebar-width': `${isBass ? 102 : 68}px`,
   } as CSSProperties;
 
   const sidebarNotes = currentLabels.map((note, row) => {

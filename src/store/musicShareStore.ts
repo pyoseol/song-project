@@ -7,6 +7,7 @@ import {
   recordTrackOpenOnServer,
   recordTrackViewOnServer,
   toggleTrackLikeOnServer,
+  deleteTrackOnServer,
   type MusicShareSnapshot,
 } from '../utils/libraryApi';
 import type { MusicShareTrackCard } from '../dummy/musicShareLibrary';
@@ -48,6 +49,7 @@ type MusicShareState = {
   recordTrackView: (trackId: string, userEmail?: string) => Promise<void>;
   recordTrackDownload: (trackId: string, userEmail?: string) => Promise<void>;
   recordTrackOpen: (trackId: string, userEmail: string) => Promise<void>;
+  deleteTrack: (trackId: string) => Promise<void>;
 };
 
 let musicShareBootstrapPromise: Promise<void> | null = null;
@@ -141,6 +143,10 @@ export const useMusicShareStore = create<MusicShareState>()(
         const response = await recordTrackOpenOnServer({ trackId, userEmail });
         applySnapshot(response.snapshot);
       },
+      deleteTrack: async (trackId) => {
+        const response = await deleteTrackOnServer({ trackId });
+        applySnapshot(response.snapshot);
+      },
     }),
     {
       name: 'song-maker-music-share',
@@ -154,3 +160,5 @@ export const useMusicShareStore = create<MusicShareState>()(
     }
   )
 );
+
+

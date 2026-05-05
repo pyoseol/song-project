@@ -88,7 +88,7 @@ export async function fetchCommunityBootstrap(): Promise<CommunitySnapshot> {
   const postsQuery = query(collection(db, 'community_posts'), orderBy('createdAt', 'desc'), limit(20)); // limit(20) 추가
   const postsSnap = await getDocs(postsQuery);
     
-  const commentsQuery = query(collection(db, 'community_comments'), orderBy('createdAt', 'asc'), limit(50)); // limit(50) 추가
+  const commentsQuery = query(collection(db, 'community_comments'), orderBy('createdAt', 'asc'), limit(20)); // limit(50) 추가
   const commentsSnap = await getDocs(commentsQuery);
 
   const posts = postsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));

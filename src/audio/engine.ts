@@ -24,6 +24,8 @@ import {
 } from "../constants/composer.ts";
 
 let loopId: number | null = null;
+const PLAYBACK_START_DELAY_SECONDS = 0.005;
+const AUDIO_LOOK_AHEAD_SECONDS = 0.02;
 
 const SHARP_TO_FLAT_NOTE: Record<string, string> = {
   "C#": "Db",
@@ -67,6 +69,22 @@ const PIANO_SAMPLE_URLS: Record<string, string> = withFlatAliases({
 
 let cachedPianoBuffers: Record<string, AudioBuffer> | null = null;
 let lameLoadPromise: Promise<void> | null = null;
+let toneLoadPromise: Promise<void> | null = null;
+
+function tuneAudioLatency() {
+  Tone.getContext().lookAhead = AUDIO_LOOK_AHEAD_SECONDS;
+}
+
+async function ensureToneReady() {
+  tuneAudioLatency();
+  await Tone.start();
+
+  if (!toneLoadPromise) {
+    toneLoadPromise = Tone.loaded();
+  }
+
+  await toneLoadPromise;
+}
 
 function getMelodyPlaybackNote(row: number) {
   const midi = MELODY_MIDI[row] ?? MELODY_MIDI[MELODY_MIDI.length - 1];
@@ -298,11 +316,14 @@ function triggerExtraTrackStep(
 }
 
 export async function preparePlaybackEngine() {
-  await Tone.start();
-  await Tone.loaded();
+  await ensureToneReady();
   initTransport();
   const state = useSongStore.getState();
   applyLiveVolumes(state.volumes, state.extraTracks);
+}
+
+export function getPlaybackStartDelaySeconds() {
+  return PLAYBACK_START_DELAY_SECONDS;
 }
 
 export function releaseInstrumentSounds(instrument: InstrumentKey) {
@@ -495,8 +516,7 @@ export function initTransport() {
 }
 
 export async function playMelodyPreview(row: number, durationSteps = 1): Promise<void> {
-  await Tone.start();
-  await Tone.loaded();
+  await ensureToneReady();
   const state = useSongStore.getState();
   applyLiveVolumes(state.volumes, state.extraTracks);
   const bpm = state.bpm;
@@ -510,32 +530,28 @@ export async function playMelodyPreview(row: number, durationSteps = 1): Promise
 }
 
 export async function playViolinPreview(row: number, durationSteps = 1): Promise<void> {
-  await Tone.start();
-  await Tone.loaded();
+  await ensureToneReady();
   const state = useSongStore.getState();
   applyLiveVolumes(state.volumes, state.extraTracks);
   triggerLiveViolinNote(row, getMelodyGateSeconds(durationSteps, state.bpm), Tone.now(), 0.86);
 }
 
 export async function playSaxophonePreview(row: number, durationSteps = 1): Promise<void> {
-  await Tone.start();
-  await Tone.loaded();
+  await ensureToneReady();
   const state = useSongStore.getState();
   applyLiveVolumes(state.volumes, state.extraTracks);
   triggerLiveSaxophoneNote(row, getMelodyGateSeconds(durationSteps, state.bpm), Tone.now(), 0.78);
 }
 
 export async function playGuitarPreview(row: number, durationSteps = 1): Promise<void> {
-  await Tone.start();
-  await Tone.loaded();
+  await ensureToneReady();
   const state = useSongStore.getState();
   applyLiveVolumes(state.volumes, state.extraTracks);
   triggerLiveGuitarNote(row, getMelodyGateSeconds(durationSteps, state.bpm), Tone.now(), 1);
 }
 
 export async function playDrumPreview(row: number): Promise<void> {
-  await Tone.start();
-  await Tone.loaded();
+  await ensureToneReady();
   const state = useSongStore.getState();
   applyLiveVolumes(state.volumes, state.extraTracks);
   triggerLiveDrumSample(row, Tone.now());
@@ -935,8 +951,7 @@ function loadLame(): Promise<void> {
 }
 
 export async function playBassPreview(row: number, durationSteps = 1): Promise<void> {
-  await Tone.start();
-  await Tone.loaded();
+  await ensureToneReady();
   const state = useSongStore.getState();
   applyLiveVolumes(state.volumes, state.extraTracks);
   const midi = BASS_MIDI[row] ?? BASS_MIDI[BASS_MIDI.length - 1];

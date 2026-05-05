@@ -4,6 +4,7 @@ import * as Tone from 'tone';
 import {
   exportSongAsMp3,
   exportSongAsWav,
+  getPlaybackStartDelaySeconds,
   preparePlaybackEngine,
 } from '../audio/engine.ts';
 import type { SongProject } from '../store/songStore.ts';
@@ -207,7 +208,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
       Tone.Transport.stop();
       Tone.Transport.position = 0;
       setCurrentStep(loopRange?.start ?? 0);
-      Tone.Transport.start('+0.05');
+      Tone.Transport.start(`+${getPlaybackStartDelaySeconds()}`);
       setPlaying(true);
       onPlayStarted?.();
     } catch (error) {

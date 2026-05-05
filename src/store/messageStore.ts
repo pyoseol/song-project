@@ -8,7 +8,7 @@ import {
   markThreadReadOnServer,
   removeFriendOnServer,
   sendThreadMessageOnServer,
-  subscribeToMessagesRealtime, // ★ 변경됨
+  subscribeToMessagesRealtime, 
   type MessageSnapshot,
 } from '../utils/messagesApi'; 
 

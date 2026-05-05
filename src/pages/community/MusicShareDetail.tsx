@@ -45,6 +45,7 @@ export default function MusicShareDetail() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const projects = useComposerLibraryStore((state) => state.projects);
+  const deleteTrack = useMusicShareStore((state) => state.deleteTrack);
   const favoriteTrackIdsByUser = useComposerLibraryStore((state) => state.favoriteTrackIdsByUser);
   const toggleFavoriteTrack = useComposerLibraryStore((state) => state.toggleFavoriteTrack);
   const seedLibrary = useComposerLibraryStore((state) => state.seedLibrary);
@@ -196,6 +197,42 @@ export default function MusicShareDetail() {
     navigate('/composer');
   };
 
+const isOwner = user && track && user.name === track.creatorName;
+
+const handleDeleteTrack = async () => {
+  // 🌟 [에러 2 해결] user나 track 데이터가 없으면 아예 함수 실행을 막습니다.
+  if (!user || !track) {
+    return;
+  }
+
+  // 사용자에게 삭제 확인받기
+  if (!window.confirm('정말로 이 공유곡을 삭제하시겠습니까? \n삭제된 곡은 복구할 수 없습니다.')) {
+    return;
+  }
+
+  try {
+    // 삭제 실행
+    await deleteTrack(track.id);
+    
+    // 알림 띄우기
+    pushNotification({
+      kind: 'music',
+      title: '삭제 완료',
+      body: `"${track.title}" 곡이 목록에서 삭제되었습니다.`,
+      route: '/community/music',
+      // 위에서 if (!user) return; 으로 걸러냈기 때문에 여기서 에러가 나지 않습니다!
+      actorName: user.name, 
+    });
+    
+    // 삭제 후 목록으로 이동
+    navigate('/community/music', { replace: true });
+    
+  } catch (error) {
+    console.error('글 삭제 중 오류 발생:', error);
+    alert('삭제에 실패했습니다. 다시 시도해 주세요.');
+  }
+};
+
   const handleCommentSubmit = async () => {
     if (!user) {
       handleRequireLogin();
@@ -216,6 +253,7 @@ export default function MusicShareDetail() {
     setCommentInput('');
   };
 
+  
   return (
     <div className="music-share-detail-page">
       <SiteHeader activeSection="community" />
@@ -314,6 +352,16 @@ export default function MusicShareDetail() {
               <button type="button" onClick={handleCommentSubmit}>
                 댓글 등록
               </button>
+              {isOwner && (
+                <button
+                  type="button"
+                  className="music-share-detail-button"
+                  onClick={handleDeleteTrack}
+                  style={{ color: '#ff4d4f', borderColor: '#ff4d4f' }} // 빨간색으로 위험(삭제) 버튼임을 강조
+                >
+                  삭제하기
+                </button>
+                )}
             </div>
 
             <div className="music-share-detail-comment-list">

@@ -24,6 +24,7 @@ const DEFAULT_AI_TEMPLATE = `분위기:
 
 const SAVE_BACKUP_STORAGE_KEY = 'song-maker-project-backups';
 const BAR_LENGTH = 16;
+const GO_TO_FIRST_BAR_EVENT = 'composer-go-to-first-bar';
 
 const GENRE_OPTIONS = [
   { value: 'ballad', label: '발라드' },
@@ -103,6 +104,18 @@ const ResetIcon = () => (
   </svg>
 );
 
+const FirstBarIcon = () => (
+  <svg
+    className="transport-button-icon-svg"
+    viewBox="0 0 20 20"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path d="M5 4v12" />
+    <path d="M15 5 8 10l7 5V5Z" />
+  </svg>
+);
+
 export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
   const {
     bpm,
@@ -114,6 +127,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
     setCurrentStep,
     volumes,
     loopRange,
+    setLoopRange,
     undo,
     redo,
     clear,
@@ -219,6 +233,13 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
       setPlaying(false);
       alert('재생을 시작하지 못했습니다. 브라우저를 새로고침한 뒤 다시 시도해 주세요.');
     }
+  };
+
+  const handleGoToFirstBar = () => {
+    Tone.Transport.position = '0:0:0';
+    setLoopRange(null);
+    setCurrentStep(0);
+    window.dispatchEvent(new Event(GO_TO_FIRST_BAR_EVENT));
   };
 
   const handleLoadProjectClick = () => {
@@ -427,6 +448,16 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
           ) : (
             <div className="transport-play-icon transport-play-icon--play" />
           )}
+        </button>
+
+        <button
+          type="button"
+          className="transport-button transport-button--micro transport-button--icon-only"
+          onClick={handleGoToFirstBar}
+          aria-label="첫마디로 이동"
+          title="첫마디로 이동"
+        >
+          <FirstBarIcon />
         </button>
 
         <div className="transport-control">

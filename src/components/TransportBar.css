@@ -170,6 +170,15 @@
   font-weight: 700;
 }
 
+.transport-button--icon-only {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 999px;
+}
+
 .transport-button--with-icon {
   gap: 8px;
 }

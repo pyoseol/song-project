@@ -175,8 +175,22 @@ function getMelodyGateSeconds(durationSteps: number, bpm: number) {
   return getSixteenthDurationSeconds(bpm) * Math.max(1, durationSteps);
 }
 
-function getMelodyVelocity(durationSteps: number) {
+function getMelodyVelocity(row: number, durationSteps: number) {
   void durationSteps;
+  const midi = MELODY_MIDI[row] ?? MELODY_MIDI[MELODY_MIDI.length - 1];
+
+  if (midi <= 36) {
+    return 1.85;
+  }
+
+  if (midi <= 48) {
+    return 1.55;
+  }
+
+  if (midi <= 56) {
+    return 1.25;
+  }
+
   return 1;
 }
 
@@ -270,7 +284,7 @@ function triggerExtraTrackStep(
           getExtraTrackNote(track.instrument, rowIndex),
           getMelodyGateSeconds(durationSteps, bpm),
           time,
-          getMelodyVelocity(durationSteps) * velocityScale
+          getMelodyVelocity(rowIndex, durationSteps) * velocityScale
         );
         break;
       }
@@ -436,7 +450,7 @@ export function initTransport() {
           note,
           getMelodyGateSeconds(durationSteps, bpm),
           time,
-          getMelodyVelocity(durationSteps) * melodyVelocityScale
+          getMelodyVelocity(rowIndex, durationSteps) * melodyVelocityScale
         );
       });
 
@@ -525,7 +539,7 @@ export async function playMelodyPreview(row: number, durationSteps = 1): Promise
     note,
     getMelodyGateSeconds(durationSteps, bpm),
     Tone.now(),
-    getMelodyVelocity(durationSteps)
+    getMelodyVelocity(row, durationSteps)
   );
 }
 
@@ -645,7 +659,7 @@ async function renderSongBuffer(): Promise<AudioBuffer> {
           note,
           getMelodyGateSeconds(durationSteps, bpm),
           time,
-          getMelodyVelocity(durationSteps) * melodyVelocityScale
+          getMelodyVelocity(row, durationSteps) * melodyVelocityScale
         );
       }
 
@@ -713,7 +727,7 @@ async function renderSongBuffer(): Promise<AudioBuffer> {
                 getExtraTrackNote(track.instrument, row),
                 getMelodyGateSeconds(durationSteps, bpm),
                 time,
-                getMelodyVelocity(durationSteps) * velocityScale
+                getMelodyVelocity(row, durationSteps) * velocityScale
               );
               break;
             }

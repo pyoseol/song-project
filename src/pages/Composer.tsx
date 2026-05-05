@@ -1061,6 +1061,21 @@ export function Composer() {
     syncTabsToLoadedProject();
   }, [projectLoadRevision, syncTabsToLoadedProject]);
 
+  useEffect(() => {
+    const handleGoToFirstBar = () => {
+      document.querySelectorAll<HTMLElement>('.piano-roll-melody-scroller').forEach((scroller) => {
+        scroller.scrollLeft = 0;
+      });
+
+      setPitchedRollScrollLeft({});
+    };
+
+    window.addEventListener('composer-go-to-first-bar', handleGoToFirstBar);
+    return () => {
+      window.removeEventListener('composer-go-to-first-bar', handleGoToFirstBar);
+    };
+  }, []);
+
   const handleOpenTab = useCallback(
     (tab: ComposerTab) => {
       const primaryAlreadyOpen = tab === 'melody' || openTabsState.includes(tab);

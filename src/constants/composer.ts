@@ -4,34 +4,31 @@ export const MELODY_PIANO_ROW_HEIGHT = 24;
 export const DRUM_STEP_WIDTH = 84;
 
 export const MELODY_NOTES = [
-  'C6',
-  'B5',
-  'A#5',
-  'A5',
-  'G#5',
-  'G5',
-  'F#5',
-  'F5',
-  'E5',
-  'D#5',
-  'D5',
-  'C#5',
-  'C5',
-  'B4',
-  'A#4',
-  'A4',
-  'G#4',
-  'G4',
-  'F#4',
-  'F4',
-  'E4',
-  'D#4',
-  'D4',
-  'C#4',
   'C4',
-  'B3',
-  'A#3',
-  'A3',
+  'C#4',
+  'D4',
+  'D#4',
+  'E4',
+  'F4',
+  'F#4',
+  'G4',
+  'G#4',
+  'A4',
+  'A#4',
+  'B4',
+  'C5',
+  'C#5',
+  'D5',
+  'D#5',
+  'E5',
+  'F5',
+  'F#5',
+  'G5',
+  'G#5',
+  'A5',
+  'A#5',
+  'B5',
+  'C6',
 ] as const;
 
 export const LEGACY_MELODY_NOTES = [
@@ -178,8 +175,8 @@ export const SAXOPHONE_NOTES = [
 ] as const;
 
 export const MELODY_MIDI = [
-  84, 83, 82, 81, 80, 79, 78, 77, 76, 75, 74, 73, 72, 71, 70, 69, 68, 67,
-  66, 65, 64, 63, 62, 61, 60, 59, 58, 57,
+  60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77,
+  78, 79, 80, 81, 82, 83, 84,
 ] as const;
 
 export const BASS_MIDI = [

@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { playBassPreview, playMelodyPreview } from '../audio/engine.ts';
 import {
   BASS_CHORD_MAP,
@@ -181,6 +181,22 @@ export const PianoRoll = ({
     null
   );
   const activeLockRef = useRef<{ instrument: 'melody' | 'bass'; barIndex: number } | null>(null);
+  const melodyScrollerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleGoToFirstBar = () => {
+      if (melodyScrollerRef.current) {
+        melodyScrollerRef.current.scrollLeft = 0;
+      }
+
+      setMelodyScrollLeft(0);
+    };
+
+    window.addEventListener('composer-go-to-first-bar', handleGoToFirstBar);
+    return () => {
+      window.removeEventListener('composer-go-to-first-bar', handleGoToFirstBar);
+    };
+  }, []);
 
   const tutorialGhostNoteMap = useMemo(
     () =>
@@ -576,6 +592,7 @@ export const PianoRoll = ({
         </div>
 
         <div
+          ref={melodyScrollerRef}
           className="piano-roll-melody-scroller"
           onScroll={(event) => setMelodyScrollLeft(event.currentTarget.scrollLeft)}
         >

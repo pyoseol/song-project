@@ -9,6 +9,7 @@ import {
   playDrumPreview,
   playGuitarPreview,
   playMelodyPreview,
+  releaseInstrumentSounds,
   playSaxophonePreview,
   playViolinPreview,
 } from '../audio/engine.ts';
@@ -171,6 +172,10 @@ function countMatchedCellTargets(grid: boolean[][], targets: ComposerTutorialCel
   return targets.filter((target) => grid[target.row]?.[target.col]).length;
 }
 
+function hasAnyGridNotes(grid: boolean[][]) {
+  return grid.some((row) => row.some(Boolean));
+}
+
 const chordMeta = {
   melody: {
     label: 'Piano Chords',
@@ -270,6 +275,7 @@ export function Composer() {
     setInstrumentVolume,
     addInstrumentTrack,
     removeInstrumentTrack,
+    clearInstrument,
     toggleExtraTrackCell,
     applyExtraTrackChord,
     setExtraTrackVolume,
@@ -286,6 +292,7 @@ export function Composer() {
     setLoopRange,
     loadProject,
     applyRemoteProject,
+    projectLoadRevision,
   } = useSongStore();
   const { activeTab, setActiveTab, setInstrument } = useUIStore();
   const projects = useCollabStore((state) => state.projects);
@@ -1008,6 +1015,52 @@ export function Composer() {
     [markVisitedTab, setActiveTab, setInstrument]
   );
 
+  const syncTabsToLoadedProject = useCallback(() => {
+    const state = useSongStore.getState();
+    const primaryTabs = tabOrder.filter((tab) => {
+      switch (tab) {
+        case 'melody':
+          return hasAnyGridNotes(state.melody);
+        case 'violin':
+          return hasAnyGridNotes(state.violin);
+        case 'saxophone':
+          return hasAnyGridNotes(state.saxophone);
+        case 'guitar':
+          return hasAnyGridNotes(state.guitar);
+        case 'drums':
+          return hasAnyGridNotes(state.drums);
+        case 'bass':
+          return hasAnyGridNotes(state.bass);
+        default:
+          return false;
+      }
+    });
+    const extraTrackIds = state.extraTracks.map((track) => track.id);
+    const nextPrimaryTabs: ComposerTab[] =
+      primaryTabs.length || extraTrackIds.length ? primaryTabs : ['melody'];
+
+    setOpenTabsState(nextPrimaryTabs);
+    setOpenExtraTrackIds(extraTrackIds);
+
+    if (nextPrimaryTabs.length) {
+      activateTab(nextPrimaryTabs[0]);
+      return;
+    }
+
+    const firstExtraTrack = state.extraTracks[0];
+    if (firstExtraTrack) {
+      activateTab(firstExtraTrack.instrument as ComposerTab, firstExtraTrack.id);
+    }
+  }, [activateTab]);
+
+  useEffect(() => {
+    if (projectLoadRevision <= 0) {
+      return;
+    }
+
+    syncTabsToLoadedProject();
+  }, [projectLoadRevision, syncTabsToLoadedProject]);
+
   const handleOpenTab = useCallback(
     (tab: ComposerTab) => {
       const primaryAlreadyOpen = tab === 'melody' || openTabsState.includes(tab);
@@ -1033,6 +1086,7 @@ export function Composer() {
       if (item.trackId) {
         const nextItems = openTabItems.filter((candidate) => candidate.id !== item.id);
         removeInstrumentTrack(item.trackId);
+        releaseInstrumentSounds(item.tab);
         setOpenExtraTrackIds((current) => current.filter((id) => id !== item.trackId));
         setIsTabPickerOpen(false);
 
@@ -1057,6 +1111,8 @@ export function Composer() {
         (candidate) => candidate !== tab && (openTabsState.includes(candidate) || candidate === 'melody')
       );
 
+      clearInstrument(tab);
+      releaseInstrumentSounds(tab);
       setOpenTabsState(remainingTabs);
       setIsTabPickerOpen(false);
 
@@ -1065,7 +1121,7 @@ export function Composer() {
         activateTab(fallbackTab);
       }
     },
-    [activateTab, activeTab, activeTrackId, openTabItems, openTabsState, removeInstrumentTrack]
+    [activateTab, activeTab, activeTrackId, clearInstrument, openTabItems, openTabsState, removeInstrumentTrack]
   );
 
   const handleStepLoopSelect = useCallback(

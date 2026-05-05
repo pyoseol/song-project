@@ -472,7 +472,7 @@ export const PianoRoll = ({
               instrument: isBass ? 'bass' : 'melody',
               barIndex,
             };
-            applyChord(chord, col, isBass);
+            applyChord(chord, col, isBass, melodyNoteLengthSteps);
             onCommitChordOperation?.({
               chord,
               col,

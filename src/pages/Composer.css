@@ -111,6 +111,7 @@
   padding: 8px 16px;
   border-bottom: 1px solid #313238;
   background: #101114;
+  min-width: 0;
 }
 
 .composer-title-group {
@@ -168,6 +169,7 @@
   flex-wrap: wrap;
   width: 100%;
   min-width: 0;
+  overflow: hidden;
 }
 
 .composer-tab-stack {
@@ -175,10 +177,12 @@
   align-items: flex-end;
   gap: 6px;
   flex-wrap: nowrap;
-  flex: 1 1 420px;
+  flex: 1 1 100%;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
   overflow-x: auto;
+  overflow-y: visible;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -640,20 +644,36 @@
   align-items: flex-end;
   gap: 6px;
   flex-wrap: nowrap;
+  flex: 1 1 auto;
+  width: 100%;
   min-width: 0;
   padding: 0 0 0 2px;
   border: 0;
   border-bottom: 1px solid #313238;
   border-radius: 0;
   background: transparent;
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
 }
 
 .composer-tab-strip::-webkit-scrollbar {
-  display: none;
+  height: 6px;
+}
+
+.composer-tab-strip::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.composer-tab-strip::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.45);
 }
 
 .composer-tab-card {
-  min-width: 122px;
+  flex: 0 0 clamp(96px, 10vw, 122px);
+  min-width: 0;
   padding: 0;
   border: 1px solid #3d3f45;
   border-bottom-color: transparent;
@@ -778,19 +798,22 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
-  padding: 12px 14px 7px;
+  padding: 10px 11px 6px;
 }
 
 .composer-tab-label {
   display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .composer-tab-volume {
   display: block;
-  padding: 0 14px 10px;
+  padding: 0 11px 8px;
 }
 
 .composer-tab-volume input {
@@ -884,6 +907,11 @@
 .composer-tab-picker {
   position: relative;
   flex: 0 0 auto;
+  position: sticky;
+  right: 0;
+  z-index: 12;
+  padding-left: 4px;
+  background: linear-gradient(90deg, rgba(16, 17, 20, 0), #101114 22%);
 }
 
 .composer-tab-add-button:hover {

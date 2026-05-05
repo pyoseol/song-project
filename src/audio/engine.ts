@@ -305,6 +305,29 @@ export async function preparePlaybackEngine() {
   applyLiveVolumes(state.volumes, state.extraTracks);
 }
 
+export function releaseInstrumentSounds(instrument: InstrumentKey) {
+  switch (instrument) {
+    case "melody":
+      pianoSynth.releaseAll();
+      break;
+    case "violin":
+      violinSynth.releaseAll();
+      break;
+    case "saxophone":
+      saxophoneSynth.releaseAll();
+      break;
+    case "guitar":
+      acousticGuitarSynth.releaseAll();
+      break;
+    case "bass":
+      bassSampler.releaseAll();
+      break;
+    case "drums":
+    default:
+      break;
+  }
+}
+
 async function loadPianoBuffers(): Promise<Record<string, AudioBuffer>> {
   if (cachedPianoBuffers) return cachedPianoBuffers;
   const entries = await Promise.all(

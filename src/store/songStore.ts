@@ -128,12 +128,14 @@ export type SongState = {
   historyFuture: SongHistorySnapshot[];
   canUndo: boolean;
   canRedo: boolean;
+  projectLoadRevision: number;
   toggleMelody: (row: number, col: number, length?: number) => void;
   toggleViolin: (row: number, col: number, length?: number) => void;
   toggleSaxophone: (row: number, col: number, length?: number) => void;
   toggleGuitar: (row: number, col: number, length?: number) => void;
   toggleDrum: (row: number, col: number) => void;
   toggleBass: (row: number, col: number, length?: number) => void;
+  clearInstrument: (instrument: InstrumentKey) => void;
   addInstrumentTrack: (instrument: InstrumentKey) => string;
   removeInstrumentTrack: (trackId: string) => void;
   toggleExtraTrackCell: (trackId: string, row: number, col: number, length?: number) => void;
@@ -1096,6 +1098,7 @@ export const useSongStore = create<SongState>((set, get) => ({
   historyFuture: [],
   canUndo: false,
   canRedo: false,
+  projectLoadRevision: 0,
 
   toggleMelody: (row, col, length = 1) =>
     set((state) => {
@@ -1194,6 +1197,43 @@ export const useSongStore = create<SongState>((set, get) => ({
       }
 
       return buildHistoryUpdate(state, { bass, bassLengths });
+    }),
+
+  clearInstrument: (instrument) =>
+    set((state) => {
+      switch (instrument) {
+        case 'melody':
+          return buildHistoryUpdate(state, {
+            melody: createEmptyMatrix(MELODY_ROWS, state.steps),
+            melodyLengths: createEmptyLengthMatrix(MELODY_ROWS, state.steps),
+          });
+        case 'violin':
+          return buildHistoryUpdate(state, {
+            violin: createEmptyMatrix(VIOLIN_ROWS, state.steps),
+            violinLengths: createEmptyLengthMatrix(VIOLIN_ROWS, state.steps),
+          });
+        case 'saxophone':
+          return buildHistoryUpdate(state, {
+            saxophone: createEmptyMatrix(SAXOPHONE_ROWS, state.steps),
+            saxophoneLengths: createEmptyLengthMatrix(SAXOPHONE_ROWS, state.steps),
+          });
+        case 'guitar':
+          return buildHistoryUpdate(state, {
+            guitar: createEmptyMatrix(GUITAR_ROWS, state.steps),
+            guitarLengths: createEmptyLengthMatrix(GUITAR_ROWS, state.steps),
+          });
+        case 'drums':
+          return buildHistoryUpdate(state, {
+            drums: createEmptyMatrix(DRUM_ROWS, state.steps),
+          });
+        case 'bass':
+          return buildHistoryUpdate(state, {
+            bass: createEmptyMatrix(BASS_ROWS, state.steps),
+            bassLengths: createEmptyLengthMatrix(BASS_ROWS, state.steps),
+          });
+        default:
+          return {};
+      }
     }),
 
   addInstrumentTrack: (instrument) => {
@@ -1829,6 +1869,7 @@ export const useSongStore = create<SongState>((set, get) => ({
         bassLengths: grids.bassLengths,
         extraTracks: grids.extraTracks,
         loopRange: normalizeLoopRange(null, steps),
+        projectLoadRevision: state.projectLoadRevision + 1,
       })
     );
   },
@@ -1863,6 +1904,7 @@ export const useSongStore = create<SongState>((set, get) => ({
       bassLengths: grids.bassLengths,
       extraTracks: grids.extraTracks,
       loopRange: normalizeLoopRange(state.loopRange, steps),
+      projectLoadRevision: state.projectLoadRevision + 1,
       historyPast: [],
       historyFuture: [],
       canUndo: false,

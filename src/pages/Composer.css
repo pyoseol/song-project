@@ -103,6 +103,7 @@
 }
 
 .composer-workbar {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -112,6 +113,40 @@
   border-bottom: 1px solid #313238;
   background: #101114;
   min-width: 0;
+}
+
+.composer-help-toggle-button {
+  position: absolute;
+  top: 9px;
+  right: 16px;
+  z-index: 12;
+  height: 38px;
+  padding: 0 15px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(28, 30, 36, 0.92);
+  color: #e8edf7;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.24);
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.composer-help-toggle-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(159, 245, 109, 0.28);
+  color: #f8fafc;
+}
+
+.composer-help-toggle-button.is-active {
+  border-color: rgba(159, 245, 109, 0.42);
+  background: rgba(159, 245, 109, 0.14);
+  color: #dfffbf;
 }
 
 .composer-title-group {
@@ -170,6 +205,7 @@
   width: 100%;
   min-width: 0;
   overflow: hidden;
+  padding-right: 112px;
 }
 
 .composer-tab-stack {
@@ -527,6 +563,77 @@
 
 .composer-guide-highlight::after {
   content: none;
+}
+
+.composer-help-overlay {
+  position: fixed;
+  top: var(--composer-help-top);
+  left: var(--composer-help-left);
+  z-index: 10000;
+  pointer-events: none;
+}
+
+.composer-help-overlay-card {
+  width: min(460px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  background: rgba(11, 12, 15, 0.96);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.52);
+}
+
+.composer-help-overlay-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 16px 12px;
+}
+
+.composer-help-overlay-copy span {
+  width: fit-content;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(159, 245, 109, 0.14);
+  color: #d9f9b7;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.composer-help-overlay-copy strong {
+  color: #f8fafc;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.composer-help-overlay-copy p {
+  margin: 0;
+  color: #b8c0cf;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.composer-help-gif {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 220px;
+  max-height: 320px;
+  object-fit: contain;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: #050609;
+}
+
+@keyframes composer-help-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .composer-collab-banner {

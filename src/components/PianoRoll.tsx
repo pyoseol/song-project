@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { playBassPreview, playMelodyPreview } from '../audio/engine.ts';
 import {
@@ -119,6 +119,15 @@ type PianoRollProps = {
     highlight?: boolean;
     label?: string;
   }>;
+  onHelpZoneEnter?: (
+    zone: 'length' | 'chords',
+    event: ReactMouseEvent<HTMLElement>
+  ) => void;
+  onHelpZoneMove?: (
+    zone: 'length' | 'chords',
+    event: ReactMouseEvent<HTMLElement>
+  ) => void;
+  onHelpZoneLeave?: (zone: 'length' | 'chords') => void;
 };
 
 function getSubdivisionClassName(col: number) {
@@ -161,6 +170,9 @@ export const PianoRoll = ({
   onCommitMelodyOperation,
   onCommitChordOperation,
   tutorialGhostNotes = [],
+  onHelpZoneEnter,
+  onHelpZoneMove,
+  onHelpZoneLeave,
 }: PianoRollProps) => {
   const { activeTab } = useUIStore();
   const isBass = activeTab === 'bass';
@@ -540,7 +552,12 @@ export const PianoRoll = ({
             className="piano-roll-length-bar"
             aria-label={isGuitar ? 'Guitar note length' : 'Melody note length'}
           >
-            <div className="piano-roll-length-controls">
+            <div
+              className="piano-roll-length-controls"
+              onMouseEnter={(event) => onHelpZoneEnter?.('length', event)}
+              onMouseMove={(event) => onHelpZoneMove?.('length', event)}
+              onMouseLeave={() => onHelpZoneLeave?.('length')}
+            >
               {MELODY_NOTE_LENGTH_OPTIONS.map((option) => (
                 <button
                   key={option.steps}
@@ -558,6 +575,9 @@ export const PianoRoll = ({
             <div
               className="piano-roll-chord-actions"
               aria-label={isGuitar ? 'Guitar chords' : 'Melody chords'}
+              onMouseEnter={(event) => onHelpZoneEnter?.('chords', event)}
+              onMouseMove={(event) => onHelpZoneMove?.('chords', event)}
+              onMouseLeave={() => onHelpZoneLeave?.('chords')}
             >
               {MELODY_CHORD_OPTIONS.map((chord) => (
                 <button

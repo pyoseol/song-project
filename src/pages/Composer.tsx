@@ -102,6 +102,33 @@ const composerInstrumentLabels: Record<ComposerTab, string> = {
   bass: '베이스',
 };
 
+type ComposerHelpZone = 'length' | 'chords' | 'instruments';
+
+const composerHelpPanels: Record<
+  ComposerHelpZone,
+  {
+    title: string;
+    description: string;
+    gif: string;
+  }
+> = {
+  length: {
+    title: '음 길이 선택',
+    description: '1/16, 1/8, 1/4, 1/2, 1 Bar 버튼으로 새로 찍는 음의 길이를 정해요.',
+    gif: '/help/note-grid.gif?v=4',
+  },
+  chords: {
+    title: '코드 버튼 사용',
+    description: 'C D E F G A B 버튼을 드래그해서 코드 음을 빠르게 넣어요.',
+    gif: '/help/chord-buttons.gif?v=3',
+  },
+  instruments: {
+    title: '악기 추가',
+    description: '+ 버튼을 눌러 바이올린, 색소폰, 베이스 같은 악기를 추가해요.',
+    gif: '/help/note-length.gif?v=4',
+  },
+};
+
 const tabOrder: ComposerTab[] = ['melody', 'violin', 'saxophone', 'guitar', 'drums', 'bass'];
 const COLLAB_BAR_LENGTH = 16;
 
@@ -353,6 +380,9 @@ export function Composer() {
     bass: 4,
   });
   const [isTabPickerOpen, setIsTabPickerOpen] = useState(false);
+  const [isHelpOverlayEnabled, setIsHelpOverlayEnabled] = useState(true);
+  const [activeHelpZone, setActiveHelpZone] = useState<ComposerHelpZone | null>(null);
+  const [helpOverlayPosition, setHelpOverlayPosition] = useState({ x: 18, y: 126 });
   const [playedTutorialOnce, setPlayedTutorialOnce] = useState(false);
   const [tabPickerMenuPosition, setTabPickerMenuPosition] = useState<{
     top: number;
@@ -417,12 +447,60 @@ export function Composer() {
     [activeTrackId, extraTracks]
   );
   const tabPickerOptions = useMemo(() => tabOrder, []);
+  const activeHelpPanel = activeHelpZone ? composerHelpPanels[activeHelpZone] : null;
   const getTabPickerLabel = (tab: ComposerTab) => {
     const openCount =
       (openTabs.includes(tab) ? 1 : 0) +
       extraTracks.filter((track) => track.instrument === tab).length;
 
     return openCount > 1 ? `${tabPickerLabels[tab]} ${openCount}개` : tabPickerLabels[tab];
+  };
+
+  const updateHelpOverlayPosition = (event: { clientX: number; clientY: number }) => {
+    const cardWidth = 460;
+    const cardHeight = 410;
+    const gap = 14;
+    const padding = 12;
+    const maxX = Math.max(padding, window.innerWidth - cardWidth - padding);
+    const belowY = event.clientY + gap;
+    const aboveY = event.clientY - cardHeight - gap;
+
+    setHelpOverlayPosition({
+      x: Math.min(Math.max(padding, event.clientX), maxX),
+      y:
+        belowY + cardHeight <= window.innerHeight - padding
+          ? belowY
+          : Math.max(padding, aboveY),
+    });
+  };
+
+  const handleHelpZoneEnter = (
+    zone: ComposerHelpZone,
+    event?: { clientX: number; clientY: number }
+  ) => {
+    if (!isHelpOverlayEnabled) {
+      return;
+    }
+
+    if (event) {
+      updateHelpOverlayPosition(event);
+    }
+    setActiveHelpZone(zone);
+  };
+
+  const handleHelpZoneMove = (
+    zone: ComposerHelpZone,
+    event: { clientX: number; clientY: number }
+  ) => {
+    if (!isHelpOverlayEnabled || activeHelpZone !== zone) {
+      return;
+    }
+
+    updateHelpOverlayPosition(event);
+  };
+
+  const handleHelpZoneLeave = (zone: ComposerHelpZone) => {
+    setActiveHelpZone((current) => (current === zone ? null : current));
   };
 
   useEffect(() => {
@@ -2054,14 +2132,22 @@ export function Composer() {
     } as CSSProperties;
 
     return (
-      <section className="composer-roll-shell composer-roll-shell--melody" key={`${scrollKey}-melody-like`}>
+      <section
+        className="composer-roll-shell composer-roll-shell--melody"
+        key={`${scrollKey}-melody-like`}
+      >
         <div className={`piano-roll piano-roll--melody piano-roll--melody-detached piano-roll--${instrument}`} style={rollStyle}>
           {showTopbar ? (
             <div className="piano-roll-melody-topbar">
               <div className="piano-roll-melody-corner" aria-hidden="true" />
               <div className="piano-roll-length-bar">
                 {options.showNoteLengthControls ? (
-                  <div className="piano-roll-length-controls">
+                  <div
+                    className="piano-roll-length-controls"
+                    onMouseEnter={(event) => handleHelpZoneEnter('length', event)}
+                    onMouseMove={(event) => handleHelpZoneMove('length', event)}
+                    onMouseLeave={() => handleHelpZoneLeave('length')}
+                  >
                     {melodyNoteLengthOptions.map((option) => (
                       <button
                         key={option.steps}
@@ -2078,7 +2164,12 @@ export function Composer() {
                 ) : null}
 
                 {options.showChordControls ? (
-                  <div className="piano-roll-chord-actions">
+                  <div
+                    className="piano-roll-chord-actions"
+                    onMouseEnter={(event) => handleHelpZoneEnter('chords', event)}
+                    onMouseMove={(event) => handleHelpZoneMove('chords', event)}
+                    onMouseLeave={() => handleHelpZoneLeave('chords')}
+                  >
                     {chordOptions.map((chord) => (
                       <button
                         key={chord}
@@ -2328,11 +2419,29 @@ export function Composer() {
     <div
       className={`composer-page composer-page--${activeTab}${
         isGuideOpen ? ' composer-page--guide-open' : ''
-      }`}
+      }${isHelpOverlayEnabled ? ' is-help-enabled' : ''}`}
     >
       <SiteHeader activeSection="composer" />
 
       <div className="composer-workbar">
+        <button
+          type="button"
+          className={`composer-help-toggle-button${isHelpOverlayEnabled ? ' is-active' : ''}`}
+          onClick={() => {
+            setIsHelpOverlayEnabled((enabled) => {
+              const nextEnabled = !enabled;
+              if (!nextEnabled) {
+                setActiveHelpZone(null);
+              }
+
+              return nextEnabled;
+            });
+          }}
+          aria-pressed={isHelpOverlayEnabled}
+        >
+          {isHelpOverlayEnabled ? '도움말 켜짐' : '도움말'}
+        </button>
+
         <div className="composer-workbar-controls">
           <div
             ref={mixerStripRef}
@@ -2407,7 +2516,13 @@ export function Composer() {
                 );
               })}
 
-              <div ref={tabPickerRef} className="composer-tab-picker">
+              <div
+                ref={tabPickerRef}
+                className="composer-tab-picker"
+                onMouseEnter={(event) => handleHelpZoneEnter('instruments', event)}
+                onMouseMove={(event) => handleHelpZoneMove('instruments', event)}
+                onMouseLeave={() => handleHelpZoneLeave('instruments')}
+              >
                 <button
                   ref={tabAddButtonRef}
                   type="button"
@@ -2512,7 +2627,10 @@ export function Composer() {
         </section>
       ) : null}
 
-      <main ref={mainViewportRef} className={`composer-main composer-main--${activeTab}`}>
+      <main
+        ref={mainViewportRef}
+        className={`composer-main composer-main--${activeTab}`}
+      >
         {activeExtraTrack ? (
           activeExtraTrack.instrument === 'drums' ? (
             renderExtraDrumSequencer(activeExtraTrack)
@@ -2560,6 +2678,9 @@ export function Composer() {
                 onCommitMelodyOperation={handleMelodyOperationCommit}
                 onCommitChordOperation={handleChordOperationCommit}
                 tutorialGhostNotes={melodyTutorialGhostNotes}
+                onHelpZoneEnter={handleHelpZoneEnter}
+                onHelpZoneMove={handleHelpZoneMove}
+                onHelpZoneLeave={handleHelpZoneLeave}
               />
             </section>
           </>
@@ -2772,7 +2893,36 @@ export function Composer() {
         )}
       </main>
 
-      <footer ref={footerRef} className={`composer-footer${getGuideHighlightClass('transport')}`}>
+      {activeHelpPanel ? (
+        <div
+          className={`composer-help-overlay is-${activeHelpZone}`}
+          aria-live="polite"
+          style={
+            {
+              '--composer-help-left': `${helpOverlayPosition.x}px`,
+              '--composer-help-top': `${helpOverlayPosition.y}px`,
+            } as CSSProperties
+          }
+        >
+          <div className="composer-help-overlay-card">
+            <div className="composer-help-overlay-copy">
+              <span>HELP</span>
+              <strong>{activeHelpPanel.title}</strong>
+              <p>{activeHelpPanel.description}</p>
+            </div>
+            <img
+              className="composer-help-gif"
+              src={activeHelpPanel.gif}
+              alt={`${activeHelpPanel.title} 도움말 GIF`}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      <footer
+        ref={footerRef}
+        className={`composer-footer${getGuideHighlightClass('transport')}`}
+      >
         <TransportBar onPlayStarted={() => setPlayedTutorialOnce(true)} />
       </footer>
     </div>

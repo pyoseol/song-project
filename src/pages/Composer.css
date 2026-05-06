@@ -117,8 +117,8 @@
 
 .composer-help-toggle-button {
   position: absolute;
-  top: 9px;
-  right: 16px;
+  top: 50%;
+  right: 18px;
   z-index: 12;
   height: 38px;
   padding: 0 15px;
@@ -130,6 +130,7 @@
   font-weight: 800;
   cursor: pointer;
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.24);
+  transform: translateY(-50%);
   transition:
     background 160ms ease,
     border-color 160ms ease,
@@ -138,7 +139,7 @@
 }
 
 .composer-help-toggle-button:hover {
-  transform: translateY(-1px);
+  transform: translateY(calc(-50% - 1px));
   border-color: rgba(159, 245, 109, 0.28);
   color: #f8fafc;
 }
@@ -761,21 +762,12 @@
   background: transparent;
   overflow-x: auto;
   overflow-y: visible;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .composer-tab-strip::-webkit-scrollbar {
-  height: 6px;
-}
-
-.composer-tab-strip::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.composer-tab-strip::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.45);
+  display: none;
 }
 
 .composer-tab-card {
@@ -997,10 +989,13 @@
 }
 
 .composer-tab-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
   width: 40px;
-  height: 40px;
-  margin-bottom: 1px;
+  height: 58px;
+  margin-bottom: -1px;
   border: 1px solid #3d3f45;
   border-bottom-color: transparent;
   border-radius: 16px 16px 0 0;
@@ -1012,11 +1007,13 @@
 }
 
 .composer-tab-picker {
-  position: relative;
   flex: 0 0 auto;
   position: sticky;
   right: 0;
   z-index: 12;
+  display: flex;
+  align-items: flex-end;
+  align-self: stretch;
   padding-left: 4px;
   background: linear-gradient(90deg, rgba(16, 17, 20, 0), #101114 22%);
 }

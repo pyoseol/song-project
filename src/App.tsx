@@ -21,6 +21,7 @@ const PostDetail = lazy(() => import('./pages/community/PostDetail'));
 const PostList = lazy(() => import('./pages/community/PostList'));
 const PostWrite = lazy(() => import('./pages/community/PostWrite'));
 const SessionRecruitPage = lazy(() => import('./pages/community/SessionRecruitPage'));
+const SessionRecruitDetailPage = lazy(() => import('./pages/community/SessionRecruitDetailPage'));
 const ShortsPage = lazy(() => import('./pages/community/ShortsPage'));
 const UsedMarket = lazy(() => import('./pages/community/UsedMarket'));
 const MarketDetail = lazy(() => import('./pages/community/MarketDetail'));
@@ -45,6 +46,7 @@ function App() {
           <Route path="/community/music" element={<MusicShare />} />
           <Route path="/community/music/:trackId" element={<MusicShareDetail />} />
           <Route path="/community/sessions" element={<SessionRecruitPage />} />
+          <Route path="/community/sessions/:postId" element={<SessionRecruitDetailPage />} />
           <Route path="/community/shorts" element={<ShortsPage />} />
           <Route path="/community/market" element={<UsedMarket />} />
           <Route path="/community/market/:itemId" element={<MarketDetail />} />

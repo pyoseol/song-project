@@ -305,7 +305,7 @@ export default function SessionRecruitPage() {
     try {
       setIsSubmitting(true);
       setWriteError('');
-      await createPost({
+      const postId = await createPost({
         title: trimmedTitle,
         genre: trimmedGenre,
         hostName: user.name,
@@ -326,6 +326,7 @@ export default function SessionRecruitPage() {
       resetWriteForm();
       setIsWriteOpen(false);
       setCurrentPage(1);
+      navigate(`/community/sessions/${postId}`);
     } catch (error) {
       console.error(error);
       setWriteError(error instanceof Error ? error.message : '모집글을 등록하지 못했습니다.');
@@ -465,7 +466,7 @@ export default function SessionRecruitPage() {
               ))}
             </div>
 
-            <section className="session-board">
+            <section className={`session-board${isWriteOpen ? ' is-writing' : ''}`}>
               <div className="session-board-head">
                 <div>
                   <span className="session-board-kicker">BAND / SESSION RECRUIT</span>
@@ -487,12 +488,18 @@ export default function SessionRecruitPage() {
                   className="session-primary-button"
                   onClick={handleOpenWrite}
                 >
-                  모집글 작성
+                  {isWriteOpen ? '작성 닫기' : '모집글 작성'}
                 </button>
               </div>
 
               {isWriteOpen ? (
                 <form className="session-write-panel" onSubmit={handleSubmitRecruit}>
+                  <div className="session-write-head">
+                    <span>SESSION WRITE</span>
+                    <strong>합주 / 세션 모집글 작성</strong>
+                    <p>현재 작업에 필요한 파트, 일정, 진행 방식을 적어 팀원을 모집하세요.</p>
+                  </div>
+
                   <div className="session-write-grid">
                     <label className="session-write-field session-write-field--wide">
                       <span>제목</span>
@@ -776,6 +783,13 @@ export default function SessionRecruitPage() {
                           </div>
 
                           <div className="session-card-actions">
+                            <button
+                              type="button"
+                              className="session-card-button"
+                              onClick={() => navigate(`/community/sessions/${post.id}`)}
+                            >
+                              상세 보기
+                            </button>
                             <button
                               type="button"
                               className="session-card-button"

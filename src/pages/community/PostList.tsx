@@ -263,13 +263,22 @@ export default function PostList() {
         </section>
       </main>
 
-      <button
-        type="button"
-        className="community-floating-write-button"
-        onClick={() => navigate('/community/write')}
-      >
-        + 글 쓰기
-      </button>
+      <div className="community-floating-actions">
+        <button
+          type="button"
+          className="community-floating-music-button"
+          onClick={() => navigate('/community/music')}
+        >
+          음악 공유
+        </button>
+        <button
+          type="button"
+          className="community-floating-write-button"
+          onClick={() => navigate('/community/write')}
+        >
+          + 글쓰기
+        </button>
+      </div>
     </div>
   );
 }

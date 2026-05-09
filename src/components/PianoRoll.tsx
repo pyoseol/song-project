@@ -177,8 +177,19 @@ export const PianoRoll = ({
   const { activeTab } = useUIStore();
   const isBass = activeTab === 'bass';
   const isGuitar = activeTab === 'guitar';
-  const { melody, melodyLengths, bass, steps, toggleMelody, toggleBass, applyChord, currentStep } =
-    useSongStore();
+  const {
+    melody,
+    melodyLengths,
+    bass,
+    steps,
+    noteLyrics,
+    toggleMelody,
+    toggleBass,
+    applyChord,
+    isPlaying,
+    currentStep,
+    setMelodyLyric,
+  } = useSongStore();
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawValue, setDrawValue] = useState<boolean | null>(null);
@@ -243,6 +254,29 @@ export const PianoRoll = ({
   const bodyTopPadding = isBass ? PIANO_BODY_TOP_PADDING : 8;
   const controlBarHeight = isBass ? 0 : MELODY_CONTROL_BAR_HEIGHT;
   const sidebarTopOffset = bodyTopPadding + controlBarHeight + headerHeight + headerMargin;
+
+  useEffect(() => {
+    if (!isPlaying || currentStep % 4 !== 0 || !melodyScrollerRef.current) {
+      return;
+    }
+
+    const scroller = melodyScrollerRef.current;
+    const stepLeft = currentStep * (stepWidth + gridGap);
+    const visibleStart = scroller.scrollLeft;
+    const visibleEnd = visibleStart + scroller.clientWidth;
+    const margin = stepWidth * 2;
+
+    if (stepLeft >= visibleStart + margin && stepLeft <= visibleEnd - margin) {
+      return;
+    }
+
+    const targetLeft = Math.max(
+      0,
+      stepLeft - scroller.clientWidth / 2 + stepWidth / 2
+    );
+
+    scroller.scrollLeft = targetLeft;
+  }, [currentStep, gridGap, isPlaying, stepWidth]);
 
   const releaseActiveLock = () => {
     if (!activeLockRef.current) {
@@ -352,6 +386,7 @@ export const PianoRoll = ({
       <button
         key={`step-${col}`}
         type="button"
+        data-playhead-step={col}
         className={`piano-roll-step-number${
           col === currentStep ? ' is-current' : ''
         }${getSubdivisionClassName(col)}${isLocked ? ' is-locked' : ''}${
@@ -379,15 +414,19 @@ export const PianoRoll = ({
       const barLock = collabBarLocks[barIndex];
       const isLocked = Boolean(barLock && !barLock.mine);
       const tutorialGhostNote = !isBass ? tutorialGhostNoteMap[`${row}-${col}`] : null;
+      const lyricKey = `${row}-${col}`;
+      const lyricLabel = !isBass && isNoteStart ? noteLyrics[lyricKey] ?? '' : '';
       const cellStyle = {
         '--cell-accent': getAccentColor(row, isBass, isGuitar),
         ...(!isBass && melodyNoteInfo ? { '--note-span-steps': `${melodyNoteInfo.length}` } : {}),
       } as CSSProperties;
 
       return (
-        <button
+        <div
           key={`${modeClass}-${row}-${col}`}
-          type="button"
+          role="button"
+          tabIndex={isLocked || !canEditCollab ? -1 : 0}
+          data-playhead-step={col}
           className={`piano-roll-cell is-${modeClass}${active ? ' is-active' : ''}${
             isCurrent ? ' is-current' : ''
           }${getSubdivisionClassName(col)}${
@@ -396,7 +435,6 @@ export const PianoRoll = ({
             !isBass && isNoteTail ? ' is-note-tail' : ''
           }${isLocked ? ' is-locked' : ''}${!canEditCollab ? ' is-readonly' : ''}`}
           style={cellStyle}
-          disabled={isLocked || !canEditCollab}
           onMouseDown={async () => {
             if (isLocked || !canEditCollab) {
               return;
@@ -512,7 +550,21 @@ export const PianoRoll = ({
           }}
         >
           {!isBass && isNoteStart ? (
-            <span className="piano-roll-note-block" aria-hidden="true" />
+            <span className="piano-roll-note-block" aria-hidden="true">
+              {lyricLabel ? <span className="piano-roll-lyric-label">{lyricLabel}</span> : null}
+            </span>
+          ) : null}
+          {!isBass && isNoteStart && !isLocked && canEditCollab ? (
+            <input
+              className="piano-roll-lyric-input"
+              value={lyricLabel}
+              onChange={(event) => setMelodyLyric(row, col, event.target.value)}
+              onMouseDown={(event) => event.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
+              placeholder="가사"
+              aria-label={`${currentLabels[row]} ${col + 1}번 가사`}
+              maxLength={18}
+            />
           ) : null}
           {!isBass && tutorialGhostNote ? (
             <span
@@ -531,7 +583,7 @@ export const PianoRoll = ({
               ) : null}
             </span>
           ) : null}
-        </button>
+        </div>
       );
     })
   );
@@ -614,7 +666,13 @@ export const PianoRoll = ({
         <div
           ref={melodyScrollerRef}
           className="piano-roll-melody-scroller"
-          onScroll={(event) => setMelodyScrollLeft(event.currentTarget.scrollLeft)}
+          onScroll={(event) => {
+            if (isPlaying) {
+              return;
+            }
+
+            setMelodyScrollLeft(event.currentTarget.scrollLeft);
+          }}
         >
           <div className="piano-roll-sidebar">
             <div

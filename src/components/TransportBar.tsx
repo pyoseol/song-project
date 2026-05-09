@@ -1,5 +1,6 @@
 import type { ChangeEvent } from 'react';
 import { useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import * as Tone from 'tone';
 import {
   exportSongAsMp3,
@@ -117,6 +118,8 @@ const FirstBarIcon = () => (
 );
 
 export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const {
     bpm,
     setBpm,
@@ -128,6 +131,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
     volumes,
     loopRange,
     setLoopRange,
+    toggleLoopCurrentBar,
     undo,
     redo,
     clear,
@@ -257,6 +261,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
     clear();
     setCurrentStep(0);
     setPlaying(false);
+    navigate('/composer', { replace: true });
   };
 
   const handleLoadProject = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -270,6 +275,9 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
       const text = await file.text();
       const parsed = JSON.parse(text) as SongProject;
       useSongStore.getState().loadProject(parsed);
+      if (!new URLSearchParams(location.search).has('collab')) {
+        navigate('/composer?source=file', { replace: true });
+      }
     } catch (error) {
       console.error(error);
       alert('프로젝트 파일을 불러오지 못했습니다.');
@@ -388,7 +396,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
 
       clearShareCover();
       closeDialog();
-      alert('테스트');
+      alert('공유했습니다.');
     } catch (error) {
       console.error('Project share failed:', error);
       const message = error instanceof Error ? error.message : String(error);
@@ -480,11 +488,15 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
           <strong className="transport-value">
             {currentBar}/{totalBars}
           </strong>
-          {loopRange ? (
-            <span className="transport-status-chip">
-              {loopRange.start + 1}~{loopRange.end + 1} 반복
-            </span>
-          ) : null}
+          <button
+            type="button"
+            className={`transport-status-chip${loopRange ? ' is-active' : ''}`}
+            onClick={toggleLoopCurrentBar}
+            aria-pressed={Boolean(loopRange)}
+            title="현재 마디 반복 켜기/끄기"
+          >
+            {loopRange ? `${loopRange.start + 1}-${loopRange.end + 1}` : `${currentBar}-${currentBar}`} 반복
+          </button>
         </div>
       </div>
 
@@ -708,9 +720,9 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                         style={{ backgroundImage: `url(${shareCoverPreviewUrl})` }}
                       />
                       <div className="transport-dialog-image-preview-copy">
-                        <strong>{shareCoverFile?.name ?? '?? ???'}</strong>
+                        <strong>{shareCoverFile?.name ?? '선택한 이미지'}</strong>
                         <button type="button" onClick={clearShareCover}>
-                          저장하기
+                          이미지 제거
                         </button>
                       </div>
                     </div>
@@ -757,7 +769,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                     onClick={handleShareConfirm}
                     disabled={isUploadingShareCover}
                   >
-                    {isUploadingShareCover ? '??? ??? ?...' : '????'}
+                    {isUploadingShareCover ? '공유 중...' : '공유하기'}
                   </button>
                 </div>
               </>

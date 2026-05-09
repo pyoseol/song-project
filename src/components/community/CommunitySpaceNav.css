@@ -1,65 +1,79 @@
 .community-space-nav {
-  display: flex;
-  align-items: center;
-  gap: 14px;
   width: 100%;
-  padding: 14px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 22px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
-    rgba(19, 20, 24, 0.88);
-  box-shadow: 0 20px 36px rgba(0, 0, 0, 0.18);
-}
-
-.community-space-nav-label {
-  flex-shrink: 0;
-  color: #a8b1c4;
-  font-size: 13px;
-  font-weight: 700;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  box-sizing: border-box;
 }
 
 .community-space-nav-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.community-space-nav-list::-webkit-scrollbar {
+  display: none;
 }
 
 .community-space-nav-button {
-  min-height: 44px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.03);
-  color: #d7dceb;
+  position: relative;
+  min-height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #9ea7ba;
   font: inherit;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
   transition:
-    background-color 0.18s ease,
-    border-color 0.18s ease,
+    color 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.community-space-nav-button::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 999px;
+  background: #8ea0ff;
+  opacity: 0;
+  transform: scaleX(0.7);
+  transition:
+    opacity 0.18s ease,
     transform 0.18s ease;
 }
 
 .community-space-nav-button:hover {
-  transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.06);
+  color: #e8edf8;
 }
 
 .community-space-nav-button.is-active {
-  border-color: rgba(110, 138, 255, 0.32);
-  background: rgba(110, 138, 255, 0.18);
   color: #ffffff;
 }
 
-@media (max-width: 820px) {
-  .community-space-nav {
-    flex-direction: column;
-    align-items: stretch;
+.community-space-nav-button.is-active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+@media (max-width: 640px) {
+  .community-space-nav-list {
+    gap: 18px;
   }
 
-  .community-space-nav-list {
-    grid-template-columns: 1fr;
+  .community-space-nav-button {
+    min-height: 40px;
+    font-size: 13px;
   }
 }

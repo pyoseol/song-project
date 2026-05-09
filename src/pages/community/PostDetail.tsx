@@ -12,6 +12,52 @@ type CommentNode = {
   children: CommentNode[];
 };
 
+function EyeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M2.5 12s3.3-6 9.5-6 9.5 6 9.5 6-3.3 6-9.5 6-9.5-6-9.5-6Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="2.7" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function CommentIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M5 5.7h14v9.8H9.2L5 19.2V5.7Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function HeartIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 19.3S4.8 15.2 4.8 9.5c0-2.2 1.7-3.9 3.8-3.9 1.3 0 2.5.7 3.2 1.8.7-1.1 1.9-1.8 3.2-1.8 2.1 0 3.8 1.7 3.8 3.9 0 5.7-6.8 9.8-6.8 9.8Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 const categoryToneMap: Record<string, string> = {
   질문: 'indigo',
   정보: 'mint',
@@ -20,7 +66,7 @@ const categoryToneMap: Record<string, string> = {
   피드백: 'rose',
 };
 
-const categoryGuideMap: Record<string, string> = {
+export const categoryGuideMap: Record<string, string> = {
   질문: '질문 글에는 현재 막히는 지점과 시도한 방법을 같이 적어주면 더 빠르게 도움을 받을 수 있습니다.',
   정보: '직접 경험한 팁이나 정리한 내용을 남기면 다른 사용자에게도 큰 도움이 됩니다.',
   장비: '예산과 작업 환경을 함께 적어주면 더 현실적인 추천을 받을 수 있습니다.',
@@ -150,6 +196,7 @@ export default function PostDetail() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentInput, setEditingCommentInput] = useState('');
   const [commentToastMessage, setCommentToastMessage] = useState('');
+  const [isCommentPopupOpen, setIsCommentPopupOpen] = useState(false);
 
   const post: Post | null = posts.find((item) => item.id === id) ?? null;
   const comments: Comment[] = useMemo(
@@ -226,7 +273,10 @@ export default function PostDetail() {
   const liked = !!user && (likedPostIdsByUser[user.email] ?? []).includes(post.id);
   const bookmarked = !!user && (bookmarkedPostIdsByUser[user.email] ?? []).includes(post.id);
   const reported = !!user && (reportedPostIdsByUser[user.email] ?? []).includes(post.id);
-  const isMine = !!user && post.authorId === user.email;
+  const isMine =
+    !!user &&
+    (post.authorId === user.email ||
+      ('authorEmail' in post && post.authorEmail === user.email));
   const isManager = !!user && isCommunityManagerEmail(user.email);
   const tone = categoryToneMap[post.category ?? '질문'] ?? 'slate';
   const paragraphs = getParagraphs(post.content);
@@ -257,7 +307,18 @@ export default function PostDetail() {
       actorName: user.name,
     });
     setCommentInput('');
-    setCommentToastMessage('댓글을 달았습니다.');
+    setIsCommentPopupOpen(false);
+    setCommentToastMessage('댓글 달았습니다.');
+  };
+
+  const handleOpenCommentPopup = () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    setCommentToastMessage('');
+    setIsCommentPopupOpen(true);
   };
 
   const handleReplySubmit = async (comment: Comment) => {
@@ -583,19 +644,25 @@ export default function PostDetail() {
 
           <div className="community-detail-stat-grid">
             <article className="community-detail-stat-card">
-              <span>조회수</span>
+              <span className="community-detail-stat-icon">
+                <EyeIcon />
+              </span>
+              <span className="community-detail-stat-label">조회수</span>
               <strong>{formatCount(post.viewCount)}</strong>
-              <small>지금까지 읽은 사용자 수</small>
             </article>
             <article className="community-detail-stat-card">
-              <span>댓글</span>
+              <span className="community-detail-stat-icon">
+                <CommentIcon />
+              </span>
+              <span className="community-detail-stat-label">댓글</span>
               <strong>{formatCount(comments.length)}</strong>
-              <small>이 글에 이어진 반응</small>
             </article>
             <article className="community-detail-stat-card">
-              <span>좋아요</span>
+              <span className="community-detail-stat-icon">
+                <HeartIcon />
+              </span>
+              <span className="community-detail-stat-label">좋아요</span>
               <strong>{formatCount(post.likeCount)}</strong>
-              <small>공감과 저장의 지표</small>
             </article>
           </div>
         </section>
@@ -631,22 +698,17 @@ export default function PostDetail() {
                 <strong>댓글 {comments.length}</strong>
               </div>
 
-              <div className="community-detail-comment-form">
+              <div className="community-detail-comment-entry">
                 <span className="community-detail-comment-avatar" aria-hidden="true">
                   {user ? getAvatarSeed(user.name) : 'G'}
                 </span>
-                <div className="community-detail-comment-form-body">
-                  <textarea
-                    value={commentInput}
-                    onChange={(event) => setCommentInput(event.target.value)}
-                    placeholder="댓글을 입력해보세요"
-                  />
-                  <div className="community-detail-comment-submit-row">
-                    <button type="button" onClick={handleCommentSubmit}>
-                      등록
-                    </button>
-                  </div>
-                </div>
+                <button
+                  type="button"
+                  className="community-detail-comment-open-button"
+                  onClick={handleOpenCommentPopup}
+                >
+                  댓글 작성
+                </button>
               </div>
 
               <div className="community-detail-comment-list">
@@ -662,40 +724,6 @@ export default function PostDetail() {
           </div>
 
           <aside className="community-detail-side-column">
-            <section className="community-detail-side-card">
-              <span className="community-detail-panel-kicker">POST INFO</span>
-              <div className="community-detail-side-author">
-                <span className="community-detail-side-avatar" aria-hidden="true">
-                  {getAvatarSeed(post.authorName)}
-                </span>
-                <div>
-                  <strong>{post.authorName}</strong>
-                  <span>{formatFullDate(post.createdAt)}</span>
-                </div>
-              </div>
-
-              <div className="community-detail-info-list">
-                <div className="community-detail-info-item">
-                  <span>카테고리</span>
-                  <strong>{post.category ?? '질문'}</strong>
-                </div>
-                <div className="community-detail-info-item">
-                  <span>조회수</span>
-                  <strong>{formatCount(post.viewCount)}</strong>
-                </div>
-                <div className="community-detail-info-item">
-                  <span>댓글</span>
-                  <strong>{formatCount(comments.length)}</strong>
-                </div>
-              </div>
-            </section>
-
-            <section className="community-detail-side-card community-detail-side-card--accent">
-              <span className="community-detail-panel-kicker">CATEGORY NOTE</span>
-              <strong>{post.category ?? '질문'} 글을 잘 쓰는 방법</strong>
-              <p>{categoryGuideMap[post.category ?? '질문']}</p>
-            </section>
-
             <section className="community-detail-side-card">
               <span className="community-detail-panel-kicker">ACTIONS</span>
               <div className="community-detail-side-actions">
@@ -774,6 +802,54 @@ export default function PostDetail() {
           </aside>
         </div>
       </main>
+      {isCommentPopupOpen ? (
+        <div
+          className="community-detail-comment-modal-backdrop"
+          role="presentation"
+          onMouseDown={() => setIsCommentPopupOpen(false)}
+        >
+          <section
+            className="community-detail-comment-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="community-comment-modal-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="community-detail-comment-modal-head">
+              <strong id="community-comment-modal-title">댓글 작성</strong>
+              <button
+                type="button"
+                aria-label="댓글 작성 닫기"
+                onClick={() => setIsCommentPopupOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <textarea
+              autoFocus
+              value={commentInput}
+              onChange={(event) => setCommentInput(event.target.value)}
+              placeholder="댓글을 입력해보세요"
+            />
+            <div className="community-detail-comment-modal-actions">
+              <button
+                type="button"
+                className="community-detail-secondary-button"
+                onClick={() => setIsCommentPopupOpen(false)}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="community-detail-primary-button"
+                onClick={handleCommentSubmit}
+              >
+                댓글 달기
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
       {commentToastMessage ? (
         <div className="community-detail-toast" role="status" aria-live="polite">
           {commentToastMessage}

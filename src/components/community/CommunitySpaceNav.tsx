@@ -15,8 +15,7 @@ export default function CommunitySpaceNav({ active }: CommunitySpaceNavProps) {
   const navigate = useNavigate();
 
   return (
-    <section className="community-space-nav" aria-label="다른 커뮤니티 공간">
-      <span className="community-space-nav-label">다른 커뮤니티</span>
+    <nav className="community-space-nav" aria-label="커뮤니티 메뉴">
       <div className="community-space-nav-list">
         {ITEMS.map((item) => (
           <button
@@ -29,6 +28,6 @@ export default function CommunitySpaceNav({ active }: CommunitySpaceNavProps) {
           </button>
         ))}
       </div>
-    </section>
+    </nav>
   );
 }

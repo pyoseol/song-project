@@ -6,6 +6,7 @@ const MainPage = lazy(() => import('./pages/MainPage'));
 const Composer = lazy(() =>
   import('./pages/Composer').then((module) => ({ default: module.Composer }))
 );
+const ProjectLibraryPage = lazy(() => import('./pages/ProjectLibraryPage'));
 const CollabPage = lazy(() => import('./pages/CollabPage'));
 const CollabRoomPage = lazy(() => import('./pages/CollabRoomPage'));
 const MessagesPage = lazy(() => import('./pages/MessagesPage'));
@@ -39,6 +40,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/learn" element={<Navigate to="/composer" replace />} />
           <Route path="/composer" element={<Composer />} />
+          <Route path="/library" element={<ProjectLibraryPage />} />
           <Route path="/community" element={<PostList />} />
           <Route path="/community/music" element={<MusicShare />} />
           <Route path="/community/music/:trackId" element={<MusicShareDetail />} />

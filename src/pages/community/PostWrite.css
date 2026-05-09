@@ -32,6 +32,7 @@
 .community-write-icon-button,
 .community-write-primary-button,
 .community-write-secondary-button,
+.community-write-music-button,
 .community-write-category,
 .community-write-toolbar button,
 .community-write-cancel-button,
@@ -239,6 +240,17 @@
   background: rgba(255, 255, 255, 0.05);
   color: #eef2f7;
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.community-write-music-button {
+  height: 48px;
+  padding: 0 20px;
+  border-radius: 18px;
+  border: 1px solid rgba(103, 232, 249, 0.28);
+  background: rgba(103, 232, 249, 0.09);
+  color: #d7fbff;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .community-write-stat-grid {
@@ -664,6 +676,11 @@
   box-shadow: none;
 }
 
+.community-write-music-button {
+  height: 40px;
+  border-radius: 12px;
+}
+
 .community-write-layout {
   grid-template-columns: 1fr;
 }
@@ -778,7 +795,8 @@
   }
 
   .community-write-primary-button,
-  .community-write-secondary-button {
+  .community-write-secondary-button,
+  .community-write-music-button {
     width: 100%;
   }
 

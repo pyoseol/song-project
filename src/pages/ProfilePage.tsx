@@ -286,7 +286,7 @@ export default function ProfilePage() {
 
   const handleOpenProject = (project: (typeof myProjects)[number]) => {
     loadProject(project.project);
-    navigate('/composer');
+    navigate(`/composer?project=${encodeURIComponent(project.id)}`);
   };
 
   const handlePickAvatar = () => {

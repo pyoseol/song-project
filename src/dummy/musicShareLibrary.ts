@@ -162,6 +162,19 @@ export const BASE_SHARED_TRACK_LIBRARY: MusicShareTrackCard[] = [
     createdAt: new Date('2026-03-20T23:15:00+09:00').getTime(),
     creatorName: 'arcadescore',
   },
+  {
+    id: 'share-base-9',
+    title: '시험 때 사용할 노래',
+    progression: 'I - V - vi - IV',
+    reference: '시험 연습용 공유곡',
+    category: 'pop',
+    tags: ['시험', '연습', '공유곡'],
+    palette:
+      'linear-gradient(180deg, rgba(68,86,102,0.92) 0%, rgba(31,37,45,0.96) 100%)',
+    imageUrl: '/seed-images/music/pop.svg',
+    createdAt: new Date('2026-05-09T09:00:00+09:00').getTime(),
+    creatorName: 'songmaker',
+  },
 ];
 
 const GENRE_CATEGORY_MAP: Record<string, Exclude<MusicShareCategory, 'all'>> = {

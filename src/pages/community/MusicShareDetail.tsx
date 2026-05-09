@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import SiteHeader from '../../components/layout/SiteHeader';
 import {
+  BASE_SHARED_TRACK_LIBRARY,
   buildSharedTrackCard,
   type MusicShareTrackCard,
 } from '../../dummy/musicShareLibrary';
@@ -62,6 +63,7 @@ export default function MusicShareDetail() {
   const loadProject = useSongStore((state) => state.loadProject);
   const pushNotification = useNotificationStore((state) => state.pushNotification);
   const [commentInput, setCommentInput] = useState('');
+  const [feedbackBar, setFeedbackBar] = useState('1');
 
   // 여기서 seedLibrary와 seedMusicShare가 사용됩니다. (에러 방지)
   useEffect(() => {
@@ -75,6 +77,7 @@ export default function MusicShareDetail() {
 
   const trackLibrary = useMemo(
     () => [
+      ...BASE_SHARED_TRACK_LIBRARY,
       ...projects
         .map((project) => buildSharedTrackCard(project))
         .filter((track): track is MusicShareTrackCard => Boolean(track)),
@@ -244,11 +247,12 @@ const handleDeleteTrack = async () => {
       return;
     }
 
+    const normalizedBar = Math.max(1, Number.parseInt(feedbackBar, 10) || 1);
     await addTrackComment({
       trackId: track.id,
       authorName: user.name,
       authorEmail: user.email,
-      content,
+      content: `[${normalizedBar}마디] ${content}`,
     });
     setCommentInput('');
   };
@@ -344,10 +348,20 @@ const handleDeleteTrack = async () => {
             </div>
 
             <div className="music-share-detail-comment-form">
+              <label className="music-share-detail-bar-field">
+                <span>피드백 마디</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="999"
+                  value={feedbackBar}
+                  onChange={(event) => setFeedbackBar(event.target.value)}
+                />
+              </label>
               <textarea
                 value={commentInput}
                 onChange={(event) => setCommentInput(event.target.value)}
-                placeholder="이 곡에 대한 의견을 남겨보세요"
+                placeholder="선택한 마디에 대한 피드백을 남겨보세요"
               />
               <button type="button" onClick={handleCommentSubmit}>
                 댓글 등록

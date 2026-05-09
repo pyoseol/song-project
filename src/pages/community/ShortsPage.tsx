@@ -183,6 +183,15 @@ export default function ShortsPage() {
     return orderedShorts;
   }, [selectedFilter, shorts, user]);
 
+  const filterCounts: Record<ShortsFilter, number> = useMemo(
+    () => ({
+      all: shorts.length,
+      mine: user ? shorts.filter((short) => short.creatorEmail === user.email).length : 0,
+      liked: user ? shorts.filter((short) => short.likedBy.includes(user.email)).length : 0,
+    }),
+    [shorts, user]
+  );
+
   const commentsByShortId = useMemo(() => {
     return comments.reduce<Record<string, typeof comments>>((grouped, comment) => {
       if (!grouped[comment.shortId]) {
@@ -793,7 +802,8 @@ export default function ShortsPage() {
                   }`}
                   onClick={() => handleFilterChange(filter.key)}
                 >
-                  {filter.label}
+                  <span>{filter.label}</span>
+                  <em>{formatCount(filterCounts[filter.key])}</em>
                 </button>
               ))}
             </div>

@@ -24,8 +24,13 @@ import {
 } from "../constants/composer.ts";
 
 let loopId: number | null = null;
-const PLAYBACK_START_DELAY_SECONDS = 0.005;
-const AUDIO_LOOK_AHEAD_SECONDS = 0.02;
+let playbackStep = 0;
+const PLAYBACK_START_DELAY_SECONDS = 0.08;
+const AUDIO_LOOK_AHEAD_SECONDS = 0.12;
+let cachedVolumeKey = "";
+let cachedExtraTrackVolumeSource: ExtraInstrumentTrack[] | null = null;
+let cachedBusVolumes: InstrumentVolumes | null = null;
+let lastAppliedTransportBpm = 0;
 
 const SHARP_TO_FLAT_NOTE: Record<string, string> = {
   "C#": "Db",
@@ -167,6 +172,23 @@ function applyLiveVolumes(volumes: InstrumentVolumes, extraTracks: ExtraInstrume
   return busVolumes;
 }
 
+function getLiveBusVolumes(volumes: InstrumentVolumes, extraTracks: ExtraInstrumentTrack[] = []) {
+  const volumeKey = `${volumes.melody}|${volumes.violin}|${volumes.saxophone}|${volumes.guitar}|${volumes.drums}|${volumes.bass}`;
+
+  if (
+    cachedBusVolumes &&
+    cachedVolumeKey === volumeKey &&
+    cachedExtraTrackVolumeSource === extraTracks
+  ) {
+    return cachedBusVolumes;
+  }
+
+  cachedVolumeKey = volumeKey;
+  cachedExtraTrackVolumeSource = extraTracks;
+  cachedBusVolumes = applyLiveVolumes(volumes, extraTracks);
+  return cachedBusVolumes;
+}
+
 function getSixteenthDurationSeconds(bpm: number) {
   return (60 / bpm) / 4;
 }
@@ -260,80 +282,184 @@ function getExtraTrackNote(
   }
 }
 
-function triggerExtraTrackStep(
-  track: ExtraInstrumentTrack,
-  currentStep: number,
-  bpm: number,
-  time: number,
-  busVolumes: InstrumentVolumes
-) {
-  const velocityScale = getVolumeScale(track.volume, busVolumes[track.instrument]);
-  if (velocityScale <= 0) {
-    return;
-  }
+type PlaybackEvent =
+  | { type: "melody"; note: string; durationSeconds: number; velocity: number }
+  | { type: "violin"; row: number; durationSeconds: number; velocity: number }
+  | { type: "saxophone"; row: number; durationSeconds: number; velocity: number }
+  | { type: "guitar"; row: number; durationSeconds: number; velocity: number }
+  | { type: "bass"; note: string; durationSeconds: number; velocity: number }
+  | { type: "drums"; row: number; velocity: number };
 
-  track.grid.forEach((rowArr, rowIndex) => {
-    if (!rowArr[currentStep]) {
-      return;
+function buildPlaybackPlan(state: ReturnType<typeof useSongStore.getState>) {
+  const plan = Array.from({ length: state.steps }, () => [] as PlaybackEvent[]);
+  const busVolumes = getLiveBusVolumes(state.volumes, state.extraTracks);
+  const melodyVelocityScale = getVolumeScale(state.volumes.melody, busVolumes.melody);
+  const violinVelocityScale = getVolumeScale(state.volumes.violin, busVolumes.violin);
+  const saxophoneVelocityScale = getVolumeScale(state.volumes.saxophone, busVolumes.saxophone);
+  const guitarVelocityScale = getVolumeScale(state.volumes.guitar, busVolumes.guitar);
+  const drumsVelocityScale = getVolumeScale(state.volumes.drums, busVolumes.drums);
+  const bassVelocityScale = getVolumeScale(state.volumes.bass, busVolumes.bass);
+  const addEvent = (step: number, event: PlaybackEvent) => {
+    if (step >= 0 && step < plan.length) {
+      plan[step].push(event);
     }
+  };
 
-    switch (track.instrument) {
-      case "melody": {
-        const durationSteps = Math.max(1, track.melodyLengths?.[rowIndex]?.[currentStep] ?? 1);
-        triggerLiveMelodyNote(
-          getExtraTrackNote(track.instrument, rowIndex),
-          getMelodyGateSeconds(durationSteps, bpm),
-          time,
-          getMelodyVelocity(rowIndex, durationSteps) * velocityScale
-        );
-        break;
-      }
-      case "violin":
-        triggerLiveViolinNote(
-          rowIndex,
-          getMelodyGateSeconds(Math.max(1, track.melodyLengths?.[rowIndex]?.[currentStep] ?? 1), bpm),
-          time,
-          0.86 * velocityScale
-        );
-        break;
-      case "saxophone":
-        triggerLiveSaxophoneNote(
-          rowIndex,
-          getMelodyGateSeconds(Math.max(1, track.melodyLengths?.[rowIndex]?.[currentStep] ?? 1), bpm),
-          time,
-          0.78 * velocityScale
-        );
-        break;
-      case "guitar":
-        triggerLiveGuitarNote(
-          rowIndex,
-          getMelodyGateSeconds(Math.max(1, track.melodyLengths?.[rowIndex]?.[currentStep] ?? 1), bpm),
-          time,
-          velocityScale
-        );
-        break;
-      case "bass":
-        bassSampler.triggerAttackRelease(
-          getExtraTrackNote(track.instrument, rowIndex),
-          getMelodyGateSeconds(Math.max(1, track.melodyLengths?.[rowIndex]?.[currentStep] ?? 1), bpm),
-          time,
-          velocityScale
-        );
-        break;
-      case "drums":
-        triggerLiveDrumSample(rowIndex, time, velocityScale);
-        break;
-      default:
-        break;
-    }
+  state.melody.forEach((rowArr, rowIndex) => {
+    rowArr.forEach((active, step) => {
+      if (!active) return;
+      const durationSteps = Math.max(1, state.melodyLengths[rowIndex]?.[step] ?? 1);
+      addEvent(step, {
+        type: "melody",
+        note: getMelodyPlaybackNote(rowIndex),
+        durationSeconds: getMelodyGateSeconds(durationSteps, state.bpm),
+        velocity: getMelodyVelocity(rowIndex, durationSteps) * melodyVelocityScale,
+      });
+    });
   });
+
+  state.violin.slice(0, VIOLIN_NOTES.length).forEach((rowArr, rowIndex) => {
+    rowArr.forEach((active, step) => {
+      if (!active) return;
+      const durationSteps = Math.max(1, state.violinLengths[rowIndex]?.[step] ?? 1);
+      addEvent(step, {
+        type: "violin",
+        row: rowIndex,
+        durationSeconds: getMelodyGateSeconds(durationSteps, state.bpm),
+        velocity: 0.86 * violinVelocityScale,
+      });
+    });
+  });
+
+  state.saxophone.slice(0, SAXOPHONE_NOTES.length).forEach((rowArr, rowIndex) => {
+    rowArr.forEach((active, step) => {
+      if (!active) return;
+      const durationSteps = Math.max(1, state.saxophoneLengths[rowIndex]?.[step] ?? 1);
+      addEvent(step, {
+        type: "saxophone",
+        row: rowIndex,
+        durationSeconds: getMelodyGateSeconds(durationSteps, state.bpm),
+        velocity: 0.78 * saxophoneVelocityScale,
+      });
+    });
+  });
+
+  state.guitar.forEach((rowArr, rowIndex) => {
+    rowArr.forEach((active, step) => {
+      if (!active) return;
+      const durationSteps = Math.max(1, state.guitarLengths[rowIndex]?.[step] ?? 1);
+      addEvent(step, {
+        type: "guitar",
+        row: rowIndex,
+        durationSeconds: getMelodyGateSeconds(durationSteps, state.bpm),
+        velocity: guitarVelocityScale,
+      });
+    });
+  });
+
+  state.bass.forEach((rowArr, rowIndex) => {
+    rowArr.forEach((active, step) => {
+      if (!active) return;
+      const durationSteps = Math.max(1, state.bassLengths[rowIndex]?.[step] ?? 1);
+      addEvent(step, {
+        type: "bass",
+        note: getExtraTrackNote("bass", rowIndex),
+        durationSeconds: getMelodyGateSeconds(durationSteps, state.bpm),
+        velocity: bassVelocityScale,
+      });
+    });
+  });
+
+  state.drums.forEach((rowArr, rowIndex) => {
+    rowArr.forEach((active, step) => {
+      if (active) {
+        addEvent(step, { type: "drums", row: rowIndex, velocity: drumsVelocityScale });
+      }
+    });
+  });
+
+  state.extraTracks.forEach((track) => {
+    const velocityScale = getVolumeScale(track.volume, busVolumes[track.instrument]);
+    if (velocityScale <= 0) return;
+
+    track.grid.forEach((rowArr, rowIndex) => {
+      rowArr.forEach((active, step) => {
+        if (!active) return;
+        const durationSteps = Math.max(1, track.melodyLengths?.[rowIndex]?.[step] ?? 1);
+        const durationSeconds = getMelodyGateSeconds(durationSteps, state.bpm);
+
+        switch (track.instrument) {
+          case "melody":
+            addEvent(step, {
+              type: "melody",
+              note: getExtraTrackNote(track.instrument, rowIndex),
+              durationSeconds,
+              velocity: getMelodyVelocity(rowIndex, durationSteps) * velocityScale,
+            });
+            break;
+          case "violin":
+            addEvent(step, { type: "violin", row: rowIndex, durationSeconds, velocity: 0.86 * velocityScale });
+            break;
+          case "saxophone":
+            addEvent(step, { type: "saxophone", row: rowIndex, durationSeconds, velocity: 0.78 * velocityScale });
+            break;
+          case "guitar":
+            addEvent(step, { type: "guitar", row: rowIndex, durationSeconds, velocity: velocityScale });
+            break;
+          case "bass":
+            addEvent(step, {
+              type: "bass",
+              note: getExtraTrackNote(track.instrument, rowIndex),
+              durationSeconds,
+              velocity: velocityScale,
+            });
+            break;
+          case "drums":
+            addEvent(step, { type: "drums", row: rowIndex, velocity: velocityScale });
+            break;
+          default:
+            break;
+        }
+      });
+    });
+  });
+
+  return plan;
+}
+
+function triggerPlaybackEvent(event: PlaybackEvent, time: number) {
+  switch (event.type) {
+    case "melody":
+      triggerLiveMelodyNote(event.note, event.durationSeconds, time, event.velocity);
+      break;
+    case "violin":
+      triggerLiveViolinNote(event.row, event.durationSeconds, time, event.velocity);
+      break;
+    case "saxophone":
+      triggerLiveSaxophoneNote(event.row, event.durationSeconds, time, event.velocity);
+      break;
+    case "guitar":
+      triggerLiveGuitarNote(event.row, event.durationSeconds, time, event.velocity);
+      break;
+    case "bass":
+      bassSampler.triggerAttackRelease(event.note, event.durationSeconds, time, event.velocity);
+      break;
+    case "drums":
+      triggerLiveDrumSample(event.row, time, event.velocity);
+      break;
+    default:
+      break;
+  }
 }
 
 export async function preparePlaybackEngine() {
   await ensureToneReady();
   initTransport();
   const state = useSongStore.getState();
-  applyLiveVolumes(state.volumes, state.extraTracks);
+  cachedVolumeKey = "";
+  cachedExtraTrackVolumeSource = null;
+  cachedBusVolumes = null;
+  getLiveBusVolumes(state.volumes, state.extraTracks);
 }
 
 export function getPlaybackStartDelaySeconds() {
@@ -407,122 +533,41 @@ export function initTransport() {
   }
 
   Tone.Transport.cancel();
+  const initialState = useSongStore.getState();
+  playbackStep = initialState.loopRange?.start ?? initialState.currentStep;
+  const playbackPlan = buildPlaybackPlan(initialState);
+  const playbackBpm = initialState.bpm;
+  const playbackSteps = initialState.steps;
+  const playbackLoopRange = initialState.loopRange;
 
   loopId = Tone.Transport.scheduleRepeat((time) => {
-    const {
-      melody,
-      melodyLengths,
-      violin,
-      violinLengths,
-      saxophone,
-      saxophoneLengths,
-      guitar,
-      guitarLengths,
-      drums,
-      bass,
-      bassLengths,
-      extraTracks,
-      currentStep,
-      steps,
-      bpm,
-      loopRange,
-      volumes,
-      setCurrentStep,
-    } = useSongStore.getState();
-
-    Tone.Transport.bpm.value = bpm;
-    const busVolumes = applyLiveVolumes(volumes, extraTracks);
+    if (lastAppliedTransportBpm !== playbackBpm) {
+      Tone.Transport.bpm.value = playbackBpm;
+      lastAppliedTransportBpm = playbackBpm;
+    }
+    const currentPlaybackStep = Math.min(playbackStep, Math.max(0, playbackSteps - 1));
 
     try {
-      const melodyVelocityScale = getVolumeScale(volumes.melody, busVolumes.melody);
-      const violinVelocityScale = getVolumeScale(volumes.violin, busVolumes.violin);
-      const saxophoneVelocityScale = getVolumeScale(volumes.saxophone, busVolumes.saxophone);
-      const guitarVelocityScale = getVolumeScale(volumes.guitar, busVolumes.guitar);
-      const drumsVelocityScale = getVolumeScale(volumes.drums, busVolumes.drums);
-      const bassVelocityScale = getVolumeScale(volumes.bass, busVolumes.bass);
-
-      // 1. 멜로디 재생
-      melody.forEach((rowArr, rowIndex) => {
-        if (!rowArr[currentStep]) return;
-        const note = getMelodyPlaybackNote(rowIndex);
-        const durationSteps = Math.max(1, melodyLengths[rowIndex]?.[currentStep] ?? 1);
-        triggerLiveMelodyNote(
-          note,
-          getMelodyGateSeconds(durationSteps, bpm),
-          time,
-          getMelodyVelocity(rowIndex, durationSteps) * melodyVelocityScale
-        );
-      });
-
-      // 2. 바이올린 재생
-      violin.slice(0, VIOLIN_NOTES.length).forEach((rowArr, rowIndex) => {
-        if (!rowArr[currentStep]) return;
-        const durationSteps = Math.max(1, violinLengths[rowIndex]?.[currentStep] ?? 1);
-        triggerLiveViolinNote(
-          rowIndex,
-          getMelodyGateSeconds(durationSteps, bpm),
-          time,
-          0.86 * violinVelocityScale
-        );
-      });
-
-      // 3. 색소폰 재생
-      saxophone.slice(0, SAXOPHONE_NOTES.length).forEach((rowArr, rowIndex) => {
-        if (!rowArr[currentStep]) return;
-        const durationSteps = Math.max(1, saxophoneLengths[rowIndex]?.[currentStep] ?? 1);
-        triggerLiveSaxophoneNote(
-          rowIndex,
-          getMelodyGateSeconds(durationSteps, bpm),
-          time,
-          0.78 * saxophoneVelocityScale
-        );
-      });
-
-      // 4. 기타 재생
-      guitar.forEach((rowArr, rowIndex) => {
-        if (!rowArr[currentStep]) return;
-        const durationSteps = Math.max(1, guitarLengths[rowIndex]?.[currentStep] ?? 1);
-        triggerLiveGuitarNote(rowIndex, getMelodyGateSeconds(durationSteps, bpm), time, guitarVelocityScale);
-      });
-
-      // 5. 베이스 재생
-      bass.forEach((rowArr, rowIndex) => {
-        if (!rowArr[currentStep]) return;
-        const midi = BASS_MIDI[rowIndex] ?? BASS_MIDI[BASS_MIDI.length - 1];
-        const note = toSamplerNote(Tone.Frequency(midi, "midi").toNote());
-        const durationSteps = Math.max(1, bassLengths[rowIndex]?.[currentStep] ?? 1);
-        bassSampler.triggerAttackRelease(note, getMelodyGateSeconds(durationSteps, bpm), time, bassVelocityScale);
-      });
-
-      // 6. 드럼 재생
-      if (drums[0]?.[currentStep]) {
-        triggerLiveDrumSample(0, time, drumsVelocityScale);
-      }
-      if (drums[1]?.[currentStep]) {
-        triggerLiveDrumSample(1, time, drumsVelocityScale);
-      }
-      if (drums[2]?.[currentStep]) {
-        triggerLiveDrumSample(2, time, drumsVelocityScale);
-      }
-      if (drums[3]?.[currentStep]) {
-        triggerLiveDrumSample(3, time, drumsVelocityScale);
-      }
-      if (drums[4]?.[currentStep]) {
-        triggerLiveDrumSample(4, time, drumsVelocityScale);
-      }
-
-      extraTracks.forEach((track) => {
-        triggerExtraTrackStep(track, currentStep, bpm, time, busVolumes);
+      playbackPlan[currentPlaybackStep]?.forEach((event) => {
+        triggerPlaybackEvent(event, time);
       });
     } catch (error) {
       console.error("Playback tick failed:", error);
     } finally {
-      const nextStep = loopRange
-        ? currentStep >= loopRange.end
-          ? loopRange.start
-          : currentStep + 1
-        : (currentStep + 1) % steps;
-      setCurrentStep(nextStep);
+      Tone.Draw.schedule(() => {
+        window.dispatchEvent(
+          new CustomEvent("composer-playhead-step", {
+            detail: { step: currentPlaybackStep, bpm: playbackBpm },
+          })
+        );
+      }, time);
+
+      const nextStep = playbackLoopRange
+        ? currentPlaybackStep >= playbackLoopRange.end
+          ? playbackLoopRange.start
+          : currentPlaybackStep + 1
+        : (currentPlaybackStep + 1) % playbackSteps;
+      playbackStep = nextStep;
     }
   }, "16n");
 

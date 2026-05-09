@@ -54,6 +54,18 @@ type MusicShareState = {
 
 let musicShareBootstrapPromise: Promise<void> | null = null;
 
+function isBaseTrack(trackId: string) {
+  return trackId.startsWith('share-base-');
+}
+
+function getLocalMetrics(metrics?: MusicShareMetrics): MusicShareMetrics {
+  return {
+    likeCount: metrics?.likeCount ?? 0,
+    viewCount: metrics?.viewCount ?? 0,
+    downloadCount: metrics?.downloadCount ?? 0,
+  };
+}
+
 function applySnapshot(snapshot: MusicShareSnapshot) {
   useMusicShareStore.setState((state) => ({
     ...state,
@@ -118,10 +130,55 @@ export const useMusicShareStore = create<MusicShareState>()(
         applySnapshot(snapshot);
       },
       toggleTrackLike: async (trackId, userEmail) => {
+        if (isBaseTrack(trackId)) {
+          set((state) => {
+            const likedTrackIds = state.likedTrackIdsByUser[userEmail] ?? [];
+            const alreadyLiked = likedTrackIds.includes(trackId);
+            const metrics = getLocalMetrics(state.trackMetricsById[trackId]);
+
+            return {
+              ...state,
+              likedTrackIdsByUser: {
+                ...state.likedTrackIdsByUser,
+                [userEmail]: alreadyLiked
+                  ? likedTrackIds.filter((id) => id !== trackId)
+                  : [...likedTrackIds, trackId],
+              },
+              trackMetricsById: {
+                ...state.trackMetricsById,
+                [trackId]: {
+                  ...metrics,
+                  likeCount: Math.max(0, metrics.likeCount + (alreadyLiked ? -1 : 1)),
+                },
+              },
+            };
+          });
+          return;
+        }
+
         const response = await toggleTrackLikeOnServer({ trackId, userEmail });
         applySnapshot(response.snapshot);
       },
       addTrackComment: async ({ trackId, authorName, authorEmail, content }) => {
+        if (isBaseTrack(trackId)) {
+          const commentId = `local-comment-${Date.now()}`;
+          set((state) => ({
+            ...state,
+            comments: [
+              ...state.comments,
+              {
+                id: commentId,
+                trackId,
+                authorName,
+                authorEmail,
+                content,
+                createdAt: Date.now(),
+              },
+            ],
+          }));
+          return commentId;
+        }
+
         const response = await addTrackCommentOnServer({
           trackId,
           authorName,
@@ -132,14 +189,65 @@ export const useMusicShareStore = create<MusicShareState>()(
         return '';
       },
       recordTrackView: async (trackId, userEmail) => {
+        if (isBaseTrack(trackId)) {
+          set((state) => {
+            const metrics = getLocalMetrics(state.trackMetricsById[trackId]);
+            return {
+              ...state,
+              trackMetricsById: {
+                ...state.trackMetricsById,
+                [trackId]: {
+                  ...metrics,
+                  viewCount: metrics.viewCount + 1,
+                },
+              },
+            };
+          });
+          return;
+        }
+
         const response = await recordTrackViewOnServer({ trackId, userEmail });
         applySnapshot(response.snapshot);
       },
       recordTrackDownload: async (trackId, userEmail) => {
+        if (isBaseTrack(trackId)) {
+          set((state) => {
+            const metrics = getLocalMetrics(state.trackMetricsById[trackId]);
+            return {
+              ...state,
+              trackMetricsById: {
+                ...state.trackMetricsById,
+                [trackId]: {
+                  ...metrics,
+                  downloadCount: metrics.downloadCount + 1,
+                },
+              },
+            };
+          });
+          return;
+        }
+
         const response = await recordTrackDownloadOnServer({ trackId, userEmail });
         applySnapshot(response.snapshot);
       },
       recordTrackOpen: async (trackId, userEmail) => {
+        if (isBaseTrack(trackId)) {
+          set((state) => {
+            const recentTrackIds = state.recentOpenedTrackIdsByUser[userEmail] ?? [];
+            return {
+              ...state,
+              recentOpenedTrackIdsByUser: {
+                ...state.recentOpenedTrackIdsByUser,
+                [userEmail]: [trackId, ...recentTrackIds.filter((id) => id !== trackId)].slice(
+                  0,
+                  20
+                ),
+              },
+            };
+          });
+          return;
+        }
+
         const response = await recordTrackOpenOnServer({ trackId, userEmail });
         applySnapshot(response.snapshot);
       },

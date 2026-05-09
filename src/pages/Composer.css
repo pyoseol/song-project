@@ -150,6 +150,57 @@
   color: #dfffbf;
 }
 
+.composer-mode-strip {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding-right: 118px;
+  color: #d9dee8;
+  white-space: nowrap;
+}
+
+.composer-mode-strip span {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid rgba(159, 245, 109, 0.22);
+  border-radius: 999px;
+  background: rgba(159, 245, 109, 0.09);
+  color: #dcffb7;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.composer-mode-strip strong {
+  overflow: hidden;
+  color: #f7fafc;
+  font-size: 14px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+}
+
+.composer-mode-strip small {
+  overflow: hidden;
+  color: #8f96a4;
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+.composer-mode-action {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid rgba(159, 245, 109, 0.22);
+  border-radius: 999px;
+  background: rgba(159, 245, 109, 0.1);
+  color: #e4ffc2;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
 .composer-title-group {
   display: flex;
   flex-direction: column;
@@ -818,6 +869,10 @@
   --composer-tab-accent: #4ade80;
 }
 
+.composer-tab-card.is-lyrics {
+  --composer-tab-accent: #86efac;
+}
+
 .composer-tab-card.is-violin {
   --composer-tab-accent: #fb7185;
 }
@@ -841,6 +896,21 @@
 .composer-tab-card.is-melody.is-active {
   border-color: rgba(74, 222, 128, 0.5);
   color: #4ade80;
+}
+
+.composer-tab-card.is-lyrics.is-active {
+  border-color: rgba(134, 239, 172, 0.5);
+  color: #86efac;
+}
+
+.composer-tab-card.is-lyrics .composer-tab-button {
+  height: 100%;
+}
+
+.composer-tab-card.is-lyrics .composer-tab-button-inner {
+  min-height: 55px;
+  align-items: flex-start;
+  padding-bottom: 8px;
 }
 
 .composer-tab-card.is-violin.is-active {
@@ -1136,6 +1206,38 @@
     radial-gradient(circle at top right, rgba(59, 130, 246, 0.14), transparent 28%),
     radial-gradient(circle at top left, rgba(45, 212, 191, 0.12), transparent 24%),
     #15171b;
+}
+
+.composer-main--lyrics {
+  overflow: auto;
+  background:
+    radial-gradient(circle at top left, rgba(74, 222, 128, 0.14), transparent 24%),
+    #111813;
+}
+
+.composer-empty-tab-panel {
+  width: min(620px, 100%);
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 34px 24px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.03);
+  text-align: center;
+}
+
+.composer-empty-tab-panel strong {
+  color: #f4f7fb;
+  font-size: 22px;
+}
+
+.composer-empty-tab-panel span {
+  color: #9ca3af;
+  font-size: 14px;
 }
 
 .composer-main--drums {
@@ -1518,6 +1620,173 @@
   border-radius: 0;
 }
 
+.composer-lyrics-tab-panel {
+  width: min(920px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid rgba(134, 239, 172, 0.18);
+  border-radius: 22px;
+  background: rgba(13, 19, 18, 0.9);
+}
+
+.composer-lyrics-tab-head {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.composer-lyrics-tab-head span {
+  color: #86efac;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.composer-lyrics-tab-head strong {
+  color: #f4f7fb;
+  font-size: 24px;
+}
+
+.composer-lyrics-tab-head p {
+  margin: 0;
+  color: #a7b5aa;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.composer-lyrics-note-list {
+  display: grid;
+  gap: 10px;
+}
+
+.composer-lyrics-view-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.composer-lyrics-view-tabs button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(134, 239, 172, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5ce;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.composer-lyrics-view-tabs button.is-active {
+  background: rgba(134, 239, 172, 0.16);
+  color: #dcfce7;
+}
+
+.composer-lyrics-match-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.composer-lyrics-match-card {
+  min-height: 116px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.composer-lyrics-match-card span,
+.composer-lyrics-match-card small {
+  color: #97a69b;
+  font-size: 11px;
+}
+
+.composer-lyrics-match-card strong,
+.composer-lyrics-match-card p {
+  display: block;
+  margin: 6px 0 0;
+}
+
+.composer-lyrics-match-card p {
+  color: #f4f7fb;
+  font-size: 14px;
+}
+
+.composer-lyrics-full-view {
+  min-height: 140px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #f4f7fb;
+  font-size: 20px;
+  line-height: 1.9;
+  word-break: keep-all;
+}
+
+.composer-lyrics-note-row {
+  display: grid;
+  grid-template-columns: 42px minmax(160px, 220px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.composer-lyrics-note-index,
+.composer-lyrics-note-meta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  border-radius: 12px;
+}
+
+.composer-lyrics-note-index {
+  justify-content: center;
+  background: rgba(134, 239, 172, 0.12);
+  color: #bbf7d0;
+  font-weight: 800;
+}
+
+.composer-lyrics-note-meta {
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5ce;
+  font-size: 13px;
+}
+
+.composer-lyrics-note-row input {
+  width: min(
+    100%,
+    calc((var(--lyrics-note-span, 1) * 64px) + ((var(--lyrics-note-span, 1) - 1) * 2px))
+  );
+  min-width: 64px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(9, 11, 14, 0.94);
+  color: #f4f7fb;
+  font: inherit;
+}
+
+.composer-lyrics-note-row input:focus {
+  outline: none;
+  border-color: rgba(134, 239, 172, 0.44);
+  box-shadow: 0 0 0 3px rgba(134, 239, 172, 0.08);
+}
+
+.composer-lyrics-empty {
+  padding: 28px 18px;
+  border: 1px dashed rgba(134, 239, 172, 0.22);
+  border-radius: 18px;
+  color: #a7b5aa;
+  text-align: center;
+}
+
 .composer-roll-shell--bass {
   border: 1px solid rgba(245, 191, 74, 0.14);
   background: rgba(24, 14, 8, 0.84);
@@ -1627,7 +1896,8 @@
   cursor: pointer;
 }
 
-.composer-drum-step-number.is-current {
+.composer-drum-step-number.is-current,
+.composer-drum-step-number.is-current-live {
   background: rgba(249, 115, 22, 0.2);
   color: #fff1dc;
 }
@@ -1655,12 +1925,14 @@
   border-left: 1px solid rgba(251, 191, 36, 0.24);
 }
 
-.composer-drum-step-number--bass.is-current {
+.composer-drum-step-number--bass.is-current,
+.composer-drum-step-number--bass.is-current-live {
   background: rgba(156, 163, 175, 0.24);
   color: #f5f5f5;
 }
 
-.composer-drum-step-number--guitar.is-current {
+.composer-drum-step-number--guitar.is-current,
+.composer-drum-step-number--guitar.is-current-live {
   background: rgba(245, 158, 11, 0.24);
   color: #fff4df;
 }
@@ -1871,6 +2143,16 @@
 
 .composer-drum-cell.is-current {
   border-color: rgba(255, 255, 255, 0.3);
+}
+
+.composer-page.is-playing .composer-drum-step-number.is-current:not(.is-current-live) {
+  background: rgba(255, 255, 255, 0.04);
+  color: transparent;
+}
+
+.composer-page.is-playing .composer-drum-cell.is-current:not(.is-current-live) {
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
 }
 
 .composer-drum-cell.is-tutorial-next {
@@ -2118,6 +2400,14 @@
   .composer-workbar,
   .composer-chord-bar {
     padding: 14px;
+  }
+
+  .composer-mode-strip {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+    padding-right: 0;
+    white-space: normal;
   }
 
   .composer-main {

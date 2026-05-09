@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import CommunitySpaceNav from '../../components/community/CommunitySpaceNav';
 import SiteHeader from '../../components/layout/SiteHeader';
 import {
+  BASE_SHARED_TRACK_LIBRARY,
   MUSIC_SHARE_CATEGORIES,
   MUSIC_SHARE_TAGS,
   buildSharedTrackCard,
@@ -107,7 +108,7 @@ export default function MusicShare() {
   );
 
   const trackLibrary = useMemo(
-    () => [...sharedProjectTracks, ...serverTracks],
+    () => [...BASE_SHARED_TRACK_LIBRARY, ...sharedProjectTracks, ...serverTracks],
     [serverTracks, sharedProjectTracks]
   );
 

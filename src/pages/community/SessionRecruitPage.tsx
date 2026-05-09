@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import CollabHubTabs from '../../components/collab/CollabHubTabs';
 import SiteHeader from '../../components/layout/SiteHeader';
 import { useAuthStore } from '../../store/authStore';
 import { useSessionRecruitStore } from '../../store/sessionRecruitStore';
 import type {
   SessionRecruitPost,
+  SessionMeetingType,
   SessionRegion,
   SessionRole,
   SessionStatus,
@@ -44,6 +47,26 @@ const STATUS_OPTIONS: Array<{ key: StatusFilter; label: string }> = [
 ];
 
 const PAGE_SIZE = 6;
+
+const FORM_ROLE_OPTIONS: Array<{ key: SessionRole; label: string }> = [
+  { key: 'vocal', label: '보컬' },
+  { key: 'guitar', label: '기타' },
+  { key: 'bass', label: '베이스' },
+  { key: 'drums', label: '드럼' },
+  { key: 'keys', label: '건반' },
+  { key: 'producer', label: '프로듀서' },
+  { key: 'mix', label: '믹스/레코딩' },
+];
+
+const FORM_REGION_OPTIONS: Array<{ key: SessionRegion; label: string }> = [
+  { key: 'seoul', label: '서울' },
+  { key: 'gyeonggi', label: '경기' },
+  { key: 'incheon', label: '인천' },
+  { key: 'busan', label: '부산' },
+  { key: 'online', label: '온라인' },
+];
+
+const FORM_MEETING_OPTIONS = ['온라인', '오프라인', '온/오프 병행'] as const;
 
 function matchesKeyword(post: SessionRecruitPost, keyword: string) {
   if (!keyword) {
@@ -95,23 +118,61 @@ function formatRelativeTime(timestamp: number) {
 
 export default function SessionRecruitPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const user = useAuthStore((state) => state.user);
   const posts = useSessionRecruitStore((state) => state.posts);
   const bootstrapStatus = useSessionRecruitStore((state) => state.bootstrapStatus);
   const bootstrapError = useSessionRecruitStore((state) => state.bootstrapError);
   const seedSessionRecruit = useSessionRecruitStore((state) => state.seedSessionRecruit);
+  const createPost = useSessionRecruitStore((state) => state.createPost);
 
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [regionFilter, setRegionFilter] = useState<RegionFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchKeyword, setSearchKeyword] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isWriteOpen, setIsWriteOpen] = useState(false);
+  const [writeError, setWriteError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [title, setTitle] = useState('');
+  const [genre, setGenre] = useState('');
+  const [summary, setSummary] = useState('');
+  const [location, setLocation] = useState('');
+  const [schedule, setSchedule] = useState('');
+  const [region, setRegion] = useState<SessionRegion>('online');
+  const [meetingType, setMeetingType] = useState<(typeof FORM_MEETING_OPTIONS)[number]>('온라인');
+  const [wantedRoles, setWantedRoles] = useState<SessionRole[]>(['producer']);
+  const [maxMembers, setMaxMembers] = useState('4');
+  const [tagInput, setTagInput] = useState('');
+  const [urgent, setUrgent] = useState(false);
 
   useEffect(() => {
     void seedSessionRecruit().catch((error) => {
       console.error(error);
     });
   }, [seedSessionRecruit]);
+
+  useEffect(() => {
+    if (searchParams.get('write') !== '1') {
+      return;
+    }
+
+    setIsWriteOpen(true);
+    setTitle(searchParams.get('title') ?? '');
+    setGenre(searchParams.get('genre') ?? '');
+    setSummary(searchParams.get('summary') ?? '');
+    setLocation('온라인');
+    setSchedule('협의');
+    setRegion('online');
+    setMeetingType('온라인');
+    const roles = (searchParams.get('roles') ?? '')
+      .split(',')
+      .filter((role): role is SessionRole =>
+        FORM_ROLE_OPTIONS.some((option) => option.key === role)
+      );
+    setWantedRoles(roles.length ? roles : ['producer']);
+    setTagInput('#작곡 #협업 #파트모집');
+  }, [searchParams]);
 
   const filteredPosts = useMemo(() => {
     const normalizedKeyword = searchKeyword.trim().toLowerCase();
@@ -180,6 +241,97 @@ export default function SessionRecruitPage() {
 
   const handleMoveWithAuth = (route: string) => {
     navigate(user ? route : '/login');
+  };
+
+  const handleOpenWrite = () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    setIsWriteOpen((current) => !current);
+    setWriteError('');
+  };
+
+  const handleToggleWantedRole = (role: SessionRole) => {
+    setWantedRoles((current) => {
+      if (current.includes(role)) {
+        return current.length > 1 ? current.filter((item) => item !== role) : current;
+      }
+
+      return [...current, role];
+    });
+  };
+
+  const resetWriteForm = () => {
+    setTitle('');
+    setGenre('');
+    setSummary('');
+    setLocation('');
+    setSchedule('');
+    setRegion('online');
+    setMeetingType('온라인');
+    setWantedRoles(['producer']);
+    setMaxMembers('4');
+    setTagInput('');
+    setUrgent(false);
+  };
+
+  const handleSubmitRecruit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    const trimmedTitle = title.trim();
+    const trimmedGenre = genre.trim();
+    const trimmedSummary = summary.trim();
+    const trimmedLocation = location.trim();
+    const trimmedSchedule = schedule.trim();
+    const nextMaxMembers = Math.max(1, Number.parseInt(maxMembers, 10) || 1);
+    const tags = tagInput
+      .split(/[,\s]+/)
+      .map((tag) => tag.replace(/^#/, '').trim())
+      .filter(Boolean)
+      .slice(0, 6);
+
+    if (!trimmedTitle || !trimmedGenre || !trimmedSummary || !trimmedLocation || !trimmedSchedule) {
+      setWriteError('제목, 장르, 소개, 지역, 일정을 모두 입력해주세요.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setWriteError('');
+      await createPost({
+        title: trimmedTitle,
+        genre: trimmedGenre,
+        hostName: user.name,
+        hostEmail: user.email,
+        summary: trimmedSummary,
+        location: trimmedLocation,
+        region,
+        meetingType: meetingType as SessionMeetingType,
+        status: 'open',
+        wantedRoles,
+        tags,
+        currentMembers: 1,
+        maxMembers: nextMaxMembers,
+        schedule: trimmedSchedule,
+        urgent,
+      });
+
+      resetWriteForm();
+      setIsWriteOpen(false);
+      setCurrentPage(1);
+    } catch (error) {
+      console.error(error);
+      setWriteError(error instanceof Error ? error.message : '모집글을 등록하지 못했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleFilterReset = () => {
@@ -328,6 +480,168 @@ export default function SessionRecruitPage() {
                   필터 초기화
                 </button>
               </div>
+
+              <div className="session-write-entry">
+                <button
+                  type="button"
+                  className="session-primary-button"
+                  onClick={handleOpenWrite}
+                >
+                  모집글 작성
+                </button>
+              </div>
+
+              {isWriteOpen ? (
+                <form className="session-write-panel" onSubmit={handleSubmitRecruit}>
+                  <div className="session-write-grid">
+                    <label className="session-write-field session-write-field--wide">
+                      <span>제목</span>
+                      <input
+                        value={title}
+                        onChange={(event) => setTitle(event.target.value)}
+                        placeholder="예: 주말 합주할 기타/보컬 구합니다"
+                        maxLength={80}
+                      />
+                    </label>
+
+                    <label className="session-write-field">
+                      <span>장르</span>
+                      <input
+                        value={genre}
+                        onChange={(event) => setGenre(event.target.value)}
+                        placeholder="인디, R&B, 재즈..."
+                        maxLength={40}
+                      />
+                    </label>
+
+                    <label className="session-write-field">
+                      <span>지역</span>
+                      <input
+                        value={location}
+                        onChange={(event) => setLocation(event.target.value)}
+                        placeholder="홍대 / 온라인 / 부산 서면"
+                        maxLength={60}
+                      />
+                    </label>
+
+                    <label className="session-write-field">
+                      <span>지역 분류</span>
+                      <select
+                        value={region}
+                        onChange={(event) => setRegion(event.target.value as SessionRegion)}
+                      >
+                        {FORM_REGION_OPTIONS.map((option) => (
+                          <option key={option.key} value={option.key}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="session-write-field">
+                      <span>진행 방식</span>
+                      <select
+                        value={meetingType}
+                        onChange={(event) =>
+                          setMeetingType(event.target.value as (typeof FORM_MEETING_OPTIONS)[number])
+                        }
+                      >
+                        {FORM_MEETING_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="session-write-field">
+                      <span>일정</span>
+                      <input
+                        value={schedule}
+                        onChange={(event) => setSchedule(event.target.value)}
+                        placeholder="매주 토요일 오후 / 협의"
+                        maxLength={80}
+                      />
+                    </label>
+
+                    <label className="session-write-field">
+                      <span>최대 인원</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={maxMembers}
+                        onChange={(event) => setMaxMembers(event.target.value)}
+                      />
+                    </label>
+
+                    <label className="session-write-field session-write-field--wide">
+                      <span>소개</span>
+                      <textarea
+                        value={summary}
+                        onChange={(event) => setSummary(event.target.value)}
+                        placeholder="어떤 음악을 하고 싶은지, 필요한 파트와 작업 방식을 적어주세요."
+                        maxLength={240}
+                        rows={4}
+                      />
+                    </label>
+
+                    <label className="session-write-field session-write-field--wide">
+                      <span>태그</span>
+                      <input
+                        value={tagInput}
+                        onChange={(event) => setTagInput(event.target.value)}
+                        placeholder="#공연 #작곡 #커버"
+                        maxLength={80}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="session-write-role-group" aria-label="모집 파트">
+                    {FORM_ROLE_OPTIONS.map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        className={`session-chip${wantedRoles.includes(option.key) ? ' is-active' : ''}`}
+                        onClick={() => handleToggleWantedRole(option.key)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <label className="session-write-check">
+                    <input
+                      type="checkbox"
+                      checked={urgent}
+                      onChange={(event) => setUrgent(event.target.checked)}
+                    />
+                    <span>급구 표시</span>
+                  </label>
+
+                  {writeError ? <div className="session-write-error">{writeError}</div> : null}
+
+                  <div className="session-write-actions">
+                    <button
+                      type="button"
+                      className="session-secondary-button"
+                      onClick={() => {
+                        setIsWriteOpen(false);
+                        setWriteError('');
+                      }}
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="submit"
+                      className="session-primary-button"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? '등록 중...' : '등록하기'}
+                    </button>
+                  </div>
+                </form>
+              ) : null}
 
               <div className="session-toolbar">
                 <label className="session-search" aria-label="세션 모집 검색">

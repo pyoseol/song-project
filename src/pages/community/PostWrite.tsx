@@ -180,6 +180,13 @@ export default function PostWrite() {
               >
                 작곡 가이드 보기
               </button>
+              <button
+                type="button"
+                className="community-write-music-button"
+                onClick={() => navigate('/community/music')}
+              >
+                음악 공유
+              </button>
             </div>
           </div>
 

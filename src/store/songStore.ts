@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import {
   BASS_CHORD_MAP,
   //BASS_MIGRATION_MAP,
@@ -89,6 +90,7 @@ type SongHistorySnapshot = {
   bpm: number;
   steps: number;
   currentStep: number;
+  noteLyrics: Record<string, string>;
   melody: boolean[][];
   melodyLengths: number[][];
   violin: boolean[][];
@@ -109,6 +111,7 @@ export type SongState = {
   steps: number;
   currentStep: number;
   isPlaying: boolean;
+  noteLyrics: Record<string, string>;
   volumes: InstrumentVolumes;
   melody: boolean[][];
   melodyLengths: number[][];
@@ -155,6 +158,7 @@ export type SongState = {
   setSteps: (steps: number) => void;
   setCurrentStep: (step: number) => void;
   setPlaying: (playing: boolean) => void;
+  setMelodyLyric: (row: number, col: number, lyric: string) => void;
   clear: () => void;
   loadProject: (project: SongProject) => void;
   applyRemoteProject: (project: SongProject) => void;
@@ -164,6 +168,7 @@ export type SongProject = {
   version: 2;
   bpm: number;
   steps: number;
+  noteLyrics?: Record<string, string>;
   volumes?: Partial<InstrumentVolumes>;
   tracks: {
     melody: MusicEvent[];
@@ -180,6 +185,7 @@ type SongProjectSnapshotInput = Pick<
   SongState,
   | 'bpm'
   | 'steps'
+  | 'noteLyrics'
   | 'volumes'
   | 'melody'
   | 'melodyLengths'
@@ -553,6 +559,7 @@ function createHistorySnapshot(state: Pick<
   | 'bpm'
   | 'steps'
   | 'currentStep'
+  | 'noteLyrics'
   | 'melody'
   | 'melodyLengths'
   | 'violin'
@@ -571,6 +578,7 @@ function createHistorySnapshot(state: Pick<
     bpm: state.bpm,
     steps: state.steps,
     currentStep: state.currentStep,
+    noteLyrics: { ...state.noteLyrics },
     melody: cloneMatrix(state.melody),
     melodyLengths: cloneLengthMatrix(state.melodyLengths),
     violin: cloneMatrix(state.violin),
@@ -870,6 +878,7 @@ export function buildSongProjectSnapshot(state: SongProjectSnapshotInput): SongP
     version: 2,
     bpm: state.bpm,
     steps: state.steps,
+    noteLyrics: state.noteLyrics,
     volumes: {
       melody: clampVolume(state.volumes.melody ?? 82),
       violin: clampVolume(state.volumes.violin ?? 78),
@@ -912,6 +921,7 @@ function restoreHistorySnapshot(
     bpm: snapshot.bpm,
     steps: snapshot.steps,
     currentStep: clampStep(snapshot.currentStep, snapshot.steps),
+    noteLyrics: { ...snapshot.noteLyrics },
     isPlaying: false,
     melody: cloneMatrix(snapshot.melody),
     melodyLengths: cloneLengthMatrix(snapshot.melodyLengths),
@@ -1067,11 +1077,14 @@ function parseV2TracksToGrids(project: SongProject, steps: number) {
   };
 }
 
-export const useSongStore = create<SongState>((set, get) => ({
+export const useSongStore = create<SongState>()(
+  persist(
+    (set, get) => ({
   bpm: 100,
   steps: DEFAULT_STEPS,
   currentStep: 0,
   isPlaying: false,
+  noteLyrics: {},
   volumes: {
     melody: 82,
     violin: 78,
@@ -1204,6 +1217,7 @@ export const useSongStore = create<SongState>((set, get) => ({
       switch (instrument) {
         case 'melody':
           return buildHistoryUpdate(state, {
+            noteLyrics: {},
             melody: createEmptyMatrix(MELODY_ROWS, state.steps),
             melodyLengths: createEmptyLengthMatrix(MELODY_ROWS, state.steps),
           });
@@ -1809,10 +1823,26 @@ export const useSongStore = create<SongState>((set, get) => ({
 
   setPlaying: (playing) => set({ isPlaying: playing }),
 
+  setMelodyLyric: (row, col, lyric) =>
+    set((state) => {
+      const key = `${row}-${col}`;
+      const nextLyrics = { ...state.noteLyrics };
+      const nextValue = lyric.trim();
+
+      if (nextValue) {
+        nextLyrics[key] = nextValue;
+      } else {
+        delete nextLyrics[key];
+      }
+
+      return { noteLyrics: nextLyrics };
+    }),
+
   clear: () =>
     set((state) =>
       buildHistoryUpdate(state, {
         currentStep: 0,
+        noteLyrics: {},
         melody: createEmptyMatrix(MELODY_ROWS, state.steps),
         melodyLengths: createEmptyLengthMatrix(MELODY_ROWS, state.steps),
         violin: createEmptyMatrix(VIOLIN_ROWS, state.steps),
@@ -1846,6 +1876,7 @@ export const useSongStore = create<SongState>((set, get) => ({
       buildHistoryUpdate(state, {
         bpm,
         steps,
+        noteLyrics: project.noteLyrics ?? {},
         currentStep: 0,
         isPlaying: false,
         volumes: {
@@ -1882,6 +1913,7 @@ export const useSongStore = create<SongState>((set, get) => ({
     set((state) => ({
       bpm,
       steps,
+      noteLyrics: project.noteLyrics ?? {},
       currentStep: clampStep(state.currentStep, steps),
       volumes: {
         melody: clampVolume(project.volumes?.melody ?? 82),
@@ -1911,4 +1943,29 @@ export const useSongStore = create<SongState>((set, get) => ({
       canRedo: false,
     }));
   },
-}));
+    }),
+    {
+      name: 'song-maker-composer-draft',
+      partialize: (state) => ({
+        bpm: state.bpm,
+        steps: state.steps,
+        currentStep: state.currentStep,
+        noteLyrics: state.noteLyrics,
+        volumes: state.volumes,
+        melody: state.melody,
+        melodyLengths: state.melodyLengths,
+        violin: state.violin,
+        violinLengths: state.violinLengths,
+        saxophone: state.saxophone,
+        saxophoneLengths: state.saxophoneLengths,
+        guitar: state.guitar,
+        guitarLengths: state.guitarLengths,
+        drums: state.drums,
+        bass: state.bass,
+        bassLengths: state.bassLengths,
+        extraTracks: state.extraTracks,
+        loopRange: state.loopRange,
+      }),
+    }
+  )
+);

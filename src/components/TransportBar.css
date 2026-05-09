@@ -234,6 +234,7 @@
 .transport-status-chip {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
@@ -243,6 +244,13 @@
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.transport-status-chip.is-active {
+  border-color: rgba(121, 255, 67, 0.42);
+  background: rgba(121, 255, 67, 0.18);
 }
 
 .transport-dialog-backdrop {

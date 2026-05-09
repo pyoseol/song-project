@@ -23,8 +23,8 @@
 }
 
 .shorts-player-frame {
-  border-radius: 28px;
-  padding: 14px;
+  border-radius: 24px;
+  padding: 16px;
 }
 
 .shorts-player-toolbar {
@@ -34,9 +34,11 @@
     minmax(0, var(--shorts-reel-width))
     minmax(max-content, 1fr);
   grid-template-areas: "left filter actions";
-  align-items: start;
-  gap: 12px;
-  margin-bottom: 14px;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .shorts-toolbar-left {
@@ -46,14 +48,14 @@
 
 .shorts-toolbar-left strong {
   display: block;
-  font-size: 22px;
-  letter-spacing: -0.03em;
+  font-size: 20px;
+  letter-spacing: 0;
 }
 
 .shorts-toolbar-left span {
   display: block;
-  margin-top: 4px;
-  color: #949cad;
+  margin-top: 5px;
+  color: #8d96a8;
   font-size: 12px;
 }
 
@@ -64,9 +66,13 @@
   width: 100%;
   max-width: var(--shorts-reel-width);
   justify-self: center;
-  transform: translateX(-36px);
-  margin-top: 2px;
-  gap: 8px;
+  transform: none;
+  margin-top: 0;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.028);
 }
 
 .shorts-filter-button,
@@ -81,9 +87,9 @@
 .shorts-filter-button,
 .shorts-toolbar-button,
 .shorts-modal-button {
-  min-height: 40px;
-  padding: 0 14px;
-  border-radius: 999px;
+  min-height: 38px;
+  padding: 0 13px;
+  border-radius: 11px;
   cursor: pointer;
 }
 
@@ -92,25 +98,52 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 7px;
   text-align: center;
   white-space: nowrap;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .shorts-filter-button,
 .shorts-toolbar-button,
 .shorts-modal-button {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.03);
+  border: 0;
+  background: transparent;
+  color: #aeb7c8;
+}
+
+.shorts-toolbar-button.is-primary,
+.shorts-modal-button.is-primary {
+  background: #eef2f7;
+  color: #171a20;
+  font-weight: 800;
+}
+
+.shorts-filter-button:hover {
+  background: rgba(255, 255, 255, 0.052);
   color: #f3f5fb;
 }
 
-.shorts-filter-button.is-active,
-.shorts-toolbar-button.is-primary,
-.shorts-modal-button.is-primary {
-  border-color: rgba(113, 255, 57, 0.28);
-  background: linear-gradient(180deg, #75ff39 0%, #49db16 100%);
-  color: #112106;
+.shorts-filter-button.is-active {
+  background: #eef2f7;
+  color: #171a20;
   font-weight: 800;
+}
+
+.shorts-filter-button em {
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font-style: normal;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.shorts-filter-button.is-active em {
+  background: rgba(17, 23, 31, 0.1);
 }
 
 .shorts-toolbar-actions {
@@ -118,8 +151,13 @@
   display: flex;
   align-items: center;
   justify-self: end;
-  align-self: start;
+  align-self: center;
   gap: 8px;
+}
+
+.shorts-toolbar-button.is-primary {
+  min-width: 112px;
+  box-shadow: none;
 }
 
 .shorts-stage {

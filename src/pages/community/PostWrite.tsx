@@ -74,6 +74,12 @@ export default function PostWrite() {
     });
   }, [seedCommunity]);
 
+  useEffect(() => {
+    if (!user) {
+      navigate('/login', { replace: true });
+    }
+  }, [navigate, user]);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 

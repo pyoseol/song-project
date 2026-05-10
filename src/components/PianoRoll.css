@@ -569,13 +569,13 @@
 
 .piano-roll-lyric-label {
   position: absolute;
-  left: 4px;
+  left: 5px;
   top: 2px;
   z-index: 3;
   display: inline-flex;
   align-items: center;
   min-height: 16px;
-  max-width: calc(100% - 8px);
+  max-width: calc(100% - 28px);
   padding: 0 5px;
   border-radius: 5px;
   background: rgba(235, 255, 196, 0.92);
@@ -591,12 +591,12 @@
 
 .piano-roll-lyric-input {
   position: absolute;
-  left: 4px;
+  left: 5px;
   top: 2px;
   z-index: 4;
   width: calc(
     (var(--note-span-steps) * var(--piano-step-width)) +
-      ((var(--note-span-steps) - 1) * var(--piano-grid-gap)) - 8px
+      ((var(--note-span-steps) - 1) * var(--piano-grid-gap)) - 28px
   );
   max-width: calc(100vw - 32px);
   height: 18px;

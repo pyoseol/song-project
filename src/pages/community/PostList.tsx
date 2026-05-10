@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import CommunitySpaceNav from '../../components/community/CommunitySpaceNav';
 import PostCard from '../../components/community/PostCard';
 import SiteHeader from '../../components/layout/SiteHeader';
+import { useAuthStore } from '../../store/authStore';
 import { useCommunityStore } from '../../store/communityStore';
 import type { Post } from '../../types/community';
 import './PostList.css';
@@ -66,6 +67,7 @@ function matchesSearch(post: Post, searchTerm: string) {
 
 export default function PostList() {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
   const posts = useCommunityStore((state) => state.posts);
   const seedCommunity = useCommunityStore((state) => state.seedCommunity);
   const [selectedCategory, setSelectedCategory] = useState<CategoryKey>('all');
@@ -99,6 +101,10 @@ export default function PostList() {
     CATEGORY_ITEMS.find((item) => item.key === selectedCategory)?.label ?? '전체';
   const selectedSortLabel =
     SORT_OPTIONS.find((item) => item.key === sortKey)?.label ?? '인기순';
+
+  const handleWriteClick = () => {
+    navigate(user ? '/community/write' : '/login');
+  };
 
   const handleCategoryChange = (category: CategoryKey) => {
     setSelectedCategory(category);
@@ -274,7 +280,7 @@ export default function PostList() {
         <button
           type="button"
           className="community-floating-write-button"
-          onClick={() => navigate('/community/write')}
+          onClick={handleWriteClick}
         >
           + 글쓰기
         </button>

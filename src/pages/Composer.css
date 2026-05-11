@@ -154,8 +154,10 @@
   display: flex;
   min-width: 0;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   padding-right: 118px;
+  padding-left: 118px;
   color: #d9dee8;
   white-space: nowrap;
 }
@@ -2407,6 +2409,7 @@
     flex-direction: column;
     gap: 6px;
     padding-right: 0;
+    padding-left: 0;
     white-space: normal;
   }
 

@@ -2832,6 +2832,11 @@ export function Composer() {
             type="button"
             className="composer-mode-action"
             onClick={() => {
+              if (!user) {
+                navigate('/login');
+                return;
+              }
+
               const params = new URLSearchParams({
                 write: '1',
                 title: `${composerMode.title === '새 작업' ? '새 곡' : composerMode.title} 파트 모집`,

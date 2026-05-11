@@ -208,9 +208,264 @@
   margin-top: 18px;
 }
 
+.session-status-control {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(14, 16, 21, 0.76);
+}
+
+.session-status-control strong {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.session-status-control button {
+  min-height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(32, 35, 42, 0.96);
+  color: #eef2ff;
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.session-status-control button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .session-detail-tag-list em {
   color: #9ca5be;
   font-style: normal;
+}
+
+.session-application-owner,
+.session-application-form {
+  margin-top: 18px;
+}
+
+.session-collab-link-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid rgba(124, 255, 84, 0.14);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(124, 255, 84, 0.055), transparent 60%),
+    rgba(14, 16, 21, 0.76);
+}
+
+.session-collab-link-panel strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.session-collab-link-panel p {
+  margin: 0;
+  color: #aab2c5;
+  line-height: 1.5;
+}
+
+.session-collab-link-panel > button,
+.session-collab-create button {
+  min-height: 42px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #5564ff, #7684ff);
+  color: #fff;
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.session-collab-create {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.session-collab-create select {
+  min-width: 180px;
+  height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 13px;
+  background: rgba(24, 26, 31, 0.96);
+  color: #f5f7fb;
+  padding: 0 12px;
+  font: inherit;
+}
+
+.session-collab-create button:disabled,
+.session-collab-create select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.session-application-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(14, 16, 21, 0.76);
+}
+
+.session-application-summary strong {
+  font-size: 1rem;
+}
+
+.session-application-summary small,
+.session-applicant-card span,
+.session-reviewed-list span,
+.session-application-state span,
+.session-detail-note {
+  color: #9ca5be;
+}
+
+.session-applicant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.session-applicant-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(20, 23, 29, 0.9);
+}
+
+.session-applicant-card strong,
+.session-application-state strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.session-applicant-card p {
+  margin: 10px 0 0;
+  color: #dce3ef;
+  line-height: 1.6;
+}
+
+.session-applicant-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.session-applicant-actions button,
+.session-application-form button {
+  min-height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(32, 35, 42, 0.96);
+  color: #eef2ff;
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.session-applicant-actions button:first-child,
+.session-application-form button {
+  border-color: transparent;
+  background: linear-gradient(135deg, #5564ff, #7684ff);
+  color: #fff;
+}
+
+.session-applicant-actions button:disabled,
+.session-application-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.session-reviewed-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.session-reviewed-list span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(38, 42, 50, 0.96);
+  font-size: 12px;
+}
+
+.session-detail-note {
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  text-align: center;
+}
+
+.session-application-form {
+  display: grid;
+  gap: 14px;
+}
+
+.session-application-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.session-application-form label span {
+  color: #cbd3e6;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.session-application-form select,
+.session-application-form textarea {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(14, 16, 21, 0.92);
+  color: #f5f7fb;
+  font: inherit;
+}
+
+.session-application-form select {
+  height: 44px;
+  padding: 0 13px;
+}
+
+.session-application-form textarea {
+  min-height: 112px;
+  padding: 13px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.session-application-state {
+  padding: 18px;
+  border: 1px solid rgba(124, 255, 84, 0.16);
+  border-radius: 16px;
+  background: rgba(124, 255, 84, 0.055);
+}
+
+.session-application-error {
+  margin-top: 14px;
+  color: #ffb4b4;
+  font-size: 14px;
 }
 
 .session-detail-empty {
@@ -250,5 +505,37 @@
 
   .session-detail-card dl {
     grid-template-columns: 1fr;
+  }
+
+  .session-applicant-card,
+  .session-application-summary {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .session-applicant-card {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .session-applicant-actions {
+    width: 100%;
+  }
+
+  .session-applicant-actions button {
+    flex: 1 1 0;
+  }
+
+  .session-collab-link-panel,
+  .session-collab-create {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .session-collab-create select,
+  .session-collab-link-panel > button,
+  .session-collab-create button {
+    width: 100%;
   }
 }

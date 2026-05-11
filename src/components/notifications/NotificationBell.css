@@ -194,6 +194,11 @@
   color: #d1f3ff;
 }
 
+.notification-bell-kind.is-collab {
+  background: rgba(168, 85, 247, 0.16);
+  color: #ead7ff;
+}
+
 .notification-bell-item strong {
   display: block;
   color: #f5f7fa;

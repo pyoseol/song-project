@@ -13,6 +13,19 @@ export type SessionStatus = 'open' | 'closing' | 'closed';
 
 export type SessionMeetingType = '오프라인' | '온라인' | '온/오프 병행';
 
+export type SessionRecruitApplicationStatus = 'pending' | 'approved' | 'rejected';
+
+export interface SessionRecruitApplicant {
+  id: string;
+  email: string;
+  name: string;
+  role: SessionRole;
+  message: string;
+  status: SessionRecruitApplicationStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface SessionRecruitPost {
   id: string;
   title: string;
@@ -32,4 +45,6 @@ export interface SessionRecruitPost {
   createdAt: number;
   updatedAt: number;
   urgent: boolean;
+  applicants?: SessionRecruitApplicant[];
+  collabProjectId?: string | null;
 }

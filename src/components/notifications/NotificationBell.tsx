@@ -27,6 +27,7 @@ const FILTERS: Array<{ key: AppNotificationFilter; label: string }> = [
   { key: 'all', label: '전체' },
   { key: 'unread', label: '안읽음' },
   { key: 'community', label: '커뮤니티' },
+  { key: 'collab', label: '협업' },
   { key: 'music', label: '음악' },
   { key: 'shorts', label: '숏폼' },
 ];
@@ -134,6 +135,8 @@ export default function NotificationBell() {
                   <span className={`notification-bell-kind is-${notification.kind}`}>
                     {notification.kind === 'community'
                       ? '커뮤니티'
+                      : notification.kind === 'collab'
+                      ? '협업'
                       : notification.kind === 'music'
                       ? '음악공유'
                       : '숏폼'}

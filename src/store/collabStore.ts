@@ -87,6 +87,28 @@ function createId(prefix: string) {
 
 export const COLLAB_SESSION_ID = createId('collab-session');
 
+function getOperationSummary(operation: CollabComposerOperation) {
+  switch (operation.type) {
+    case 'set-melody-note':
+      return `${operation.barIndex + 1}마디 멜로디 음을 수정했습니다.`;
+    case 'apply-chord':
+      return `${operation.barIndex + 1}마디에 ${operation.chord} 코드를 적용했습니다.`;
+    case 'set-volume':
+      return `${operation.instrument} 볼륨을 조정했습니다.`;
+    default:
+      return `${operation.barIndex + 1}마디 ${operation.type.replaceAll('-', ' ')} 작업을 수정했습니다.`;
+  }
+}
+
+async function addComposerHistoryEntry(entry: Omit<CollabComposerHistoryEntry, 'id' | 'createdAt'>) {
+  const historyRef = doc(collection(db, 'collab_history'));
+  await setDoc(historyRef, {
+    id: historyRef.id,
+    createdAt: Date.now(),
+    ...entry,
+  });
+}
+
 // ============================================================================
 // 🔥 2. 파이어베이스 2차원 배열 에러 방지용 "마법의 번역기"
 // ============================================================================
@@ -176,6 +198,19 @@ export const useCollabStore = create<CollabState>((set) => ({
         set({ composerLocksByProject });
       }));
 
+      unsubscribes.push(onSnapshot(collection(db, 'collab_history'), (snap) => {
+        const historyList = snap.docs.map(d => ({ id: d.id, ...d.data() } as CollabComposerHistoryEntry));
+        const composerHistoryByProject: Record<string, CollabComposerHistoryEntry[]> = {};
+        historyList.forEach(entry => {
+          if (!composerHistoryByProject[entry.projectId]) composerHistoryByProject[entry.projectId] = [];
+          composerHistoryByProject[entry.projectId].push(entry);
+        });
+        Object.values(composerHistoryByProject).forEach(entries => {
+          entries.sort((left, right) => right.createdAt - left.createdAt);
+        });
+        set({ composerHistoryByProject });
+      }));
+
     } catch (error) {
       set({ connectionStatus: 'error', connectionError: '파이어베이스 실시간 연결에 실패했습니다.' });
     }
@@ -222,6 +257,7 @@ export const useCollabStore = create<CollabState>((set) => ({
   },
 
   updateComposerSnapshot: async (projectId, payload) => {
+    const revision = (payload.baseRevision ?? 0) + 1;
     await updateDoc(doc(db, 'collab_projects', projectId), {
       snapshot: sanitizeForFirestore(payload.snapshot),
       snapshotRevision: increment(1),
@@ -229,12 +265,23 @@ export const useCollabStore = create<CollabState>((set) => ({
       snapshotUpdatedBySessionId: payload.sessionId || COLLAB_SESSION_ID,
       updatedAt: Date.now()
     });
-    return 1;
+    await addComposerHistoryEntry({
+      projectId,
+      instrument: 'transport',
+      barIndex: null,
+      authorEmail: payload.email,
+      authorName: payload.name,
+      action: 'snapshot-update',
+      summary: '작곡 화면 변경사항을 저장했습니다.',
+      revision,
+    });
+    return revision;
   },
 
   applyComposerOperation: async (projectId, payload) => {
     const currentSongState = useSongStore.getState();
     const currentSnapshot = buildSongProjectSnapshot(currentSongState);
+    const revision = (payload.baseRevision ?? 0) + 1;
     if (currentSnapshot) {
       await updateDoc(doc(db, 'collab_projects', projectId), {
         snapshot: sanitizeForFirestore(currentSnapshot),
@@ -242,8 +289,35 @@ export const useCollabStore = create<CollabState>((set) => ({
         snapshotUpdatedByEmail: payload.email,
         updatedAt: Date.now()
       });
+      await addComposerHistoryEntry({
+        projectId,
+        instrument:
+          payload.operation.type === 'apply-chord'
+            ? payload.operation.isBass
+              ? 'bass'
+              : 'melody'
+            : payload.operation.type === 'set-volume'
+              ? payload.operation.instrument
+              : payload.operation.type.includes('drum')
+                ? 'drums'
+                : payload.operation.type.includes('bass')
+                  ? 'bass'
+                  : payload.operation.type.includes('guitar')
+                    ? 'guitar'
+                    : payload.operation.type.includes('saxophone')
+                      ? 'saxophone'
+                      : payload.operation.type.includes('violin')
+                        ? 'violin'
+                        : 'melody',
+        barIndex: 'barIndex' in payload.operation ? payload.operation.barIndex : null,
+        authorEmail: payload.email,
+        authorName: payload.name,
+        action: payload.operation.type,
+        summary: getOperationSummary(payload.operation),
+        revision,
+      });
     }
-    return 1;
+    return revision;
   },
 
   setComposerLock: async (projectId, payload) => {

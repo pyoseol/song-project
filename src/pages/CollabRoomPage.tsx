@@ -40,6 +40,7 @@ export default function CollabRoomPage() {
   const projects = useCollabStore((state) => state.projects);
   const messages = useCollabStore((state) => state.messages);
   const tasks = useCollabStore((state) => state.tasks);
+  const composerHistoryByProject = useCollabStore((state) => state.composerHistoryByProject);
   const connectionStatus = useCollabStore((state) => state.connectionStatus);
   const connectionError = useCollabStore((state) => state.connectionError);
   const initializeRealtime = useCollabStore((state) => state.initializeRealtime);
@@ -91,6 +92,11 @@ export default function CollabRoomPage() {
         .filter((task) => task.projectId === projectId)
         .sort((left, right) => Number(left.completed) - Number(right.completed)),
     [tasks, projectId]
+  );
+
+  const projectHistory = useMemo(
+    () => (projectId ? (composerHistoryByProject[projectId] ?? []).slice(0, 8) : []),
+    [composerHistoryByProject, projectId]
   );
 
   const isOwner = user?.email === project?.ownerEmail;
@@ -430,6 +436,34 @@ export default function CollabRoomPage() {
                 >
                   코멘트 남기기
                 </button>
+              </div>
+            </article>
+
+            <article className="collab-room-panel">
+              <div className="collab-room-panel-head">
+                <strong>작업 히스토리</strong>
+                <span>작곡 화면에서 저장된 최근 수정 기록입니다.</span>
+              </div>
+
+              <div className="collab-history-list">
+                {projectHistory.length ? (
+                  projectHistory.map((entry) => (
+                    <article key={entry.id} className="collab-history-card">
+                      <div>
+                        <strong>{entry.summary}</strong>
+                        <span>
+                          {entry.authorName} · {formatDateTime(entry.createdAt)} · rev {entry.revision}
+                        </span>
+                      </div>
+                      <em>
+                        {entry.instrument}
+                        {entry.barIndex !== null ? ` · ${entry.barIndex + 1}마디` : ''}
+                      </em>
+                    </article>
+                  ))
+                ) : (
+                  <div className="collab-room-empty">아직 저장된 작업 히스토리가 없습니다.</div>
+                )}
               </div>
             </article>
           </div>

@@ -2,11 +2,19 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { SessionRecruitPost } from '../types/sessionRecruit';
 import {
+  applySessionRecruitPostOnServer,
   createSessionRecruitPostOnServer,
   deleteSessionRecruitPostOnServer,
   fetchSessionRecruitBootstrap,
+  linkSessionRecruitCollabOnServer,
+  reviewSessionRecruitApplicationOnServer,
+  setSessionRecruitStatusOnServer,
   updateSessionRecruitPostOnServer,
+  type ApplySessionRecruitPayload,
   type CreateSessionRecruitPayload,
+  type LinkSessionRecruitCollabPayload,
+  type ReviewSessionRecruitApplicationPayload,
+  type SetSessionRecruitStatusPayload,
   type SessionRecruitSnapshot,
   type UpdateSessionRecruitPayload,
 } from '../utils/sessionRecruitApi';
@@ -20,6 +28,10 @@ type SessionRecruitStoreState = {
   createPost: (payload: CreateSessionRecruitPayload) => Promise<string>;
   updatePost: (payload: UpdateSessionRecruitPayload) => Promise<void>;
   deletePost: (postId: string, userEmail: string) => Promise<void>;
+  applyPost: (payload: ApplySessionRecruitPayload) => Promise<void>;
+  reviewApplication: (payload: ReviewSessionRecruitApplicationPayload) => Promise<void>;
+  linkCollabProject: (payload: LinkSessionRecruitCollabPayload) => Promise<void>;
+  setRecruitStatus: (payload: SetSessionRecruitStatusPayload) => Promise<void>;
 };
 
 let sessionRecruitBootstrapPromise: Promise<void> | null = null;
@@ -90,6 +102,22 @@ export const useSessionRecruitStore = create<SessionRecruitStoreState>()(
       },
       deletePost: async (postId, userEmail) => {
         const response = await deleteSessionRecruitPostOnServer({ postId, userEmail });
+        applySnapshot(response.snapshot);
+      },
+      applyPost: async (payload) => {
+        const response = await applySessionRecruitPostOnServer(payload);
+        applySnapshot(response.snapshot);
+      },
+      reviewApplication: async (payload) => {
+        const response = await reviewSessionRecruitApplicationOnServer(payload);
+        applySnapshot(response.snapshot);
+      },
+      linkCollabProject: async (payload) => {
+        const response = await linkSessionRecruitCollabOnServer(payload);
+        applySnapshot(response.snapshot);
+      },
+      setRecruitStatus: async (payload) => {
+        const response = await setSessionRecruitStatusOnServer(payload);
         applySnapshot(response.snapshot);
       },
     }),

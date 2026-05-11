@@ -99,6 +99,18 @@ function getRoleLabel(role: SessionRole) {
   return ROLE_OPTIONS.find((option) => option.key === role)?.label ?? role;
 }
 
+function getApplicationStatusLabel(status: 'pending' | 'approved' | 'rejected') {
+  if (status === 'approved') {
+    return '승인됨';
+  }
+
+  if (status === 'rejected') {
+    return '거절됨';
+  }
+
+  return '대기중';
+}
+
 function formatRelativeTime(timestamp: number) {
   const diffMs = Date.now() - timestamp;
   const hour = 60 * 60 * 1000;
@@ -238,6 +250,20 @@ export default function SessionRecruitPage() {
     ],
     [posts]
   );
+
+  const myApplications = useMemo(() => {
+    if (!user) {
+      return [];
+    }
+
+    return posts
+      .flatMap((post) =>
+        (post.applicants ?? [])
+          .filter((applicant) => applicant.email === user.email)
+          .map((applicant) => ({ post, applicant }))
+      )
+      .sort((left, right) => right.applicant.updatedAt - left.applicant.updatedAt);
+  }, [posts, user]);
 
   const handleMoveWithAuth = (route: string) => {
     navigate(user ? route : '/login');
@@ -465,6 +491,40 @@ export default function SessionRecruitPage() {
                 </article>
               ))}
             </div>
+
+            {user && myApplications.length ? (
+              <section className="session-my-application-panel">
+                <div className="session-panel-headline">
+                  <span className="session-board-kicker">MY APPLICATIONS</span>
+                  <strong>내 지원 현황</strong>
+                </div>
+
+                <div className="session-my-application-list">
+                  {myApplications.slice(0, 4).map(({ post, applicant }) => (
+                    <button
+                      key={`${post.id}-${applicant.id}`}
+                      type="button"
+                      className={`session-my-application-card is-${applicant.status}`}
+                      onClick={() =>
+                        navigate(
+                          applicant.status === 'approved' && post.collabProjectId
+                            ? `/collab/${post.collabProjectId}`
+                            : `/community/sessions/${post.id}`
+                        )
+                      }
+                    >
+                      <strong>{post.title}</strong>
+                      <span>
+                        {getRoleLabel(applicant.role)} · {getApplicationStatusLabel(applicant.status)}
+                        {applicant.status === 'approved' && post.collabProjectId
+                          ? ' · 작업실 바로가기'
+                          : ''}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
             <section className={`session-board${isWriteOpen ? ' is-writing' : ''}`}>
               <div className="session-board-head">
@@ -731,6 +791,25 @@ export default function SessionRecruitPage() {
                           <span className="session-meta-chip">{post.meetingType}</span>
                           {post.urgent ? (
                             <span className="session-meta-chip is-urgent">급구</span>
+                          ) : null}
+                          {post.collabProjectId ? (
+                            <span className="session-meta-chip is-linked">작업실 연결됨</span>
+                          ) : null}
+                          {user && post.hostEmail === user.email ? (
+                            <span className="session-meta-chip is-owner">
+                              지원자 {(post.applicants ?? []).length}명
+                            </span>
+                          ) : null}
+                          {user &&
+                          post.hostEmail !== user.email &&
+                          (post.applicants ?? []).some((applicant) => applicant.email === user.email) ? (
+                            <span className="session-meta-chip is-applied">
+                              {getApplicationStatusLabel(
+                                (post.applicants ?? []).find(
+                                  (applicant) => applicant.email === user.email
+                                )?.status ?? 'pending'
+                              )}
+                            </span>
                           ) : null}
                         </div>
 

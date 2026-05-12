@@ -807,9 +807,13 @@
   font-size: 15px;
 }
 
+.community-detail-primary-button,
 .community-detail-secondary-button {
   height: 40px;
   border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .community-detail-layout {
@@ -851,10 +855,6 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.community-detail-primary-button {
-  display: inline-flex;
 }
 
 .community-detail-side-actions {
@@ -943,6 +943,23 @@
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.community-detail-comment-modal-actions .community-detail-primary-button,
+.community-detail-comment-modal-actions .community-detail-secondary-button {
+  min-width: 100px;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: 14px;
+  font-size: 15px;
+}
+
+.community-detail-primary-button:disabled,
+.community-detail-secondary-button:disabled,
+.community-detail-comment-editor-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
 }
 
 .community-detail-toast {

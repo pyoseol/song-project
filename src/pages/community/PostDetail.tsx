@@ -197,6 +197,8 @@ export default function PostDetail() {
   const [editingCommentInput, setEditingCommentInput] = useState('');
   const [commentToastMessage, setCommentToastMessage] = useState('');
   const [isCommentPopupOpen, setIsCommentPopupOpen] = useState(false);
+  const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
+  const [replySubmittingId, setReplySubmittingId] = useState<string | null>(null);
 
   const post: Post | null = posts.find((item) => item.id === id) ?? null;
   const comments: Comment[] = useMemo(
@@ -284,7 +286,7 @@ export default function PostDetail() {
 
   const handleCommentSubmit = async () => {
     const nextValue = commentInput.trim();
-    if (!nextValue) {
+    if (!nextValue || isCommentSubmitting) {
       return;
     }
 
@@ -293,11 +295,15 @@ export default function PostDetail() {
       return;
     }
 
+    setIsCommentSubmitting(true);
     await addComment({
       postId: post.id,
       authorName: user.name,
       authorEmail: user.email,
       content: nextValue,
+    }).catch((error) => {
+      setIsCommentSubmitting(false);
+      throw error;
     });
     pushNotification({
       kind: 'community',
@@ -308,6 +314,7 @@ export default function PostDetail() {
     });
     setCommentInput('');
     setIsCommentPopupOpen(false);
+    setIsCommentSubmitting(false);
     setCommentToastMessage('댓글 달았습니다.');
   };
 
@@ -323,7 +330,7 @@ export default function PostDetail() {
 
   const handleReplySubmit = async (comment: Comment) => {
     const nextValue = replyInput.trim();
-    if (!nextValue) {
+    if (!nextValue || replySubmittingId === comment.id) {
       return;
     }
 
@@ -332,12 +339,16 @@ export default function PostDetail() {
       return;
     }
 
+    setReplySubmittingId(comment.id);
     await replyComment({
       commentId: comment.id,
       postId: post.id,
       authorName: user.name,
       authorEmail: user.email,
       content: nextValue,
+    }).catch((error) => {
+      setReplySubmittingId(null);
+      throw error;
     });
     pushNotification({
       kind: 'community',
@@ -348,6 +359,7 @@ export default function PostDetail() {
     });
     setReplyTargetId(null);
     setReplyInput('');
+    setReplySubmittingId(null);
     setCommentToastMessage('답글을 달았습니다.');
   };
 
@@ -568,7 +580,11 @@ export default function PostDetail() {
                   placeholder={`${comment.authorName}님에게 답글 남기기`}
                 />
                 <div className="community-detail-comment-editor-actions">
-                  <button type="button" onClick={() => handleReplySubmit(comment)}>
+                  <button
+                    type="button"
+                    disabled={replySubmittingId === comment.id}
+                    onClick={() => handleReplySubmit(comment)}
+                  >
                     답글 등록
                   </button>
                   <button
@@ -835,6 +851,7 @@ export default function PostDetail() {
               <button
                 type="button"
                 className="community-detail-secondary-button"
+                disabled={isCommentSubmitting}
                 onClick={() => setIsCommentPopupOpen(false)}
               >
                 취소
@@ -842,6 +859,7 @@ export default function PostDetail() {
               <button
                 type="button"
                 className="community-detail-primary-button"
+                disabled={isCommentSubmitting || !commentInput.trim()}
                 onClick={handleCommentSubmit}
               >
                 댓글 달기

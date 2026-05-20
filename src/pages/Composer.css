@@ -887,6 +887,26 @@
   --composer-tab-accent: #f59e0b;
 }
 
+.composer-tab-card.is-glockenspiel {
+  --composer-tab-accent: #38bdf8;
+}
+
+.composer-tab-card.is-piccolo {
+  --composer-tab-accent: #86efac;
+}
+
+.composer-tab-card.is-supportingPiano {
+  --composer-tab-accent: #cbd5e1;
+}
+
+.composer-tab-card.is-chicagoStreet {
+  --composer-tab-accent: #fb7185;
+}
+
+.composer-tab-card.is-studioAltoSax {
+  --composer-tab-accent: #fbbf24;
+}
+
 .composer-tab-card.is-drums {
   --composer-tab-accent: #f97316;
 }
@@ -928,6 +948,31 @@
 .composer-tab-card.is-guitar.is-active {
   border-color: rgba(245, 158, 11, 0.5);
   color: #f59e0b;
+}
+
+.composer-tab-card.is-glockenspiel.is-active {
+  border-color: rgba(56, 189, 248, 0.52);
+  color: #7dd3fc;
+}
+
+.composer-tab-card.is-piccolo.is-active {
+  border-color: rgba(134, 239, 172, 0.5);
+  color: #bbf7d0;
+}
+
+.composer-tab-card.is-supportingPiano.is-active {
+  border-color: rgba(203, 213, 225, 0.5);
+  color: #e5e7eb;
+}
+
+.composer-tab-card.is-chicagoStreet.is-active {
+  border-color: rgba(251, 113, 133, 0.5);
+  color: #fda4af;
+}
+
+.composer-tab-card.is-studioAltoSax.is-active {
+  border-color: rgba(251, 191, 36, 0.5);
+  color: #fde68a;
 }
 
 .composer-tab-card.is-drums.is-active {
@@ -1174,6 +1219,26 @@
 
 .composer-tab-picker-item.is-guitar:hover {
   background: rgba(245, 158, 11, 0.12);
+}
+
+.composer-tab-picker-item.is-glockenspiel:hover {
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.composer-tab-picker-item.is-piccolo:hover {
+  background: rgba(134, 239, 172, 0.12);
+}
+
+.composer-tab-picker-item.is-supportingPiano:hover {
+  background: rgba(203, 213, 225, 0.12);
+}
+
+.composer-tab-picker-item.is-chicagoStreet:hover {
+  background: rgba(251, 113, 133, 0.12);
+}
+
+.composer-tab-picker-item.is-studioAltoSax:hover {
+  background: rgba(251, 191, 36, 0.12);
 }
 
 .composer-tab-picker-item.is-drums:hover {

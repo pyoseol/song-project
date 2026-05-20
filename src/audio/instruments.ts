@@ -1,4 +1,14 @@
 import * as Tone from "tone";
+import {
+  CHICAGO_STREET_NOTES,
+  CHICAGO_STREET_SAMPLE_NOTES,
+  GLOCKENSPIEL_NOTES,
+  GLOCKENSPIEL_SAMPLE_NOTES,
+  PICCOLO_SAMPLE_NOTES,
+  STUDIO_ALTO_SAX_NOTES,
+  STUDIO_ALTO_SAX_SAMPLE_NOTES,
+  SUPPORTING_PIANO_NOTES,
+} from "../constants/composer.ts";
 
 const pianoReverb = new Tone.Reverb({
   decay: 2.0,
@@ -24,6 +34,36 @@ const saxophoneReverb = new Tone.Reverb({
   wet: 0.11,
 }).toDestination();
 
+const glockenspielReverb = new Tone.Reverb({
+  decay: 1.45,
+  preDelay: 0.01,
+  wet: 0.2,
+}).toDestination();
+
+const piccoloReverb = new Tone.Reverb({
+  decay: 1.25,
+  preDelay: 0.008,
+  wet: 0.13,
+}).toDestination();
+
+const supportingPianoReverb = new Tone.Reverb({
+  decay: 1.9,
+  preDelay: 0.01,
+  wet: 0.18,
+}).toDestination();
+
+const chicagoStreetReverb = new Tone.Reverb({
+  decay: 1.35,
+  preDelay: 0.01,
+  wet: 0.14,
+}).toDestination();
+
+const studioAltoSaxReverb = new Tone.Reverb({
+  decay: 1.1,
+  preDelay: 0.008,
+  wet: 0.12,
+}).toDestination();
+
 const SHARP_TO_FLAT_NOTE: Record<string, string> = {
   "C#": "Db",
   "D#": "Eb",
@@ -44,6 +84,25 @@ function withFlatAliases<T extends Record<string, string>>(urls: T): Record<stri
   });
 
   return aliasedUrls;
+}
+
+function normalizeNoteName(note: string) {
+  return note.replace('_sharp', '#');
+}
+
+function noteToFileName(note: string) {
+  return `${note.replace('#', '_sharp')}.mp3`;
+}
+
+function buildSampleUrls(notes: readonly string[]) {
+  return withFlatAliases(
+    Object.fromEntries(notes.map((note) => [normalizeNoteName(note), noteToFileName(note)]))
+  );
+}
+
+function buildTransposedSampleUrls(displayNotes: readonly string[], sampleNotes: readonly string[]) {
+  void displayNotes;
+  return buildSampleUrls(sampleNotes);
 }
 
 export const pianoSynth = new Tone.Sampler({
@@ -191,6 +250,54 @@ export const saxophoneSynth = new Tone.Sampler({
   release: 0.28,
   baseUrl: "/samples/sax/",
 }).connect(saxophoneReverb);
+
+export const GLOCKENSPIEL_SAMPLE_URLS = buildTransposedSampleUrls(
+  GLOCKENSPIEL_NOTES,
+  GLOCKENSPIEL_SAMPLE_NOTES
+);
+export const PICCOLO_SAMPLE_URLS = buildSampleUrls(PICCOLO_SAMPLE_NOTES);
+export const SUPPORTING_PIANO_SAMPLE_URLS = buildSampleUrls(SUPPORTING_PIANO_NOTES);
+export const CHICAGO_STREET_SAMPLE_URLS = buildTransposedSampleUrls(
+  CHICAGO_STREET_NOTES,
+  CHICAGO_STREET_SAMPLE_NOTES
+);
+export const STUDIO_ALTO_SAX_SAMPLE_URLS = buildTransposedSampleUrls(
+  STUDIO_ALTO_SAX_NOTES,
+  STUDIO_ALTO_SAX_SAMPLE_NOTES
+);
+
+export const glockenspielSynth = new Tone.Sampler({
+  urls: GLOCKENSPIEL_SAMPLE_URLS,
+  release: 1.1,
+  baseUrl: "/samples/glockenspiel/",
+}).connect(glockenspielReverb);
+
+export const piccoloSynth = new Tone.Sampler({
+  urls: PICCOLO_SAMPLE_URLS,
+  attack: 0.006,
+  release: 0.34,
+  baseUrl: "/samples/piccolo/",
+}).connect(piccoloReverb);
+
+export const supportingPianoSynth = new Tone.Sampler({
+  urls: SUPPORTING_PIANO_SAMPLE_URLS,
+  release: 1.1,
+  baseUrl: "/samples/supporting_piano/",
+}).connect(supportingPianoReverb);
+
+export const chicagoStreetSynth = new Tone.Sampler({
+  urls: CHICAGO_STREET_SAMPLE_URLS,
+  attack: 0.008,
+  release: 0.42,
+  baseUrl: "/samples/chicago_street/",
+}).connect(chicagoStreetReverb);
+
+export const studioAltoSaxSynth = new Tone.Sampler({
+  urls: STUDIO_ALTO_SAX_SAMPLE_URLS,
+  attack: 0.008,
+  release: 0.3,
+  baseUrl: "/samples/studio_alto_sax/",
+}).connect(studioAltoSaxReverb);
 
 export const BASS_SAMPLE_URLS = withFlatAliases({
   C2: "01_C2.mp3",

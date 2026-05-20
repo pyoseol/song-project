@@ -174,6 +174,104 @@ export const SAXOPHONE_NOTES = [
   'C2',
 ] as const;
 
+const NOTE_ROOT_ORDER: Record<string, number> = {
+  C: 0,
+  'C#': 1,
+  D: 2,
+  'D#': 3,
+  E: 4,
+  F: 5,
+  'F#': 6,
+  G: 7,
+  'G#': 8,
+  A: 9,
+  'A#': 10,
+  B: 11,
+};
+
+function noteToMidiValue(note: string) {
+  const match = /^([A-G](?:#|_sharp)?)(-?\d+)$/.exec(note);
+  if (!match) {
+    return -Infinity;
+  }
+
+  const root = match[1].replace('_sharp', '#');
+  return (Number(match[2]) + 1) * 12 + (NOTE_ROOT_ORDER[root] ?? 0);
+}
+
+function sortNotesHighToLow(notes: readonly string[]) {
+  return [...notes].sort((left, right) => noteToMidiValue(right) - noteToMidiValue(left));
+}
+
+function midiValueToNote(midi: number) {
+  const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const octave = Math.floor(midi / 12) - 1;
+  return `${noteNames[((midi % 12) + 12) % 12]}${octave}`;
+}
+
+function transposeSampleNotesToStart(
+  notes: readonly string[],
+  sampleStartNote: string,
+  displayStartNote: string
+) {
+  const offset = noteToMidiValue(displayStartNote) - noteToMidiValue(sampleStartNote);
+  return notes.map((note) => midiValueToNote(noteToMidiValue(note) + offset));
+}
+
+export const GLOCKENSPIEL_SAMPLE_NOTES = [
+  'C1', 'C#1', 'D1', 'D#1', 'E1', 'F1', 'F#1', 'G1', 'G#1', 'A1', 'A#1', 'B1',
+  'C2', 'C#2', 'D2', 'D#2', 'E2', 'F2', 'F#2', 'G2', 'G#2', 'A2', 'A#2', 'B2',
+  'C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
+  'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4',
+  'C5', 'C#5', 'D5', 'D#5', 'E5', 'F5', 'F#5', 'G5', 'G#5', 'A5', 'A#5', 'B5',
+] as const;
+
+export const GLOCKENSPIEL_NOTES = sortNotesHighToLow(
+  transposeSampleNotesToStart(GLOCKENSPIEL_SAMPLE_NOTES, 'C1', 'C5')
+).reverse();
+
+export const PICCOLO_SAMPLE_NOTES = [
+  'C2', 'C#2', 'D2', 'D#2', 'E2', 'F2', 'F#2', 'G2', 'G#2', 'A2', 'A#2', 'B2',
+  'C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
+  'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4',
+] as const;
+
+export const PICCOLO_NOTES = sortNotesHighToLow(
+  transposeSampleNotesToStart(PICCOLO_SAMPLE_NOTES, 'C2', 'C2')
+).reverse();
+
+export const SUPPORTING_PIANO_NOTES = sortNotesHighToLow([
+  'C0', 'C#0', 'D0', 'D#0', 'E0', 'F0', 'F#0', 'G0', 'G#0', 'A0', 'A#0', 'B0',
+  'C1', 'C#1', 'D1', 'D#1', 'E1', 'F1', 'F#1', 'G1', 'G#1', 'A1', 'A#1', 'B1',
+  'C2', 'C#2', 'D2', 'D#2', 'E2', 'F2', 'F#2', 'G2', 'G#2', 'A2', 'A#2', 'B2',
+  'C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
+  'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4',
+  'C5',
+] as const);
+
+export const CHICAGO_STREET_SAMPLE_NOTES = [
+  'C1', 'C#1', 'D1', 'D#1', 'E1', 'F1', 'F#1', 'G1', 'G#1', 'A1', 'A#1', 'B1',
+  'C2', 'C#2', 'D2', 'D#2', 'E2', 'F2', 'F#2', 'G2', 'G#2', 'A2', 'A#2', 'B2',
+  'C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
+  'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4',
+  'C5',
+] as const;
+
+export const CHICAGO_STREET_NOTES = sortNotesHighToLow(
+  transposeSampleNotesToStart(CHICAGO_STREET_SAMPLE_NOTES, 'C1', 'C1')
+).reverse();
+
+export const STUDIO_ALTO_SAX_SAMPLE_NOTES = [
+  'C1', 'C#1', 'D1', 'D#1', 'E1', 'F1', 'F#1', 'G1', 'G#1', 'A1', 'A#1', 'B1',
+  'C2', 'C#2', 'D2', 'D#2', 'E2', 'F2', 'F#2', 'G2', 'G#2', 'A2', 'A#2', 'B2',
+  'C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
+  'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4',
+] as const;
+
+export const STUDIO_ALTO_SAX_NOTES = sortNotesHighToLow(
+  transposeSampleNotesToStart(STUDIO_ALTO_SAX_SAMPLE_NOTES, 'C1', 'C#4')
+).reverse();
+
 export const MELODY_MIDI = [
   84, 83, 82, 81, 80, 79, 78, 77, 76, 75, 74, 73, 72, 71, 70, 69, 68, 67,
   66, 65, 64, 63, 62, 61, 60,
@@ -188,6 +286,11 @@ export const MELODY_ROWS = MELODY_NOTES.length;
 export const BASS_ROWS = BASS_NOTES.length;
 export const VIOLIN_ROWS = VIOLIN_NOTES.length;
 export const SAXOPHONE_ROWS = SAXOPHONE_NOTES.length;
+export const GLOCKENSPIEL_ROWS = GLOCKENSPIEL_NOTES.length;
+export const PICCOLO_ROWS = PICCOLO_NOTES.length;
+export const SUPPORTING_PIANO_ROWS = SUPPORTING_PIANO_NOTES.length;
+export const CHICAGO_STREET_ROWS = CHICAGO_STREET_NOTES.length;
+export const STUDIO_ALTO_SAX_ROWS = STUDIO_ALTO_SAX_NOTES.length;
 
 export const DRUM_TRACK_LABELS = [
   'Kick',
@@ -268,6 +371,11 @@ export const MELODY_NOTE_TO_ROW = createNoteToRowMap(MELODY_NOTES);
 export const BASS_NOTE_TO_ROW = createNoteToRowMap(BASS_NOTES);
 export const VIOLIN_NOTE_TO_ROW = createNoteToRowMap(VIOLIN_NOTES);
 export const SAXOPHONE_NOTE_TO_ROW = createNoteToRowMap(SAXOPHONE_NOTES);
+export const GLOCKENSPIEL_NOTE_TO_ROW = createNoteToRowMap(GLOCKENSPIEL_NOTES);
+export const PICCOLO_NOTE_TO_ROW = createNoteToRowMap(PICCOLO_NOTES);
+export const SUPPORTING_PIANO_NOTE_TO_ROW = createNoteToRowMap(SUPPORTING_PIANO_NOTES);
+export const CHICAGO_STREET_NOTE_TO_ROW = createNoteToRowMap(CHICAGO_STREET_NOTES);
+export const STUDIO_ALTO_SAX_NOTE_TO_ROW = createNoteToRowMap(STUDIO_ALTO_SAX_NOTES);
 
 export const BASS_MIGRATION_MAP: Record<string, string> = {
   C5: 'C3',

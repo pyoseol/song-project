@@ -5,6 +5,9 @@ import {
   //BASS_MIGRATION_MAP,
   BASS_NOTE_TO_ROW,
   BASS_ROWS,
+  CHICAGO_STREET_NOTE_TO_ROW,
+  CHICAGO_STREET_NOTES,
+  CHICAGO_STREET_ROWS,
   DRUM_ROWS,
   //LEGACY_BASS_NOTES,
   //LEGACY_EXTENDED_BASS_NOTES,
@@ -15,11 +18,23 @@ import {
   MELODY_NOTES,
   BASS_NOTES,
   DRUM_TRACK_LABELS,
+  GLOCKENSPIEL_NOTE_TO_ROW,
+  GLOCKENSPIEL_NOTES,
+  GLOCKENSPIEL_ROWS,
   GUITAR_ROWS,
   GUITAR_TRACK_LABELS,
+  PICCOLO_NOTE_TO_ROW,
+  PICCOLO_NOTES,
+  PICCOLO_ROWS,
   SAXOPHONE_NOTE_TO_ROW,
   SAXOPHONE_NOTES,
   SAXOPHONE_ROWS,
+  STUDIO_ALTO_SAX_NOTE_TO_ROW,
+  STUDIO_ALTO_SAX_NOTES,
+  STUDIO_ALTO_SAX_ROWS,
+  SUPPORTING_PIANO_NOTE_TO_ROW,
+  SUPPORTING_PIANO_NOTES,
+  SUPPORTING_PIANO_ROWS,
   VIOLIN_NOTE_TO_ROW,
   VIOLIN_NOTES,
   VIOLIN_ROWS
@@ -46,7 +61,18 @@ export type MusicEvent = {
   duration?: number;
 };
 
-export type InstrumentKey = 'melody' | 'violin' | 'saxophone' | 'drums' | 'bass' | 'guitar';
+export type InstrumentKey =
+  | 'melody'
+  | 'violin'
+  | 'saxophone'
+  | 'drums'
+  | 'bass'
+  | 'guitar'
+  | 'glockenspiel'
+  | 'piccolo'
+  | 'supportingPiano'
+  | 'chicagoStreet'
+  | 'studioAltoSax';
 export type InstrumentVolumes = Record<InstrumentKey, number>;
 
 export type ExtraInstrumentTrack = {
@@ -267,6 +293,16 @@ function getInstrumentRows(instrument: InstrumentKey) {
       return SAXOPHONE_ROWS;
     case 'guitar':
       return GUITAR_ROWS;
+    case 'glockenspiel':
+      return GLOCKENSPIEL_ROWS;
+    case 'piccolo':
+      return PICCOLO_ROWS;
+    case 'supportingPiano':
+      return SUPPORTING_PIANO_ROWS;
+    case 'chicagoStreet':
+      return CHICAGO_STREET_ROWS;
+    case 'studioAltoSax':
+      return STUDIO_ALTO_SAX_ROWS;
     case 'drums':
       return DRUM_ROWS;
     case 'bass':
@@ -290,6 +326,16 @@ function getInstrumentNotes(instrument: InstrumentKey): readonly string[] {
       return SAXOPHONE_NOTES;
     case 'guitar':
       return GUITAR_TRACK_LABELS;
+    case 'glockenspiel':
+      return GLOCKENSPIEL_NOTES;
+    case 'piccolo':
+      return PICCOLO_NOTES;
+    case 'supportingPiano':
+      return SUPPORTING_PIANO_NOTES;
+    case 'chicagoStreet':
+      return CHICAGO_STREET_NOTES;
+    case 'studioAltoSax':
+      return STUDIO_ALTO_SAX_NOTES;
     case 'drums':
       return DRUM_TRACK_LABELS;
     case 'bass':
@@ -309,6 +355,16 @@ function getInstrumentNoteToRowMap(instrument: InstrumentKey): Record<string, nu
       return SAXOPHONE_NOTE_TO_ROW;
     case 'guitar':
       return Object.fromEntries(GUITAR_TRACK_LABELS.map((label, index) => [label, index]));
+    case 'glockenspiel':
+      return GLOCKENSPIEL_NOTE_TO_ROW;
+    case 'piccolo':
+      return PICCOLO_NOTE_TO_ROW;
+    case 'supportingPiano':
+      return SUPPORTING_PIANO_NOTE_TO_ROW;
+    case 'chicagoStreet':
+      return CHICAGO_STREET_NOTE_TO_ROW;
+    case 'studioAltoSax':
+      return STUDIO_ALTO_SAX_NOTE_TO_ROW;
     case 'drums':
       return Object.fromEntries(DRUM_TRACK_LABELS.map((label, index) => [label, index]));
     case 'bass':
@@ -352,15 +408,25 @@ function createExtraTrackId(instrument: InstrumentKey) {
 
 function createExtraTrackLabel(instrument: InstrumentKey, existingTracks: ExtraInstrumentTrack[]) {
   const baseLabels: Record<InstrumentKey, string> = {
-    melody: 'MELODY',
-    violin: 'VIOLIN',
-    saxophone: 'SAXOPHONE',
-    guitar: 'GUITAR',
-    drums: 'DRUMS',
-    bass: 'BASS',
+    melody: '멜로디',
+    violin: '바이올린',
+    saxophone: '색소폰',
+    guitar: '통기타',
+    glockenspiel: '글로켄슈필',
+    piccolo: '피콜로',
+    supportingPiano: '서포팅 캐스트 피아노',
+    chicagoStreet: '시카고 스트리트',
+    studioAltoSax: '알토 색소폰',
+    drums: '드럼',
+    bass: '베이스',
   };
-  const count = existingTracks.filter((track) => track.instrument === instrument).length + 2;
-  return `${baseLabels[instrument]} ${count}`;
+  const hasPrimaryTrack = ['melody', 'violin', 'saxophone', 'guitar', 'drums', 'bass'].includes(
+    instrument
+  );
+  const existingCount = existingTracks.filter((track) => track.instrument === instrument).length;
+  const labelNumber = existingCount + (hasPrimaryTrack ? 2 : 1);
+
+  return labelNumber === 1 ? baseLabels[instrument] : `${baseLabels[instrument]} ${labelNumber}`;
 }
 
 function createEmptyExtraTrack(
@@ -886,6 +952,11 @@ export function buildSongProjectSnapshot(state: SongProjectSnapshotInput): SongP
       drums: clampVolume(state.volumes.drums ?? 78),
       bass: clampVolume(state.volumes.bass ?? 84),
       guitar: clampVolume(state.volumes.guitar ?? 80),
+      glockenspiel: clampVolume(state.volumes.glockenspiel ?? 78),
+      piccolo: clampVolume(state.volumes.piccolo ?? 76),
+      supportingPiano: clampVolume(state.volumes.supportingPiano ?? 78),
+      chicagoStreet: clampVolume(state.volumes.chicagoStreet ?? 78),
+      studioAltoSax: clampVolume(state.volumes.studioAltoSax ?? 80),
     },
     tracks: {
       melody: melodyEvents,
@@ -1092,6 +1163,11 @@ export const useSongStore = create<SongState>()(
     drums: 78,
     bass: 84,
     guitar: 80,
+    glockenspiel: 78,
+    piccolo: 76,
+    supportingPiano: 78,
+    chicagoStreet: 78,
+    studioAltoSax: 80,
   },
   melody: createEmptyMatrix(MELODY_ROWS, DEFAULT_STEPS),
   melodyLengths: createEmptyLengthMatrix(MELODY_ROWS, DEFAULT_STEPS),
@@ -1886,6 +1962,11 @@ export const useSongStore = create<SongState>()(
           drums: clampVolume(project.volumes?.drums ?? 78),
           bass: clampVolume(project.volumes?.bass ?? 84),
           guitar: clampVolume(project.volumes?.guitar ?? 80),
+          glockenspiel: clampVolume(project.volumes?.glockenspiel ?? 78),
+          piccolo: clampVolume(project.volumes?.piccolo ?? 76),
+          supportingPiano: clampVolume(project.volumes?.supportingPiano ?? 78),
+          chicagoStreet: clampVolume(project.volumes?.chicagoStreet ?? 78),
+          studioAltoSax: clampVolume(project.volumes?.studioAltoSax ?? 80),
         },
         melody: grids.melody,
         melodyLengths: grids.melodyLengths,
@@ -1922,6 +2003,11 @@ export const useSongStore = create<SongState>()(
         drums: clampVolume(project.volumes?.drums ?? 78),
         bass: clampVolume(project.volumes?.bass ?? 84),
         guitar: clampVolume(project.volumes?.guitar ?? 80),
+        glockenspiel: clampVolume(project.volumes?.glockenspiel ?? 78),
+        piccolo: clampVolume(project.volumes?.piccolo ?? 76),
+        supportingPiano: clampVolume(project.volumes?.supportingPiano ?? 78),
+        chicagoStreet: clampVolume(project.volumes?.chicagoStreet ?? 78),
+        studioAltoSax: clampVolume(project.volumes?.studioAltoSax ?? 80),
       },
       melody: grids.melody,
       melodyLengths: grids.melodyLengths,

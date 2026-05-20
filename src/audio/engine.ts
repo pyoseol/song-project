@@ -3,23 +3,38 @@ import * as Tone from "tone";
 import {
   acousticGuitarSynth,
   bassSampler,
+  CHICAGO_STREET_SAMPLE_URLS,
+  chicagoStreetSynth,
   createBassSampler,
   createDrumSampler,
   DRUM_SAMPLE_NOTE_BY_ROW,
   drumSampler,
+  GLOCKENSPIEL_SAMPLE_URLS,
+  glockenspielSynth,
   GUITAR_SAMPLE_URLS,
+  PICCOLO_SAMPLE_URLS,
+  piccoloSynth,
   pianoSynth,
   SAXOPHONE_SAMPLE_URLS,
   saxophoneSynth,
+  STUDIO_ALTO_SAX_SAMPLE_URLS,
+  studioAltoSaxSynth,
+  SUPPORTING_PIANO_SAMPLE_URLS,
+  supportingPianoSynth,
   VIOLIN_SAMPLE_URLS,
   violinSynth,
 } from "./instruments.ts";
 import { useSongStore, type ExtraInstrumentTrack, type InstrumentKey, type InstrumentVolumes } from "../store/songStore.ts";
 import {
   BASS_MIDI,
+  CHICAGO_STREET_NOTES,
+  GLOCKENSPIEL_NOTES,
   GUITAR_TRACK_LABELS,
   MELODY_MIDI,
+  PICCOLO_NOTES,
   SAXOPHONE_NOTES,
+  STUDIO_ALTO_SAX_NOTES,
+  SUPPORTING_PIANO_NOTES,
   VIOLIN_NOTES,
 } from "../constants/composer.ts";
 
@@ -41,7 +56,8 @@ const SHARP_TO_FLAT_NOTE: Record<string, string> = {
 };
 
 function toSamplerNote(note: string) {
-  return note.replace(/^([A-G]#)(-?\d+)$/, (_match, root: string, octave: string) => {
+  const normalizedNote = note.replace('_sharp', '#');
+  return normalizedNote.replace(/^([A-G]#)(-?\d+)$/, (_match, root: string, octave: string) => {
     return `${SHARP_TO_FLAT_NOTE[root] ?? root}${octave}`;
   });
 }
@@ -108,6 +124,10 @@ function getSaxophonePlaybackNote(row: number) {
   return toSamplerNote(SAXOPHONE_NOTES[row] ?? SAXOPHONE_NOTES[SAXOPHONE_NOTES.length - 1]);
 }
 
+function getSampledInstrumentPlaybackNote(notes: readonly string[], row: number) {
+  return toSamplerNote(notes[row] ?? notes[notes.length - 1] ?? "C4");
+}
+
 function volumeToDb(volume: number) {
   if (volume <= 0) {
     return -60;
@@ -117,6 +137,16 @@ function volumeToDb(volume: number) {
 }
 
 const DRUM_SAMPLE_DURATION_BY_ROW = ["8n", "16n", "32n", "8n", "8n"] as const;
+const SAMPLED_INSTRUMENT_VELOCITY: Record<
+  "glockenspiel" | "piccolo" | "supportingPiano" | "chicagoStreet" | "studioAltoSax",
+  number
+> = {
+  glockenspiel: 0.9,
+  piccolo: 0.9,
+  supportingPiano: 0.9,
+  chicagoStreet: 1.65,
+  studioAltoSax: 0.9,
+};
 
 function getDrumSampleNote(row: number) {
   return DRUM_SAMPLE_NOTE_BY_ROW[row] ?? DRUM_SAMPLE_NOTE_BY_ROW[0];
@@ -136,7 +166,19 @@ function triggerLiveDrumSample(row: number, time?: number, velocity?: number) {
 }
 
 function getInstrumentBusVolumes(volumes: InstrumentVolumes, extraTracks: ExtraInstrumentTrack[] = []) {
-  const busVolumes = { ...volumes };
+  const busVolumes: InstrumentVolumes = {
+    melody: volumes.melody ?? 82,
+    violin: volumes.violin ?? 78,
+    saxophone: volumes.saxophone ?? 80,
+    guitar: volumes.guitar ?? 80,
+    drums: volumes.drums ?? 78,
+    bass: volumes.bass ?? 84,
+    glockenspiel: volumes.glockenspiel ?? 78,
+    piccolo: volumes.piccolo ?? 76,
+    supportingPiano: volumes.supportingPiano ?? 78,
+    chicagoStreet: volumes.chicagoStreet ?? 78,
+    studioAltoSax: volumes.studioAltoSax ?? 80,
+  };
 
   extraTracks.forEach((track) => {
     busVolumes[track.instrument] = Math.max(busVolumes[track.instrument] ?? 0, track.volume);
@@ -161,6 +203,11 @@ function applyLiveVolumes(volumes: InstrumentVolumes, extraTracks: ExtraInstrume
   const guitarDb = volumeToDb(busVolumes.guitar);
   const drumsDb = volumeToDb(busVolumes.drums);
   const bassDb = volumeToDb(busVolumes.bass);
+  const glockenspielDb = volumeToDb(busVolumes.glockenspiel);
+  const piccoloDb = volumeToDb(busVolumes.piccolo);
+  const supportingPianoDb = volumeToDb(busVolumes.supportingPiano);
+  const chicagoStreetDb = volumeToDb(busVolumes.chicagoStreet);
+  const studioAltoSaxDb = volumeToDb(busVolumes.studioAltoSax);
 
   pianoSynth.volume.value = melodyDb;
   acousticGuitarSynth.volume.value = guitarDb;
@@ -168,12 +215,17 @@ function applyLiveVolumes(volumes: InstrumentVolumes, extraTracks: ExtraInstrume
   saxophoneSynth.volume.value = saxophoneDb;
   drumSampler.volume.value = drumsDb;
   bassSampler.volume.value = bassDb;
+  glockenspielSynth.volume.value = glockenspielDb;
+  piccoloSynth.volume.value = piccoloDb;
+  supportingPianoSynth.volume.value = supportingPianoDb;
+  chicagoStreetSynth.volume.value = chicagoStreetDb;
+  studioAltoSaxSynth.volume.value = studioAltoSaxDb;
 
   return busVolumes;
 }
 
 function getLiveBusVolumes(volumes: InstrumentVolumes, extraTracks: ExtraInstrumentTrack[] = []) {
-  const volumeKey = `${volumes.melody}|${volumes.violin}|${volumes.saxophone}|${volumes.guitar}|${volumes.drums}|${volumes.bass}`;
+  const volumeKey = `${volumes.melody}|${volumes.violin}|${volumes.saxophone}|${volumes.guitar}|${volumes.drums}|${volumes.bass}|${volumes.glockenspiel}|${volumes.piccolo}|${volumes.supportingPiano}|${volumes.chicagoStreet}|${volumes.studioAltoSax}`;
 
   if (
     cachedBusVolumes &&
@@ -257,6 +309,40 @@ function triggerLiveSaxophoneNote(
   saxophoneSynth.triggerAttackRelease(getSaxophonePlaybackNote(row), durationSeconds, time, velocity);
 }
 
+function triggerLiveSampledInstrumentNote(
+  synth: Tone.Sampler,
+  notes: readonly string[],
+  row: number,
+  durationSeconds: number,
+  time?: number,
+  velocity?: number
+) {
+  synth.triggerAttackRelease(
+    getSampledInstrumentPlaybackNote(notes, row),
+    durationSeconds,
+    time,
+    velocity
+  );
+}
+
+function getSampledInstrumentRuntime(
+  instrument: "glockenspiel" | "piccolo" | "supportingPiano" | "chicagoStreet" | "studioAltoSax"
+) {
+  switch (instrument) {
+    case "glockenspiel":
+      return { synth: glockenspielSynth, notes: GLOCKENSPIEL_NOTES };
+    case "piccolo":
+      return { synth: piccoloSynth, notes: PICCOLO_NOTES };
+    case "supportingPiano":
+      return { synth: supportingPianoSynth, notes: SUPPORTING_PIANO_NOTES };
+    case "chicagoStreet":
+      return { synth: chicagoStreetSynth, notes: CHICAGO_STREET_NOTES };
+    case "studioAltoSax":
+    default:
+      return { synth: studioAltoSaxSynth, notes: STUDIO_ALTO_SAX_NOTES };
+  }
+}
+
 function getExtraTrackNote(
   instrument: InstrumentKey,
   row: number,
@@ -277,6 +363,16 @@ function getExtraTrackNote(
     }
     case "drums":
       return getDrumSampleNote(row);
+    case "glockenspiel":
+      return getSampledInstrumentPlaybackNote(GLOCKENSPIEL_NOTES, row);
+    case "piccolo":
+      return getSampledInstrumentPlaybackNote(PICCOLO_NOTES, row);
+    case "supportingPiano":
+      return getSampledInstrumentPlaybackNote(SUPPORTING_PIANO_NOTES, row);
+    case "chicagoStreet":
+      return getSampledInstrumentPlaybackNote(CHICAGO_STREET_NOTES, row);
+    case "studioAltoSax":
+      return getSampledInstrumentPlaybackNote(STUDIO_ALTO_SAX_NOTES, row);
     default:
       return fallbackNote;
   }
@@ -288,7 +384,8 @@ type PlaybackEvent =
   | { type: "saxophone"; row: number; durationSeconds: number; velocity: number }
   | { type: "guitar"; row: number; durationSeconds: number; velocity: number }
   | { type: "bass"; note: string; durationSeconds: number; velocity: number }
-  | { type: "drums"; row: number; velocity: number };
+  | { type: "drums"; row: number; velocity: number }
+  | { type: "sampled"; instrument: "glockenspiel" | "piccolo" | "supportingPiano" | "chicagoStreet" | "studioAltoSax"; row: number; durationSeconds: number; velocity: number };
 
 function buildPlaybackPlan(state: ReturnType<typeof useSongStore.getState>) {
   const plan = Array.from({ length: state.steps }, () => [] as PlaybackEvent[]);
@@ -417,6 +514,19 @@ function buildPlaybackPlan(state: ReturnType<typeof useSongStore.getState>) {
           case "drums":
             addEvent(step, { type: "drums", row: rowIndex, velocity: velocityScale });
             break;
+          case "glockenspiel":
+          case "piccolo":
+          case "supportingPiano":
+          case "chicagoStreet":
+          case "studioAltoSax":
+            addEvent(step, {
+              type: "sampled",
+              instrument: track.instrument,
+              row: rowIndex,
+              durationSeconds,
+              velocity: SAMPLED_INSTRUMENT_VELOCITY[track.instrument] * velocityScale,
+            });
+            break;
           default:
             break;
         }
@@ -447,6 +557,18 @@ function triggerPlaybackEvent(event: PlaybackEvent, time: number) {
     case "drums":
       triggerLiveDrumSample(event.row, time, event.velocity);
       break;
+    case "sampled": {
+      const sampledConfig = getSampledInstrumentRuntime(event.instrument);
+      triggerLiveSampledInstrumentNote(
+        sampledConfig.synth,
+        sampledConfig.notes,
+        event.row,
+        event.durationSeconds,
+        time,
+        event.velocity
+      );
+      break;
+    }
     default:
       break;
   }
@@ -485,6 +607,21 @@ export function releaseInstrumentSounds(instrument: InstrumentKey) {
       break;
     case "drums":
     default:
+      break;
+    case "glockenspiel":
+      glockenspielSynth.releaseAll();
+      break;
+    case "piccolo":
+      piccoloSynth.releaseAll();
+      break;
+    case "supportingPiano":
+      supportingPianoSynth.releaseAll();
+      break;
+    case "chicagoStreet":
+      chicagoStreetSynth.releaseAll();
+      break;
+    case "studioAltoSax":
+      studioAltoSaxSynth.releaseAll();
       break;
   }
 }
@@ -609,6 +746,25 @@ export async function playGuitarPreview(row: number, durationSteps = 1): Promise
   triggerLiveGuitarNote(row, getMelodyGateSeconds(durationSteps, state.bpm), Tone.now(), 1);
 }
 
+export async function playSampledInstrumentPreview(
+  instrument: "glockenspiel" | "piccolo" | "supportingPiano" | "chicagoStreet" | "studioAltoSax",
+  row: number,
+  durationSteps = 1
+): Promise<void> {
+  await ensureToneReady();
+  const state = useSongStore.getState();
+  applyLiveVolumes(state.volumes, state.extraTracks);
+  const config = getSampledInstrumentRuntime(instrument);
+  triggerLiveSampledInstrumentNote(
+    config.synth,
+    config.notes,
+    row,
+    getMelodyGateSeconds(durationSteps, state.bpm),
+    Tone.now(),
+    SAMPLED_INSTRUMENT_VELOCITY[instrument]
+  );
+}
+
 export async function playDrumPreview(row: number): Promise<void> {
   await ensureToneReady();
   const state = useSongStore.getState();
@@ -646,6 +802,11 @@ async function renderSongBuffer(): Promise<AudioBuffer> {
     const violinBus = new Tone.Reverb({ decay: 1.65, preDelay: 0.012, wet: 0.16 }).toDestination();
     const saxophoneBus = new Tone.Reverb({ decay: 1.15, preDelay: 0.008, wet: 0.11 }).toDestination();
     const guitarBus = new Tone.Reverb({ decay: 1.8, preDelay: 0.01, wet: 0.18 }).toDestination();
+    const glockenspielBus = new Tone.Reverb({ decay: 1.45, preDelay: 0.01, wet: 0.2 }).toDestination();
+    const piccoloBus = new Tone.Reverb({ decay: 1.25, preDelay: 0.008, wet: 0.13 }).toDestination();
+    const supportingPianoBus = new Tone.Reverb({ decay: 1.9, preDelay: 0.01, wet: 0.18 }).toDestination();
+    const chicagoStreetBus = new Tone.Reverb({ decay: 1.35, preDelay: 0.01, wet: 0.14 }).toDestination();
+    const studioAltoSaxBus = new Tone.Reverb({ decay: 1.1, preDelay: 0.008, wet: 0.12 }).toDestination();
     const melodySynth = new Tone.Sampler({ urls: pianoBuffers ?? {}, release: 1 }).connect(melodyBus);
     const violinSynthOffline = new Tone.Sampler({
       urls: VIOLIN_SAMPLE_URLS,
@@ -664,6 +825,34 @@ async function renderSongBuffer(): Promise<AudioBuffer> {
       release: 1.2,
       baseUrl: "/samples/guitar/",
     }).connect(guitarBus);
+    const glockenspielSynthOffline = new Tone.Sampler({
+      urls: GLOCKENSPIEL_SAMPLE_URLS,
+      release: 1.1,
+      baseUrl: "/samples/glockenspiel/",
+    }).connect(glockenspielBus);
+    const piccoloSynthOffline = new Tone.Sampler({
+      urls: PICCOLO_SAMPLE_URLS,
+      attack: 0.006,
+      release: 0.34,
+      baseUrl: "/samples/piccolo/",
+    }).connect(piccoloBus);
+    const supportingPianoSynthOffline = new Tone.Sampler({
+      urls: SUPPORTING_PIANO_SAMPLE_URLS,
+      release: 1.1,
+      baseUrl: "/samples/supporting_piano/",
+    }).connect(supportingPianoBus);
+    const chicagoStreetSynthOffline = new Tone.Sampler({
+      urls: CHICAGO_STREET_SAMPLE_URLS,
+      attack: 0.008,
+      release: 0.42,
+      baseUrl: "/samples/chicago_street/",
+    }).connect(chicagoStreetBus);
+    const studioAltoSaxSynthOffline = new Tone.Sampler({
+      urls: STUDIO_ALTO_SAX_SAMPLE_URLS,
+      attack: 0.008,
+      release: 0.3,
+      baseUrl: "/samples/studio_alto_sax/",
+    }).connect(studioAltoSaxBus);
 
     const drumSamplerOffline = createDrumSampler();
     const bassSamplerOffline = createBassSampler();
@@ -684,6 +873,11 @@ async function renderSongBuffer(): Promise<AudioBuffer> {
     guitarSynth.volume.value = guitarDb;
     drumSamplerOffline.volume.value = drumsDb;
     bassSamplerOffline.volume.value = bassDb;
+    glockenspielSynthOffline.volume.value = volumeToDb(busVolumes.glockenspiel);
+    piccoloSynthOffline.volume.value = volumeToDb(busVolumes.piccolo);
+    supportingPianoSynthOffline.volume.value = volumeToDb(busVolumes.supportingPiano);
+    chicagoStreetSynthOffline.volume.value = volumeToDb(busVolumes.chicagoStreet);
+    studioAltoSaxSynthOffline.volume.value = volumeToDb(busVolumes.studioAltoSax);
 
     transport.bpm.value = bpm;
     const melodyVelocityScale = getVolumeScale(volumes.melody, busVolumes.melody);
@@ -822,6 +1016,46 @@ async function renderSongBuffer(): Promise<AudioBuffer> {
                 getDrumSampleDuration(row),
                 time,
                 velocityScale
+              );
+              break;
+            case "glockenspiel":
+              glockenspielSynthOffline.triggerAttackRelease(
+                getExtraTrackNote(track.instrument, row),
+                getMelodyGateSeconds(Math.max(1, track.melodyLengths?.[row]?.[col] ?? 1), bpm),
+                time,
+                SAMPLED_INSTRUMENT_VELOCITY[track.instrument] * velocityScale
+              );
+              break;
+            case "piccolo":
+              piccoloSynthOffline.triggerAttackRelease(
+                getExtraTrackNote(track.instrument, row),
+                getMelodyGateSeconds(Math.max(1, track.melodyLengths?.[row]?.[col] ?? 1), bpm),
+                time,
+                SAMPLED_INSTRUMENT_VELOCITY[track.instrument] * velocityScale
+              );
+              break;
+            case "supportingPiano":
+              supportingPianoSynthOffline.triggerAttackRelease(
+                getExtraTrackNote(track.instrument, row),
+                getMelodyGateSeconds(Math.max(1, track.melodyLengths?.[row]?.[col] ?? 1), bpm),
+                time,
+                SAMPLED_INSTRUMENT_VELOCITY[track.instrument] * velocityScale
+              );
+              break;
+            case "chicagoStreet":
+              chicagoStreetSynthOffline.triggerAttackRelease(
+                getExtraTrackNote(track.instrument, row),
+                getMelodyGateSeconds(Math.max(1, track.melodyLengths?.[row]?.[col] ?? 1), bpm),
+                time,
+                SAMPLED_INSTRUMENT_VELOCITY[track.instrument] * velocityScale
+              );
+              break;
+            case "studioAltoSax":
+              studioAltoSaxSynthOffline.triggerAttackRelease(
+                getExtraTrackNote(track.instrument, row),
+                getMelodyGateSeconds(Math.max(1, track.melodyLengths?.[row]?.[col] ?? 1), bpm),
+                time,
+                SAMPLED_INSTRUMENT_VELOCITY[track.instrument] * velocityScale
               );
               break;
             default:

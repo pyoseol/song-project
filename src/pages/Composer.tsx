@@ -9,6 +9,7 @@ import {
   playDrumPreview,
   playGuitarPreview,
   playMelodyPreview,
+  playSampledInstrumentPreview,
   releaseInstrumentSounds,
   playSaxophonePreview,
   playViolinPreview,
@@ -29,13 +30,18 @@ import {
 import {
   BASS_CHORD_MAP,
   BASS_NOTES,
+  CHICAGO_STREET_NOTES,
   DRUM_STEP_WIDTH,
+  GLOCKENSPIEL_NOTES,
   GUITAR_ROWS,
   GUITAR_TRACK_LABELS,
   MELODY_NOTES,
   MELODY_PIANO_ROW_HEIGHT,
+  PICCOLO_NOTES,
   SAXOPHONE_NOTES,
   SAXOPHONE_ROWS,
+  STUDIO_ALTO_SAX_NOTES,
+  SUPPORTING_PIANO_NOTES,
   VIOLIN_NOTES,
   VIOLIN_ROWS,
 } from '../constants/composer.ts';
@@ -77,13 +83,18 @@ const melodyNoteLengthOptions = [
 type MelodyNoteLengthSteps = (typeof melodyNoteLengthOptions)[number]['steps'];
 
 const tabLabels: Record<ComposerTab, string> = {
-  melody: 'MELODY',
-  lyrics: 'LYRICS',
-  violin: 'VIOLIN',
-  saxophone: 'SAXOPHONE',
-  guitar: 'GUITAR',
-  drums: 'DRUMS',
-  bass: 'BASS',
+  melody: '멜로디',
+  lyrics: '작사',
+  violin: '바이올린',
+  saxophone: '색소폰',
+  guitar: '통기타',
+  glockenspiel: '글로켄슈필',
+  piccolo: '피콜로',
+  supportingPiano: '서포팅 캐스트 피아노',
+  chicagoStreet: '시카고 스트리트',
+  studioAltoSax: '알토 색소폰',
+  drums: '드럼',
+  bass: '베이스',
 };
 
 const tabPickerLabels: Record<ComposerTab, string> = {
@@ -92,6 +103,11 @@ const tabPickerLabels: Record<ComposerTab, string> = {
   violin: '바이올린',
   saxophone: '색소폰',
   guitar: '통기타',
+  glockenspiel: '글로켄슈필',
+  piccolo: '피콜로',
+  supportingPiano: '서포팅 캐스트 피아노',
+  chicagoStreet: '시카고 스트리트',
+  studioAltoSax: '알토 색소폰',
   drums: '드럼',
   bass: '베이스',
 };
@@ -102,6 +118,11 @@ const composerInstrumentLabels: Record<ComposerTab, string> = {
   violin: '바이올린',
   saxophone: '색소폰',
   guitar: '기타',
+  glockenspiel: '글로켄슈필',
+  piccolo: '피콜로',
+  supportingPiano: '서포팅 캐스트 피아노',
+  chicagoStreet: '시카고 스트리트',
+  studioAltoSax: '알토 색소폰',
   drums: '드럼',
   bass: '베이스',
 };
@@ -134,7 +155,20 @@ const composerHelpPanels: Record<
   },
 };
 
-const tabOrder: ComposerTab[] = ['melody', 'lyrics', 'violin', 'saxophone', 'guitar', 'drums', 'bass'];
+const tabOrder: ComposerTab[] = [
+  'melody',
+  'lyrics',
+  'violin',
+  'saxophone',
+  'guitar',
+  'glockenspiel',
+  'piccolo',
+  'supportingPiano',
+  'chicagoStreet',
+  'studioAltoSax',
+  'drums',
+  'bass',
+];
 const COLLAB_BAR_LENGTH = 16;
 
 function getCollabInstrumentForTab(tab: ComposerTab): CollabComposerInstrument {
@@ -260,8 +294,19 @@ const bassLaneColors = [
 const guitarLaneColors = ['#f59e0b', '#fb923c', '#fbbf24', '#fdba74', '#f97316', '#fcd34d'] as const;
 const violinLaneColors = ['#fb7185', '#f472b6', '#c084fc', '#f9a8d4', '#fb7185', '#c084fc'] as const;
 const saxophoneLaneColors = ['#facc15', '#f59e0b', '#f97316', '#fcd34d', '#fbbf24', '#f59e0b'] as const;
+const glockenspielLaneColors = ['#7dd3fc', '#38bdf8', '#a7f3d0', '#67e8f9', '#93c5fd', '#5eead4'] as const;
+const piccoloLaneColors = ['#bbf7d0', '#86efac', '#c4b5fd', '#a7f3d0', '#93c5fd', '#5eead4'] as const;
+const supportingPianoLaneColors = ['#cbd5e1', '#94a3b8', '#e5e7eb', '#a5b4fc', '#bae6fd', '#d1d5db'] as const;
+const chicagoStreetLaneColors = ['#fda4af', '#fb7185', '#f0abfc', '#f9a8d4', '#fca5a5', '#e879f9'] as const;
+const studioAltoSaxLaneColors = ['#fde68a', '#fbbf24', '#f59e0b', '#fcd34d', '#fdba74', '#facc15'] as const;
 
-type PitchedTab = 'melody' | 'violin' | 'saxophone' | 'guitar' | 'bass';
+type SampledInstrumentKey =
+  | 'glockenspiel'
+  | 'piccolo'
+  | 'supportingPiano'
+  | 'chicagoStreet'
+  | 'studioAltoSax';
+type PitchedTab = 'melody' | 'violin' | 'saxophone' | 'guitar' | 'bass' | SampledInstrumentKey;
 type InstrumentComposerTab = Exclude<ComposerTab, 'lyrics'>;
 type ComposerTabItem = {
   id: string;
@@ -290,6 +335,16 @@ const COMPOSER_TAB_STORAGE_KEY = 'song-maker-composer-tabs';
 
 function isComposerTab(value: unknown): value is ComposerTab {
   return typeof value === 'string' && (tabOrder as readonly string[]).includes(value);
+}
+
+function isSampledInstrumentTab(tab: ComposerTab): tab is SampledInstrumentKey {
+  return (
+    tab === 'glockenspiel' ||
+    tab === 'piccolo' ||
+    tab === 'supportingPiano' ||
+    tab === 'chicagoStreet' ||
+    tab === 'studioAltoSax'
+  );
 }
 
 function readComposerTabDraft() {
@@ -331,7 +386,7 @@ function getSubdivisionClassName(col: number) {
 }
 
 function isSharpNote(note: string) {
-  return note.includes('#');
+  return note.includes('#') || note.includes('_sharp');
 }
 
 export function Composer() {
@@ -491,6 +546,11 @@ export function Composer() {
     violin: 4,
     saxophone: 4,
     guitar: 4,
+    glockenspiel: 4,
+    piccolo: 4,
+    supportingPiano: 4,
+    chicagoStreet: 4,
+    studioAltoSax: 4,
     bass: 4,
   });
   const [isTabPickerOpen, setIsTabPickerOpen] = useState(false);
@@ -531,6 +591,20 @@ export function Composer() {
 
     return tabOrder.filter((tab) => openTabsState.includes(tab));
   }, [openTabsState, tutorialRequested]);
+  const getExtraTrackDisplayLabel = useCallback(
+    (track: ExtraInstrumentTrack) => {
+      const sameInstrumentTracks = extraTracks.filter((item) => item.instrument === track.instrument);
+      const trackIndex = sameInstrumentTracks.findIndex((item) => item.id === track.id);
+      const hasPrimaryTrack = ['melody', 'violin', 'saxophone', 'guitar', 'drums', 'bass'].includes(
+        track.instrument
+      );
+      const labelNumber = trackIndex + (hasPrimaryTrack ? 2 : 1);
+      const baseLabel = tabPickerLabels[track.instrument as ComposerTab] ?? track.label;
+
+      return labelNumber === 1 ? baseLabel : `${baseLabel} ${labelNumber}`;
+    },
+    [extraTracks]
+  );
 
   useEffect(() => {
     if (!newProjectRequested) {
@@ -574,14 +648,14 @@ export function Composer() {
               id: `extra-${track.id}`,
               tab,
               trackId: track.id,
-              label: track.label,
+              label: getExtraTrackDisplayLabel(track),
             });
           });
       }
 
       return items;
     });
-  }, [extraTracks, openExtraTrackIds, openTabs]);
+  }, [extraTracks, getExtraTrackDisplayLabel, openExtraTrackIds, openTabs]);
   const activeExtraTrack = useMemo(
     () => extraTracks.find((track) => track.id === activeTrackId) ?? null,
     [activeTrackId, extraTracks]
@@ -1327,6 +1401,23 @@ export function Composer() {
     };
   }, []);
 
+  const updateTabPickerMenuPosition = useCallback(() => {
+    if (!tabAddButtonRef.current) {
+      return;
+    }
+
+    const rect = tabAddButtonRef.current.getBoundingClientRect();
+    const minWidth = 188;
+    const viewportPadding = 12;
+    const maxLeft = Math.max(viewportPadding, window.innerWidth - minWidth - viewportPadding);
+
+    setTabPickerMenuPosition({
+      top: rect.bottom + 8,
+      left: Math.min(Math.max(viewportPadding, rect.left), maxLeft),
+      minWidth,
+    });
+  }, []);
+
   useEffect(() => {
     if (!isTabPickerOpen || !tabAddButtonRef.current) {
       if (!isTabPickerOpen) {
@@ -1335,32 +1426,15 @@ export function Composer() {
       return;
     }
 
-    const updateTabPickerPosition = () => {
-      if (!tabAddButtonRef.current) {
-        return;
-      }
-
-      const rect = tabAddButtonRef.current.getBoundingClientRect();
-      const minWidth = 188;
-      const viewportPadding = 12;
-      const maxLeft = Math.max(viewportPadding, window.innerWidth - minWidth - viewportPadding);
-
-      setTabPickerMenuPosition({
-        top: rect.bottom + 8,
-        left: Math.min(Math.max(viewportPadding, rect.left), maxLeft),
-        minWidth: minWidth,
-      });
-    };
-
-    updateTabPickerPosition();
-    window.addEventListener('resize', updateTabPickerPosition);
-    window.addEventListener('scroll', updateTabPickerPosition, true);
+    updateTabPickerMenuPosition();
+    window.addEventListener('resize', updateTabPickerMenuPosition);
+    window.addEventListener('scroll', updateTabPickerMenuPosition, true);
 
     return () => {
-      window.removeEventListener('resize', updateTabPickerPosition);
-      window.removeEventListener('scroll', updateTabPickerPosition, true);
+      window.removeEventListener('resize', updateTabPickerMenuPosition);
+      window.removeEventListener('scroll', updateTabPickerMenuPosition, true);
     };
-  }, [isTabPickerOpen]);
+  }, [isTabPickerOpen, updateTabPickerMenuPosition]);
 
   useEffect(() => {
     const nextInstrument = getMelodyInstrumentForTab(activeTab);
@@ -1416,8 +1490,18 @@ export function Composer() {
   }, [syncGuideQuery, tutorialCompleted, tutorialRequested]);
 
   const handleTabPickerToggle = useCallback(() => {
-    setIsTabPickerOpen((current) => !current);
-  }, []);
+    setIsTabPickerOpen((current) => {
+      const nextOpen = !current;
+
+      if (nextOpen) {
+        updateTabPickerMenuPosition();
+      } else {
+        setTabPickerMenuPosition(null);
+      }
+
+      return nextOpen;
+    });
+  }, [updateTabPickerMenuPosition]);
 
   const activateTab = useCallback(
     (tab: ComposerTab, trackId: string | null = null) => {
@@ -1497,6 +1581,14 @@ export function Composer() {
 
   const handleOpenTab = useCallback(
     (tab: ComposerTab) => {
+      if (isSampledInstrumentTab(tab)) {
+        const trackId = addInstrumentTrack(tab);
+        setOpenExtraTrackIds((current) => [...current, trackId]);
+        activateTab(tab, trackId);
+        setIsTabPickerOpen(false);
+        return;
+      }
+
       const primaryAlreadyOpen = openTabsState.includes(tab);
 
       if (primaryAlreadyOpen) {
@@ -2376,6 +2468,16 @@ export function Composer() {
         return SAXOPHONE_NOTES;
       case 'guitar':
         return GUITAR_TRACK_LABELS;
+      case 'glockenspiel':
+        return GLOCKENSPIEL_NOTES;
+      case 'piccolo':
+        return PICCOLO_NOTES;
+      case 'supportingPiano':
+        return SUPPORTING_PIANO_NOTES;
+      case 'chicagoStreet':
+        return CHICAGO_STREET_NOTES;
+      case 'studioAltoSax':
+        return STUDIO_ALTO_SAX_NOTES;
       case 'bass':
         return BASS_NOTES;
       case 'drums':
@@ -2395,6 +2497,16 @@ export function Composer() {
         return saxophoneLaneColors;
       case 'guitar':
         return guitarLaneColors;
+      case 'glockenspiel':
+        return glockenspielLaneColors;
+      case 'piccolo':
+        return piccoloLaneColors;
+      case 'supportingPiano':
+        return supportingPianoLaneColors;
+      case 'chicagoStreet':
+        return chicagoStreetLaneColors;
+      case 'studioAltoSax':
+        return studioAltoSaxLaneColors;
       case 'bass':
         return bassLaneColors;
       case 'drums':
@@ -2421,6 +2533,13 @@ export function Composer() {
         break;
       case 'guitar':
         void playGuitarPreview(row, lengthSteps);
+        break;
+      case 'glockenspiel':
+      case 'piccolo':
+      case 'supportingPiano':
+      case 'chicagoStreet':
+      case 'studioAltoSax':
+        void playSampledInstrumentPreview(instrument, row, lengthSteps);
         break;
       case 'bass':
         void playBassPreview(row, lengthSteps);
@@ -2482,7 +2601,7 @@ export function Composer() {
       ? 100
       : item.trackId
       ? extraTracks.find((track) => track.id === item.trackId)?.volume ?? 80
-      : volumes[getVolumeInstrumentForTab(item.tab)];
+      : volumes[getVolumeInstrumentForTab(item.tab)] ?? 80;
 
   const renderMelodyLikeSequencer = (
     instrument: PitchedTab,
@@ -2964,20 +3083,16 @@ export function Composer() {
                   +
                 </button>
 
-                {isTabPickerOpen ? (
+                {isTabPickerOpen && tabPickerMenuPosition ? (
                   <div
                     className="composer-tab-picker-menu"
                     role="menu"
                     aria-label="선택 가능한 악기"
-                    style={
-                      tabPickerMenuPosition
-                        ? {
-                            top: `${tabPickerMenuPosition.top}px`,
-                            left: `${tabPickerMenuPosition.left}px`,
-                            minWidth: `${tabPickerMenuPosition.minWidth}px`,
-                          }
-                        : undefined
-                    }
+                    style={{
+                      top: `${tabPickerMenuPosition.top}px`,
+                      left: `${tabPickerMenuPosition.left}px`,
+                      minWidth: `${tabPickerMenuPosition.minWidth}px`,
+                    }}
                   >
                     {tabPickerOptions.map((tab) => {
                       const isOpen = openTabs.includes(tab);

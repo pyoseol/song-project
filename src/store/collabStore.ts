@@ -38,7 +38,18 @@ export type CollabProject = {
 export type CollabMessage = { id: string; projectId: string; authorEmail: string; authorName: string; content: string; createdAt: number; };
 export type CollabTask = { id: string; projectId: string; content: string; completed: boolean; assigneeName: string; createdAt: number; };
 export type CollabPresence = { sessionId: string; projectId: string; email: string; name: string; focus?: string; lastSeenAt: number; };
-export type CollabComposerInstrument = 'melody' | 'violin' | 'saxophone' | 'guitar' | 'drums' | 'bass';
+export type CollabComposerInstrument =
+  | 'melody'
+  | 'violin'
+  | 'saxophone'
+  | 'guitar'
+  | 'glockenspiel'
+  | 'piccolo'
+  | 'supportingPiano'
+  | 'chicagoStreet'
+  | 'studioAltoSax'
+  | 'drums'
+  | 'bass';
 export type CollabComposerLock = { projectId: string; instrument: CollabComposerInstrument; barIndex: number; sessionId: string; email: string; name: string; lockedAt: number; expiresAt: number; };
 export type CollabComposerHistoryEntry = { id: string; projectId: string; instrument: CollabComposerInstrument | 'transport'; barIndex: number | null; authorEmail: string; authorName: string; action: string; summary: string; createdAt: number; revision: number; };
 

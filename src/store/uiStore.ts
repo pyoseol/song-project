@@ -1,6 +1,18 @@
 import { create } from 'zustand';
 
-export type ComposerTabKey = 'melody' | 'lyrics' | 'violin' | 'saxophone' | 'guitar' | 'drums' | 'bass';
+export type ComposerTabKey =
+  | 'melody'
+  | 'lyrics'
+  | 'violin'
+  | 'saxophone'
+  | 'guitar'
+  | 'glockenspiel'
+  | 'piccolo'
+  | 'supportingPiano'
+  | 'chicagoStreet'
+  | 'studioAltoSax'
+  | 'drums'
+  | 'bass';
 export type MelodyInstrument = 'piano' | 'acousticGuitar';
 
 type UIState = {

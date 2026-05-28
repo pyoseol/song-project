@@ -275,15 +275,12 @@ export async function uploadMusicShareCoverOnServer(payload: { file: File; creat
 }
 
 export async function deleteTrackOnServer(payload: { trackId: string }) {
-  // 1. Firebase Firestore의 'music_share_tracks' 컬렉션에서 해당 곡 문서 삭제
+  
   await deleteDoc(doc(db, 'music_share_tracks', payload.trackId));
 
-  // (선택 사항) 해당 곡에 달린 댓글들도 연쇄 삭제(Cascade)하려면 아래 코드 추가
   const commentsQuery = query(collection(db, 'music_share_comments'), where('trackId', '==', payload.trackId));
   const commentsSnap = await getDocs(commentsQuery);
   commentsSnap.forEach((commentDoc) => { deleteDoc(commentDoc.ref); });
 
-  // 2. 삭제가 반영된 최신 전체 목록(Snapshot)을 다시 불러와서 반환
-  // 이 반환값이 스토어의 applySnapshot으로 전달되어 프론트엔드 화면이 즉시 갱신됩니다.
   return { snapshot: await fetchMusicShareBootstrap() };
 }

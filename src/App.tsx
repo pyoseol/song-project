@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import AirGuitar from './pages/AirGuitar'
 
 const MainPage = lazy(() => import('./pages/MainPage'));
 const Composer = lazy(() =>
@@ -52,7 +53,7 @@ function App() {
           <Route path="/community/market/:itemId" element={<MarketDetail />} />
           <Route path="/community/write" element={<PostWrite />} />
           <Route path="/community/:id" element={<PostDetail />} />
-
+          <Route path="/air-guitar"element={<AirGuitar />}/>
           <Route element={<ProtectedRoute />}>
             <Route path="/collab" element={<CollabPage />} />
             <Route path="/collab/:projectId" element={<CollabRoomPage />} />

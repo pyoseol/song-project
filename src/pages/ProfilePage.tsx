@@ -13,13 +13,10 @@ import { useLearnProgressStore } from '../store/learnProgressStore';
 import { useMusicShareStore } from '../store/musicShareStore';
 import { useNotificationStore } from '../store/notificationStore';
 import { useSongStore } from '../store/songStore';
-import { useShortsStore } from '../store/shortsStore';
-import { SHORT_TONE_BACKGROUNDS } from '../types/shorts';
 import { fetchUserProfile, updateUserAvatarOnServer } from '../utils/profileApi';
-import { readShortVideoFile } from '../utils/shortsVideoStorage';
 import './ProfilePage.css';
 
-type ProfileTab = 'music' | 'community' | 'shorts' | 'activity';
+type ProfileTab = 'music' | 'community' | 'activity';
 
 const MAX_AVATAR_FILE_SIZE = 2 * 1024 * 1024;
 const ACCEPTED_AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -28,7 +25,6 @@ const ACCEPTED_AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const PROFILE_TABS: Array<{ key: ProfileTab; label: string }> = [
   { key: 'music', label: '음악' },
   { key: 'community', label: '커뮤니티 글' },
-  { key: 'shorts', label: '숏폼' },
   { key: 'activity', label: '활동' },
 ];
 
@@ -60,8 +56,6 @@ export default function ProfilePage() {
   const projects = useComposerLibraryStore((state) => state.projects);
   const favoriteTrackIdsByUser = useComposerLibraryStore((state) => state.favoriteTrackIdsByUser);
   const seedLibrary = useComposerLibraryStore((state) => state.seedLibrary);
-  const shorts = useShortsStore((state) => state.shorts);
-  const seedShorts = useShortsStore((state) => state.seedShorts);
   const completedByUser = useLearnProgressStore((state) => state.completedByUser);
   const favoriteByUser = useLearnProgressStore((state) => state.favoriteByUser);
   const seedLearnProgress = useLearnProgressStore((state) => state.seedLearnProgress);
@@ -73,7 +67,6 @@ export default function ProfilePage() {
   const loadProject = useSongStore((state) => state.loadProject);
   
   const [activeTab, setActiveTab] = useState<ProfileTab>('music');
-  const [shortVideoUrlById, setShortVideoUrlById] = useState<Record<string, string>>({});
   const [avatarError, setAvatarError] = useState('');
   
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
@@ -131,10 +124,7 @@ export default function ProfilePage() {
     void seedMusicShare().catch((error) => {
       console.error(error);
     });
-    void seedShorts().catch((error) => {
-      console.error(error);
-    });
-  }, [seedCommunity, seedLibrary, seedMusicShare, seedShorts]);
+  }, [seedCommunity, seedLibrary, seedMusicShare]);
 
   const profileKey = user?.email ?? 'guest';
   useEffect(() => {
@@ -188,67 +178,6 @@ export default function ProfilePage() {
     );
   }, [favoriteTrackIdsByUser, projects, user]);
 
-  const myShorts = useMemo(
-    () =>
-      user
-        ? shorts
-            .filter((short) => short.creatorEmail === user.email)
-            .sort((left, right) => right.createdAt - left.createdAt)
-        : [],
-    [shorts, user]
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-    const objectUrls: string[] = [];
-
-    const loadShortVideos = async () => {
-      const entries = await Promise.all(
-        myShorts.map(async (short) => {
-          if (short.videoUrl) {
-            return [short.id, short.videoUrl] as const;
-          }
-
-          if (short.videoStorageKey) {
-            try {
-              const blob = await readShortVideoFile(short.videoStorageKey);
-
-              if (blob) {
-                const objectUrl = URL.createObjectURL(blob);
-                objectUrls.push(objectUrl);
-                return [short.id, objectUrl] as const;
-              }
-            } catch (error) {
-              console.error(error);
-            }
-          }
-
-          return null;
-        })
-      );
-
-      if (cancelled) {
-        objectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
-        return;
-      }
-
-      setShortVideoUrlById(
-        Object.fromEntries(
-          entries.filter(
-            (entry): entry is readonly [string, string] => Boolean(entry?.[0] && entry[1])
-          )
-        )
-      );
-    };
-
-    void loadShortVideos();
-
-    return () => {
-      cancelled = true;
-      objectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
-    };
-  }, [myShorts]);
-
   const completedLessons = completedByUser[profileKey] ?? [];
   const favoriteLessons = favoriteByUser[profileKey] ?? [];
   const favoriteLessonCards = favoriteLessons.map((lessonId) => LESSON_LIBRARY[lessonId]);
@@ -276,7 +205,6 @@ export default function ProfilePage() {
   const tabCounts: Record<ProfileTab, number> = {
     music: myProjects.length,
     community: likedPosts.length || posts.slice(0, 3).length,
-    shorts: myShorts.length,
     activity:
       savedTracks.length +
       likedPosts.length +
@@ -412,7 +340,6 @@ export default function ProfilePage() {
               <div className="profile-meta-row">
                 <span>프로젝트 {formatCount(myProjects.length)}개</span>
                 <span>저장한 곡 {formatCount(savedTracks.length)}개</span>
-                <span>숏폼 {formatCount(myShorts.length)}개</span>
               </div>
               <p>최근 작업과 저장한 음악을 한 번에 볼 수 있는 내 작업 공간입니다.</p>
             </div>
@@ -442,7 +369,7 @@ export default function ProfilePage() {
           <article className="profile-overview-card">
             <span>안읽은 알림</span>
             <strong>{formatCount(unreadNotifications.length)}</strong>
-            <small>커뮤니티, 숏폼, 공유곡 반응</small>
+            <small>커뮤니티, 공유곡 반응</small>
           </article>
           <article className="profile-overview-card">
             <span>최근 본 공유곡</span>
@@ -582,54 +509,6 @@ export default function ProfilePage() {
                 </button>
               ))}
             </div>
-          ) : null}
-
-          {activeTab === 'shorts' ? (
-            myShorts.length ? (
-              <div className="profile-short-grid">
-                {myShorts.map((short) => (
-                  <button
-                    key={short.id}
-                    type="button"
-                    className="profile-short-card"
-                    onClick={() => navigate('/community/shorts')}
-                  >
-                    <div
-                      className="profile-short-media"
-                      style={{ backgroundImage: SHORT_TONE_BACKGROUNDS[short.tone] }}
-                    >
-                      {shortVideoUrlById[short.id] ?? short.videoUrl ? (
-                        <video
-                          className="profile-short-video"
-                          src={shortVideoUrlById[short.id] ?? short.videoUrl}
-                          muted
-                          loop
-                          autoPlay
-                          playsInline
-                        />
-                      ) : (
-                        <span>{short.durationLabel}</span>
-                      )}
-                    </div>
-                    <div className="profile-short-body">
-                      <strong>{short.title}</strong>
-                      <p>{short.description}</p>
-                      <div className="profile-short-footer">
-                        <span>{short.durationLabel}</span>
-                        <span>{short.visibility === 'public' ? '공개' : '비공개'}</span>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="profile-short-empty">
-                <strong>아직 올린 숏폼이 없습니다.</strong>
-                <button type="button" onClick={() => navigate('/community/shorts')}>
-                  숏폼 보러 가기
-                </button>
-              </div>
-            )
           ) : null}
 
           {activeTab === 'activity' ? (

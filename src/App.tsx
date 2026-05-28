@@ -1,13 +1,14 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import AirGuitar from './pages/AirGuitar'
 
 const MainPage = lazy(() => import('./pages/MainPage'));
 const Composer = lazy(() =>
   import('./pages/Composer').then((module) => ({ default: module.Composer }))
 );
 const ProjectLibraryPage = lazy(() => import('./pages/ProjectLibraryPage'));
+const AirGuitar = lazy(() => import('./pages/AirGuitar'));
+const JamPage = lazy(() => import('./pages/JamPage'));
 const CollabPage = lazy(() => import('./pages/CollabPage'));
 const CollabRoomPage = lazy(() => import('./pages/CollabRoomPage'));
 const MessagesPage = lazy(() => import('./pages/MessagesPage'));
@@ -23,7 +24,6 @@ const PostList = lazy(() => import('./pages/community/PostList'));
 const PostWrite = lazy(() => import('./pages/community/PostWrite'));
 const SessionRecruitPage = lazy(() => import('./pages/community/SessionRecruitPage'));
 const SessionRecruitDetailPage = lazy(() => import('./pages/community/SessionRecruitDetailPage'));
-const ShortsPage = lazy(() => import('./pages/community/ShortsPage'));
 const UsedMarket = lazy(() => import('./pages/community/UsedMarket'));
 const MarketDetail = lazy(() => import('./pages/community/MarketDetail'));
 
@@ -42,19 +42,19 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/learn" element={<Navigate to="/composer" replace />} />
           <Route path="/composer" element={<Composer />} />
+          <Route path="/air-guitar" element={<AirGuitar />} />
           <Route path="/library" element={<ProjectLibraryPage />} />
           <Route path="/community" element={<PostList />} />
           <Route path="/community/music" element={<MusicShare />} />
           <Route path="/community/music/:trackId" element={<MusicShareDetail />} />
           <Route path="/community/sessions" element={<SessionRecruitPage />} />
           <Route path="/community/sessions/:postId" element={<SessionRecruitDetailPage />} />
-          <Route path="/community/shorts" element={<ShortsPage />} />
           <Route path="/community/market" element={<UsedMarket />} />
           <Route path="/community/market/:itemId" element={<MarketDetail />} />
           <Route path="/community/write" element={<PostWrite />} />
           <Route path="/community/:id" element={<PostDetail />} />
-          <Route path="/air-guitar"element={<AirGuitar />}/>
           <Route element={<ProtectedRoute />}>
+            <Route path="/jam" element={<JamPage />} />
             <Route path="/collab" element={<CollabPage />} />
             <Route path="/collab/:projectId" element={<CollabRoomPage />} />
             <Route path="/profile" element={<ProfilePage />} />

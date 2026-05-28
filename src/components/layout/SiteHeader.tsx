@@ -7,6 +7,7 @@ import './SiteHeader.css';
 export type SiteHeaderSection =
   | 'composer'
   | 'library'
+  | 'jam'
   | 'collab'
   | 'community'
   | 'music'
@@ -20,15 +21,15 @@ type SiteHeaderProps = {
 };
 
 const NAV_ITEMS: Array<{
-  key: Exclude<SiteHeaderSection, null>;
+  key: Exclude<SiteHeaderSection, 'shorts' | null>;
   label: string;
   route: string;
 }> = [
   { key: 'composer', label: '작곡', route: '/composer' },
   { key: 'library', label: '라이브러리', route: '/library' },
+  { key: 'jam', label: '합주', route: '/jam' },
   { key: 'collab', label: '협업', route: '/collab' },
   { key: 'community', label: '커뮤니티', route: '/community' },
-  { key: 'shorts', label: '숏폼', route: '/community/shorts' },
 ];
 
 export default function SiteHeader({ activeSection = null, rightSlot = null }: SiteHeaderProps) {

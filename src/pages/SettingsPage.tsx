@@ -15,7 +15,6 @@ type SettingToggleKey = keyof Pick<
   UserSettings,
   | 'communityNotifications'
   | 'musicNotifications'
-  | 'shortsNotifications'
   | 'collabNotifications'
   | 'profilePublic'
   | 'showActivity'
@@ -35,11 +34,6 @@ const NOTIFICATION_SETTING_ITEMS: Array<{
     key: 'musicNotifications',
     title: '음악 공유 알림',
     description: '공유한 곡의 좋아요, 댓글, 다운로드 반응을 빠르게 받아볼 수 있어요.',
-  },
-  {
-    key: 'shortsNotifications',
-    title: '숏폼 알림',
-    description: '좋아요, 댓글, 업로드 반응을 바로 확인할 수 있어요.',
   },
   {
     key: 'collabNotifications',
@@ -323,14 +317,6 @@ export default function SettingsPage() {
               >
                 <strong>메시지함</strong>
                 <span>친구와 그룹 채팅을 확인하고 새 대화를 시작할 수 있어요.</span>
-              </button>
-              <button
-                type="button"
-                className="settings-shortcut-card"
-                onClick={() => navigate('/community/shorts')}
-              >
-                <strong>숏폼 관리</strong>
-                <span>내가 올린 숏폼과 좋아요한 숏폼을 빠르게 확인할 수 있어요.</span>
               </button>
               <button
                 type="button"

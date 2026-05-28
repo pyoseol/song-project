@@ -23,13 +23,12 @@ function formatRelativeTime(timestamp: number) {
   return `${Math.max(1, Math.floor(diff / day))}일 전`;
 }
 
-const FILTERS: Array<{ key: AppNotificationFilter; label: string }> = [
+const FILTERS: Array<{ key: Exclude<AppNotificationFilter, 'shorts'>; label: string }> = [
   { key: 'all', label: '전체' },
   { key: 'unread', label: '안읽음' },
   { key: 'community', label: '커뮤니티' },
   { key: 'collab', label: '협업' },
   { key: 'music', label: '음악' },
-  { key: 'shorts', label: '숏폼' },
 ];
 
 export default function NotificationBell() {
@@ -39,25 +38,30 @@ export default function NotificationBell() {
   const markRead = useNotificationStore((state) => state.markRead);
   const markAllRead = useNotificationStore((state) => state.markAllRead);
   const [isOpen, setIsOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<AppNotificationFilter>('all');
+  const [activeFilter, setActiveFilter] = useState<Exclude<AppNotificationFilter, 'shorts'>>('all');
 
-  const unreadCount = notifications.filter((notification) => !notification.isRead).length;
+  const visibleNotifications = useMemo(
+    () => notifications.filter((notification) => notification.kind !== 'shorts'),
+    [notifications]
+  );
+
+  const unreadCount = visibleNotifications.filter((notification) => !notification.isRead).length;
 
   const filteredNotifications = useMemo(() => {
     if (activeFilter === 'all') {
-      return notifications;
+      return visibleNotifications;
     }
 
     if (activeFilter === 'unread') {
-      return notifications.filter((notification) => !notification.isRead);
+      return visibleNotifications.filter((notification) => !notification.isRead);
     }
 
-    return notifications.filter((notification) => notification.kind === activeFilter);
-  }, [activeFilter, notifications]);
+    return visibleNotifications.filter((notification) => notification.kind === activeFilter);
+  }, [activeFilter, visibleNotifications]);
 
   useEffect(() => {
     if (!isOpen) {
-      return;
+      return undefined;
     }
 
     const handlePointerDown = (event: PointerEvent) => {
@@ -136,10 +140,8 @@ export default function NotificationBell() {
                     {notification.kind === 'community'
                       ? '커뮤니티'
                       : notification.kind === 'collab'
-                      ? '협업'
-                      : notification.kind === 'music'
-                      ? '음악공유'
-                      : '숏폼'}
+                        ? '협업'
+                        : '음악'}
                   </span>
                   <strong>{notification.title}</strong>
                   <p>{notification.body}</p>
@@ -150,9 +152,7 @@ export default function NotificationBell() {
                 </button>
               ))
             ) : (
-              <div className="notification-bell-empty">
-                선택한 조건에 맞는 알림이 아직 없습니다.
-              </div>
+              <div className="notification-bell-empty">선택한 조건에 맞는 알림이 없습니다.</div>
             )}
           </div>
         </div>

@@ -75,7 +75,7 @@ const FEATURE_ITEMS = [
   },
   {
     label: '커뮤니티',
-    title: '게시글, 음악 공유, 숏폼, 중고거래 활동을 한 계정으로 묶어서 사용',
+    title: '게시글, 음악 공유, 중고거래 활동을 한 계정으로 묶어서 사용',
   },
   {
     label: '백엔드 연동',
@@ -84,8 +84,11 @@ const FEATURE_ITEMS = [
 ];
 
 // 🔥 2. 파이어베이스 에러 코드를 한국어로 예쁘게 바꿔주는 도우미 함수 추가
-function getFirebaseErrorMessage(error: any, mode: AuthMode) {
-  const code = error?.code;
+function getFirebaseErrorMessage(error: unknown, mode: AuthMode) {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? String(error.code)
+      : '';
   switch (code) {
     case 'auth/email-already-in-use': return '이미 가입된 이메일입니다.';
     case 'auth/invalid-credential': return '이메일 또는 비밀번호가 잘못되었습니다.';
@@ -204,7 +207,7 @@ export default function AuthPage({ mode }: AuthPageProps) {
       await sendPasswordResetEmail(auth, trimmedEmail);
       setNotice({ kind: 'success', message: '비밀번호 재설정 이메일을 보냈습니다. 메일함을 확인해주세요!' });
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Auth Error:", error);
       setNotice({
         kind: 'error',

@@ -1580,7 +1580,7 @@ export function Composer() {
   }, []);
 
   const handleOpenTab = useCallback(
-    (tab: ComposerTab) => {
+    (tab: ComposerTab, allowDuplicateTrack = true) => {
       if (isSampledInstrumentTab(tab)) {
         const trackId = addInstrumentTrack(tab);
         setOpenExtraTrackIds((current) => [...current, trackId]);
@@ -1592,7 +1592,7 @@ export function Composer() {
       const primaryAlreadyOpen = openTabsState.includes(tab);
 
       if (primaryAlreadyOpen) {
-        if (tab === 'lyrics' || tab === 'melody') {
+        if (tab === 'lyrics' || !allowDuplicateTrack) {
           activateTab(tab);
         } else {
           const trackId = addInstrumentTrack(tab);
@@ -1615,7 +1615,7 @@ export function Composer() {
     const requestedTab = searchParams.get('tab');
 
     if (isComposerTab(requestedTab)) {
-      handleOpenTab(requestedTab);
+      handleOpenTab(requestedTab, false);
     }
   }, [handleOpenTab, searchParams]);
 

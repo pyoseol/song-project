@@ -355,3 +355,35 @@ export function createDrumSampler() {
 
 export const bassSampler = createBassSampler();
 export const drumSampler = createDrumSampler();
+
+
+export const STROKE_SAMPLE_URLS = {
+  C_DOWN: "C_Down-.mp3",
+  C_UP: "C_Up-.mp3",
+
+  D_DOWN: "D_Down-.mp3",
+  D_UP: "D_Up-.mp3",
+
+  E_DOWN: "E_Down-.mp3",
+  E_UP: "E_Up-.mp3",
+
+  F_DOWN: "F_Down-.mp3",
+  F_UP: "F_Up-.mp3",
+
+  G_DOWN: "G_Down-.mp3",
+  G_UP: "G_Up-.mp3",
+
+  A_DOWN: "A_Down-.mp3",
+  A_UP: "A_Up-.mp3",
+
+  B_DOWN: "B_Down-.mp3",
+  B_UP: "B_Up-.mp3",
+} as const;
+  
+export const strokePlayer =
+  new Tone.Players({
+    urls: STROKE_SAMPLE_URLS,
+    baseUrl: "/samples/stroke/",
+  }).toDestination();
+
+

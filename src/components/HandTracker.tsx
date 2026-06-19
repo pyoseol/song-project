@@ -368,6 +368,17 @@ const blackKeys = blackNotes.map(
         canvas.height = displayHeight
       }
 
+      const layoutWidth = 720
+      const layoutHeight = 620
+      const layoutScale = Math.min(
+        canvas.width / layoutWidth,
+        canvas.height / layoutHeight
+      )
+      const layoutOffsetX =
+        (canvas.width - layoutWidth * layoutScale) / 2
+      const layoutOffsetY =
+        (canvas.height - layoutHeight * layoutScale) / 2
+
       // =========================
       // 화면 초기화
       // =========================
@@ -389,16 +400,20 @@ const blackKeys = blackNotes.map(
 
       const videoAspect = video.videoWidth / Math.max(1, video.videoHeight)
       const canvasAspect = canvas.width / Math.max(1, canvas.height)
-      const drawHeight =
-        canvasAspect > videoAspect ? canvas.height : canvas.width / videoAspect
       const drawWidth =
-        canvasAspect > videoAspect ? canvas.height * videoAspect : canvas.width
+        canvasAspect > videoAspect ? canvas.width : canvas.height * videoAspect
+      const drawHeight =
+        canvasAspect > videoAspect ? canvas.width / videoAspect : canvas.height
       const drawX = (canvas.width - drawWidth) / 2
       const drawY = (canvas.height - drawHeight) / 2
 
       ctx.drawImage(video, -drawX - drawWidth, drawY, drawWidth, drawHeight)
 
       ctx.restore()
+
+      ctx.save()
+      ctx.translate(layoutOffsetX, layoutOffsetY)
+      ctx.scale(layoutScale, layoutScale)
 
       // =========================
       // 기타 줄 그리기
@@ -417,7 +432,7 @@ const blackKeys = blackNotes.map(
           )
 
           ctx.lineTo(
-            canvas.width - stringsEndX,
+            layoutWidth - stringsEndX,
             stringY
           )
 
@@ -649,14 +664,14 @@ if (instrumentMode === 'piano') {
               landmarks[8]
 
             const fingerX =
-              canvas.width -
+              layoutWidth -
               indexFinger.x *
-                canvas.width
+                layoutWidth
 
             // 수정된 부분
             const fingerY =
               indexFinger.y *
-              canvas.height
+              layoutHeight
 
           if (instrumentMode === 'drum') {
             drumPads.forEach(async pad => {
@@ -904,7 +919,7 @@ if (instrumentMode === 'piano') {
               const insideStrings =
                 fingerX > stringsStartX &&
                 fingerX <
-                  canvas.width -
+                  layoutWidth -
                     stringsEndX
 
               if (
@@ -940,7 +955,7 @@ if (instrumentMode === 'piano') {
                 )
 
                 ctx.lineTo(
-                  canvas.width -
+                  layoutWidth -
                     stringsPaddingX,
                   stringY
                 )
@@ -979,14 +994,14 @@ if (instrumentMode === 'piano') {
             landmarks.forEach(
               landmark => {
                 const x =
-                  canvas.width -
+                  layoutWidth -
                   landmark.x *
-                    canvas.width
+                    layoutWidth
 
                 // 수정된 부분
                 const y =
                   landmark.y *
-                  canvas.height
+                  layoutHeight
 
                 ctx.beginPath()
 
@@ -1058,12 +1073,14 @@ if (instrumentMode === 'piano') {
       ctx.fillText(
               'M 키로 스트럼/줄 연주 전환',
               40,
-              canvas.height - 120
+              layoutHeight - 60
             )
     }
       
 
       // 다음 프레임
+      ctx.restore()
+
       animationId =
         requestAnimationFrame(predict)
     }

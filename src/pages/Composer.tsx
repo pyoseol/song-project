@@ -591,6 +591,7 @@ export function Composer() {
     top: number;
     left: number;
     minWidth: number;
+    maxHeight: number;
   } | null>(null);
   const [pitchedRollScrollLeft, setPitchedRollScrollLeft] = useState<Record<string, number>>({
     melody: 0,
@@ -1441,11 +1442,14 @@ export function Composer() {
     const minWidth = 188;
     const viewportPadding = 12;
     const maxLeft = Math.max(viewportPadding, window.innerWidth - minWidth - viewportPadding);
+    const top = rect.bottom + 8;
+    const maxHeight = Math.max(220, window.innerHeight - top - viewportPadding);
 
     setTabPickerMenuPosition({
-      top: rect.bottom + 8,
+      top,
       left: Math.min(Math.max(viewportPadding, rect.left), maxLeft),
       minWidth,
+      maxHeight,
     });
   }, []);
 
@@ -3129,6 +3133,7 @@ export function Composer() {
                       top: `${tabPickerMenuPosition.top}px`,
                       left: `${tabPickerMenuPosition.left}px`,
                       minWidth: `${tabPickerMenuPosition.minWidth}px`,
+                      maxHeight: `${tabPickerMenuPosition.maxHeight}px`,
                     }}
                   >
                     {tabPickerGroups.map((group) => (

@@ -1155,6 +1155,24 @@
   border-radius: 14px;
   background: #15171b;
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.32);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(159, 245, 109, 0.45) rgba(255, 255, 255, 0.06);
+}
+
+.composer-tab-picker-menu::-webkit-scrollbar {
+  width: 8px;
+}
+
+.composer-tab-picker-menu::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.composer-tab-picker-menu::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(159, 245, 109, 0.45);
 }
 
 .composer-tab-picker-section + .composer-tab-picker-section {

@@ -73,6 +73,88 @@ const FEATURE_CARDS = [
   },
 ] as const;
 
+const HOT_CHART_DETAILS: Record<
+  string,
+  {
+    artist: string;
+    plan: 'Basic' | 'Premium';
+    duration: string;
+    tags: [string, string];
+    downloads: number;
+  }
+> = {
+  'trend-1': {
+    artist: 'MangMARU',
+    plan: 'Basic',
+    duration: '03:05',
+    tags: ['차분한 힙합/알앤비', '일렉기타 빠름'],
+    downloads: 1842,
+  },
+  'trend-2': {
+    artist: '브금냥',
+    plan: 'Basic',
+    duration: '01:35',
+    tags: ['따뜻한 팝', '신디사이저 빠름'],
+    downloads: 1730,
+  },
+  'trend-3': {
+    artist: 'Moopi',
+    plan: 'Premium',
+    duration: '02:57',
+    tags: ['따뜻한 팝', '신디사이저 보통 빠름'],
+    downloads: 1654,
+  },
+  'trend-4': {
+    artist: 'slowslow',
+    plan: 'Basic',
+    duration: '01:16',
+    tags: ['몽환적인 팝', '신디사이저 느림'],
+    downloads: 1512,
+  },
+  'trend-5': {
+    artist: '휘르리',
+    plan: 'Basic',
+    duration: '01:46',
+    tags: ['몽환적인 팝', '신디사이저 느림'],
+    downloads: 1468,
+  },
+  'trend-6': {
+    artist: 'noonroom',
+    plan: 'Premium',
+    duration: '02:24',
+    tags: ['시네마틱 OST', '피아노 보통'],
+    downloads: 1395,
+  },
+  'trend-7': {
+    artist: 'cyanlake',
+    plan: 'Basic',
+    duration: '02:12',
+    tags: ['공간감 있는 앰비언트', '패드 느림'],
+    downloads: 1328,
+  },
+  'trend-8': {
+    artist: 'groovezip',
+    plan: 'Basic',
+    duration: '01:58',
+    tags: ['경쾌한 그루브', '베이스 빠름'],
+    downloads: 1284,
+  },
+  'latest-1': {
+    artist: 'loopkey',
+    plan: 'Basic',
+    duration: '02:03',
+    tags: ['펑키한 팝', '기타 보통'],
+    downloads: 1197,
+  },
+  'latest-2': {
+    artist: 'bandnote',
+    plan: 'Premium',
+    duration: '02:41',
+    tags: ['청량한 밴드', '드럼 빠름'],
+    downloads: 1139,
+  },
+};
+
 function formatCount(value: number | undefined) {
   return (value ?? 0).toLocaleString('ko-KR');
 }
@@ -89,24 +171,15 @@ function getPostDisplay(post: Post) {
   return POST_DISPLAY[post.id] ?? { title: post.title, category: post.category ?? '자유' };
 }
 
-function getCoverflowStyle(index: number, activeIndex: number, total: number): CSSProperties {
-  const rawOffset = index - activeIndex;
-  const offset =
-    rawOffset > total / 2
-      ? rawOffset - total
-      : rawOffset < -total / 2
-        ? rawOffset + total
-        : rawOffset;
-  const distance = Math.abs(offset);
-  const clampedOffset = Math.max(-2, Math.min(2, offset));
-  const scale = offset === 0 ? 1.08 : Math.max(0.42, 0.62 - (distance - 1) * 0.12);
+function getWaveformBars(seed: string, count = 44) {
+  let value = seed.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
 
-  return {
-    opacity: distance > 2 ? 0 : Math.max(0.3, 1 - distance * 0.28),
-    zIndex: 30 - distance,
-    pointerEvents: distance > 2 ? 'none' : 'auto',
-    transform: `translateX(calc(-50% + ${clampedOffset * 214}px)) translateY(${distance * 22}px) rotate(${clampedOffset * -3}deg) scale(${scale})`,
-  };
+  return Array.from({ length: count }, (_, index) => {
+    value = (value * 1664525 + 1013904223 + index) % 4294967296;
+    const normalized = value / 4294967296;
+    const swell = Math.sin((index / count) * Math.PI);
+    return Math.round(18 + normalized * 42 + swell * 24);
+  });
 }
 
 export default function MainPage() {
@@ -121,10 +194,14 @@ export default function MainPage() {
     });
   }, [seedCommunity]);
 
-  const coverflowTracks = TRENDING_TRACKS.slice(0, 5);
-  const featuredTrack = coverflowTracks[activeCoverIndex];
+  const showcaseTracks = TRENDING_TRACKS.slice(0, 5);
+  const featuredTrack = showcaseTracks[activeCoverIndex];
   const featuredTrackDisplay = getTrackDisplay(featuredTrack);
   const latestTracks = LATEST_TRACKS.slice(0, 4);
+  const hotChartTracks = [...TRENDING_TRACKS, ...LATEST_TRACKS]
+    .filter((track) => HOT_CHART_DETAILS[track.id])
+    .sort((left, right) => HOT_CHART_DETAILS[right.id].downloads - HOT_CHART_DETAILS[left.id].downloads)
+    .slice(0, 5);
   const popularPosts = [...posts]
     .sort(
       (left, right) =>
@@ -194,59 +271,69 @@ export default function MainPage() {
               </div>
             </div>
 
-            <div className="main-coverflow" role="list" aria-label="추천 음악 커버 플로우">
-              <button
-                type="button"
-                className="main-coverflow-arrow is-left"
-                onClick={() =>
-                  setActiveCoverIndex((current) =>
-                    (current - 1 + coverflowTracks.length) % coverflowTracks.length
-                  )
-                }
-                aria-label="이전 음악"
-              >
-                ‹
-              </button>
+            <div className="main-showcase-stage" aria-label="추천 공유곡 플레이어">
+              <div className="main-featured-track">
+                <span
+                  className="main-featured-cover"
+                  style={{ backgroundImage: `url(${getTrackCover(featuredTrack)})` }}
+                />
+                <div className="main-featured-copy">
+                  <span>오늘의 추천</span>
+                  <strong>{featuredTrackDisplay.title}</strong>
+                  <small>{featuredTrackDisplay.mood}</small>
+                  <em>{featuredTrack.progression}</em>
+                </div>
+              </div>
 
-              {coverflowTracks.map((track, index) => {
-                const displayTrack = getTrackDisplay(track);
-                const isActive = index === activeCoverIndex;
+              <div className="main-featured-wave" aria-hidden="true">
+                {getWaveformBars(featuredTrack.id, 56).map((height, index) => (
+                  <i key={index} style={{ height: `${height}%` }} />
+                ))}
+              </div>
 
-                return (
-                  <button
-                    key={track.id}
-                    type="button"
-                    className={`main-cover-card${isActive ? ' is-active' : ''}`}
-                    style={{
-                      ...getCoverflowStyle(index, activeCoverIndex, coverflowTracks.length),
-                      backgroundImage: `linear-gradient(180deg, rgba(8, 10, 14, 0.02), rgba(8, 10, 14, 0.24)), url(${getTrackCover(track)})`,
-                    }}
-                    onClick={() => {
-                      if (!isActive) {
-                        setActiveCoverIndex(index);
-                        return;
-                      }
-                      navigate('/community/music');
-                    }}
-                    aria-label={`${displayTrack.title} ${track.progression}`}
-                  >
-                    <span>{displayTrack.mood}</span>
-                    <strong>{displayTrack.title}</strong>
-                    <small>{track.progression}</small>
-                  </button>
-                );
-              })}
+              <div className="main-showcase-actions">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActiveCoverIndex((current) =>
+                      (current - 1 + showcaseTracks.length) % showcaseTracks.length
+                    )
+                  }
+                >
+                  이전
+                </button>
+                <button type="button" onClick={() => navigate('/community/music')}>
+                  공유곡 듣기
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActiveCoverIndex((current) => (current + 1) % showcaseTracks.length)
+                  }
+                >
+                  다음
+                </button>
+              </div>
 
-              <button
-                type="button"
-                className="main-coverflow-arrow is-right"
-                onClick={() =>
-                  setActiveCoverIndex((current) => (current + 1) % coverflowTracks.length)
-                }
-                aria-label="다음 음악"
-              >
-                ›
-              </button>
+              <div className="main-featured-queue" role="list" aria-label="추천 공유곡 목록">
+                {showcaseTracks.map((track, index) => {
+                  const displayTrack = getTrackDisplay(track);
+                  const isActive = index === activeCoverIndex;
+
+                  return (
+                    <button
+                      key={track.id}
+                      type="button"
+                      className={isActive ? 'is-active' : undefined}
+                      onClick={() => setActiveCoverIndex(index)}
+                    >
+                      <span>{String(index + 1).padStart(2, '0')}</span>
+                      <strong>{displayTrack.title}</strong>
+                      <small>{track.progression}</small>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </section>
@@ -259,6 +346,82 @@ export default function MainPage() {
               <small>{item.body}</small>
             </button>
           ))}
+        </section>
+
+        <section className="main-hot-chart" aria-labelledby="main-hot-chart-title">
+          <div className="main-hot-chart-head">
+            <span className="main-label">COMMUNITY CHART</span>
+            <h2 id="main-hot-chart-title">
+              <i aria-hidden="true">
+                <b />
+                <b />
+                <b />
+                <b />
+              </i>
+              공유곡 <em>HOT 5</em>
+            </h2>
+            <p>다운로드와 반응이 빠르게 쌓이는 작곡러들의 공유곡을 모았습니다.</p>
+            <div className="main-hot-chart-filters" aria-label="HOT 5 필터">
+              <button type="button" className="is-active">6월 3주차</button>
+              <button type="button">장르별</button>
+              <button type="button">월간 BGM</button>
+            </div>
+          </div>
+
+          <div className="main-hot-chart-list">
+            {hotChartTracks.map((track, index) => {
+              const displayTrack = getTrackDisplay(track);
+              const detail = HOT_CHART_DETAILS[track.id];
+              const isEditorsPick = index === 0;
+
+              return (
+                <button
+                  key={track.id}
+                  type="button"
+                  className={`main-hot-chart-row${isEditorsPick ? ' is-editor-pick' : ''}`}
+                  onClick={() => navigate('/community/music')}
+                >
+                  <span className="main-hot-rank">
+                    {isEditorsPick ? (
+                      <>
+                        <small>Editor&apos;s</small>
+                        <strong>PICK</strong>
+                      </>
+                    ) : (
+                      <strong>{index}</strong>
+                    )}
+                  </span>
+                  <span
+                    className="main-hot-cover"
+                    style={{ backgroundImage: `url(${getTrackCover(track)})` }}
+                  />
+                  <span className="main-hot-title">
+                    <strong>{displayTrack.title}</strong>
+                    <small>{detail.artist}</small>
+                  </span>
+                  <span className={`main-hot-plan is-${detail.plan.toLowerCase()}`}>
+                    {detail.plan}
+                  </span>
+                  <span className="main-hot-play" aria-hidden="true" />
+                  <span className="main-hot-wave" aria-hidden="true">
+                    {getWaveformBars(track.id).map((height, barIndex) => (
+                      <i key={barIndex} style={{ height: `${height}%` }} />
+                    ))}
+                  </span>
+                  <span className="main-hot-duration">{detail.duration}</span>
+                  <span className="main-hot-tags">
+                    <strong>{detail.tags[0]}</strong>
+                    <small>{detail.tags[1]}</small>
+                  </span>
+                  <span className="main-hot-actions" aria-hidden="true">
+                    <i className="is-signal" />
+                    <i className="is-heart">♡</i>
+                    <i className="is-download" />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </section>
 
         <section className="main-content-grid">

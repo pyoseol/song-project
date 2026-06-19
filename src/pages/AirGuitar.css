@@ -1,0 +1,209 @@
+.air-instrument-page {
+  min-height: 100vh;
+  background: #15161a;
+  color: #f5f7fb;
+}
+
+.air-instrument-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: calc(100vh - 58px);
+  padding: 14px 16px 18px;
+  gap: 12px;
+}
+
+.air-instrument-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 62px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: #202228;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.24);
+}
+
+.air-instrument-back-button,
+.air-instrument-segmented button,
+.air-instrument-strum-button {
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: #16181d;
+  color: #e7ebf2;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.air-instrument-back-button {
+  padding: 0 14px;
+}
+
+.air-instrument-back-button:hover,
+.air-instrument-segmented button:hover,
+.air-instrument-strum-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(159, 245, 109, 0.3);
+  color: #ffffff;
+}
+
+.air-instrument-title {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.air-instrument-title span {
+  color: #b8ff96;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.air-instrument-title strong {
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 21px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.air-instrument-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.air-instrument-segmented {
+  display: inline-grid;
+  grid-template-columns: repeat(3, minmax(64px, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: #111317;
+}
+
+.air-instrument-segmented button {
+  min-width: 0;
+  padding: 0 12px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.air-instrument-segmented button.is-active {
+  border-color: rgba(117, 255, 57, 0.3);
+  background: rgba(117, 255, 57, 0.13);
+  color: #dfffce;
+}
+
+.air-instrument-strum-button {
+  min-width: 82px;
+  padding: 0 13px;
+}
+
+.air-instrument-strum-button.is-active {
+  border-color: rgba(96, 165, 250, 0.34);
+  background: rgba(96, 165, 250, 0.14);
+  color: #dbeafe;
+}
+
+.air-instrument-strum-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.air-instrument-stage {
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: #0c0e12;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.air-hand-tracker {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 520px;
+  padding: 12px;
+}
+
+.air-hand-tracker-canvas {
+  width: min(100%, 1200px);
+  height: min(700px, calc(100vh - 178px));
+  min-height: 480px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: #05070a;
+  object-fit: contain;
+}
+
+@media (max-width: 840px) {
+  .air-instrument-shell {
+    min-height: calc(100vh - 54px);
+    padding: 10px;
+  }
+
+  .air-instrument-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .air-instrument-controls {
+    justify-content: stretch;
+  }
+
+  .air-instrument-segmented {
+    flex: 1 1 auto;
+  }
+
+  .air-instrument-strum-button {
+    flex: 0 0 auto;
+  }
+
+  .air-hand-tracker {
+    min-height: 430px;
+    padding: 8px;
+  }
+
+  .air-hand-tracker-canvas {
+    height: calc(100vh - 250px);
+    min-height: 410px;
+  }
+}
+
+@media (max-width: 520px) {
+  .air-instrument-controls {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .air-instrument-segmented {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .air-instrument-segmented button,
+  .air-instrument-strum-button {
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .air-hand-tracker-canvas {
+    height: calc(100vh - 296px);
+  }
+}

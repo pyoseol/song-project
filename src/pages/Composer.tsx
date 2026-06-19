@@ -71,6 +71,11 @@ import {
 import './Composer.css';
 
 type ComposerTab = ComposerTabKey;
+type TabPickerOption = ComposerTab | 'airInstrument';
+type TabPickerGroup = {
+  title: string;
+  options: TabPickerOption[];
+};
 
 const chordOptions = ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const;
 const melodyNoteLengthOptions = [
@@ -150,7 +155,7 @@ const composerHelpPanels: Record<
   },
   instruments: {
     title: '악기 추가',
-    description: '+ 버튼을 눌러 바이올린, 색소폰, 베이스 같은 악기를 추가해요.',
+    description: '+ 버튼을 눌러 바이올린, 색소폰, 베이스, 에어 악기 같은 악기를 추가해요.',
     gif: '/help/note-length.gif?v=4',
   },
 };
@@ -168,6 +173,29 @@ const tabOrder: ComposerTab[] = [
   'studioAltoSax',
   'drums',
   'bass',
+];
+const tabPickerGroups: TabPickerGroup[] = [
+  {
+    title: '기본 파트',
+    options: ['melody', 'lyrics', 'drums', 'bass'],
+  },
+  {
+    title: '악기 트랙',
+    options: [
+      'violin',
+      'saxophone',
+      'guitar',
+      'glockenspiel',
+      'piccolo',
+      'supportingPiano',
+      'chicagoStreet',
+      'studioAltoSax',
+    ],
+  },
+  {
+    title: '라이브 연주',
+    options: ['airInstrument'],
+  },
 ];
 const COLLAB_BAR_LENGTH = 16;
 
@@ -681,9 +709,12 @@ export function Composer() {
 
     return items.sort((left, right) => left.col - right.col || left.row - right.row);
   }, [melody, melodyLengths, noteLyrics]);
-  const tabPickerOptions = useMemo(() => tabOrder, []);
   const activeHelpPanel = activeHelpZone ? composerHelpPanels[activeHelpZone] : null;
-  const getTabPickerLabel = (tab: ComposerTab) => {
+  const getTabPickerLabel = (tab: TabPickerOption) => {
+    if (tab === 'airInstrument') {
+      return '에어 악기';
+    }
+
     const openCount =
       (openTabs.includes(tab) ? 1 : 0) +
       (tab === 'lyrics' ? 0 : extraTracks.filter((track) => track.instrument === tab).length);
@@ -1580,7 +1611,13 @@ export function Composer() {
   }, []);
 
   const handleOpenTab = useCallback(
-    (tab: ComposerTab, allowDuplicateTrack = true) => {
+    (tab: TabPickerOption, allowDuplicateTrack = true) => {
+      if (tab === 'airInstrument') {
+        setIsTabPickerOpen(false);
+        navigate('/air-guitar');
+        return;
+      }
+
       if (isSampledInstrumentTab(tab)) {
         const trackId = addInstrumentTrack(tab);
         setOpenExtraTrackIds((current) => [...current, trackId]);
@@ -1608,7 +1645,7 @@ export function Composer() {
 
       setIsTabPickerOpen(false);
     },
-    [activateTab, addInstrumentTrack, openTabsState]
+    [activateTab, addInstrumentTrack, navigate, openTabsState]
   );
 
   useEffect(() => {
@@ -3094,23 +3131,30 @@ export function Composer() {
                       minWidth: `${tabPickerMenuPosition.minWidth}px`,
                     }}
                   >
-                    {tabPickerOptions.map((tab) => {
-                      const isOpen = openTabs.includes(tab);
-                      const isActive = activeTab === tab && !activeTrackId;
+                    {tabPickerGroups.map((group) => (
+                      <div key={group.title} className="composer-tab-picker-section">
+                        <div className="composer-tab-picker-section-title">{group.title}</div>
+                        {group.options.map((tab) => {
+                          const isAirInstrument = tab === 'airInstrument';
+                          const isOpen = !isAirInstrument && openTabs.includes(tab);
+                          const isActive =
+                            !isAirInstrument && activeTab === tab && !activeTrackId;
 
-                      return (
-                        <button
-                          key={tab}
-                          type="button"
-                          className={`composer-tab-picker-item is-${tab}${
-                            isActive ? ' is-active' : ''
-                          }${isOpen ? ' is-opened' : ''}`}
-                          onClick={() => handleOpenTab(tab)}
-                        >
-                          <span>{getTabPickerLabel(tab)}</span>
-                        </button>
-                      );
-                    })}
+                          return (
+                            <button
+                              key={tab}
+                              type="button"
+                              className={`composer-tab-picker-item is-${tab}${
+                                isActive ? ' is-active' : ''
+                              }${isOpen ? ' is-opened' : ''}`}
+                              onClick={() => handleOpenTab(tab)}
+                            >
+                              <span>{getTabPickerLabel(tab)}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
                 ) : null}
               </div>

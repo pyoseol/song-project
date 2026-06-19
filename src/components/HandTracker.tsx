@@ -37,6 +37,12 @@ export default function HandTracker() {
     let instrumentMode: InstrumentMode =
       'guitar'
 
+    const instrumentLabels: Record<InstrumentMode, string> = {
+      guitar: '기타',
+      drum: '드럼',
+      piano: '피아노',
+    }
+
     // =========================
     // 기타 줄 설정
     // =========================
@@ -573,7 +579,7 @@ if (instrumentMode === 'piano') {
     ctx.textBaseline = 'middle'
 
     ctx.fillText(
-      'STRUM',
+      '스트럼',
       strumZone.x +
         strumZone.width / 2,
       strumZone.y + 30
@@ -991,20 +997,20 @@ if (instrumentMode === 'piano') {
 
       ctx.font = '48px Arial'
       ctx.fillText(
-        `Instrument: ${instrumentMode}`,
+        `에어 악기: ${instrumentLabels[instrumentMode]}`,
         20,
         40
       )
 
       if (instrumentMode === 'guitar') {
         ctx.fillText(
-          `Mode: ${strumMode ? 'STRUM' : 'STRING'}`,
+          `연주 방식: ${strumMode ? '스트럼' : '줄 연주'}`,
           20,
           80
         )
 
         ctx.fillText(
-          `Chord: ${currentChord}`,
+          `코드: ${currentChord}`,
           20,
           120
         )
@@ -1012,7 +1018,7 @@ if (instrumentMode === 'piano') {
 
       if (instrumentMode === 'drum') {
         ctx.fillText(
-          'Drum Mode',
+          '드럼 모드',
           20,
           80
         )
@@ -1020,7 +1026,7 @@ if (instrumentMode === 'piano') {
 
       if (instrumentMode === 'piano') {
         ctx.fillText(
-          'Piano Mode',
+          '피아노 모드',
           20,
           80
         )
@@ -1029,7 +1035,7 @@ if (instrumentMode === 'piano') {
     if (instrumentMode === 'guitar')
     {
       ctx.fillText(
-              'Press M to switch mode',
+              'M 키로 스트럼/줄 연주 전환',
               40,
               canvas.height - 120
             )
@@ -1057,10 +1063,10 @@ if (instrumentMode === 'piano') {
       !strumMode
 
     console.log(
-      'Mode:',
+      '연주 방식:',
       strumMode
-        ? 'STRUM'
-        : 'STRING'
+        ? '스트럼'
+        : '줄 연주'
     )
 
     
@@ -1068,17 +1074,17 @@ if (instrumentMode === 'piano') {
 
  if (e.key === '1') {
   instrumentMode = 'guitar'
-  console.log('GUITAR')
+  console.log('기타')
 }
 
 if (e.key === '2') {
   instrumentMode = 'drum'
-  console.log('DRUM')
+  console.log('드럼')
 }
 
 if (e.key === '3') {
   instrumentMode = 'piano'
-  console.log('PIANO')
+  console.log('피아노')
 }
 
 }
@@ -1101,12 +1107,7 @@ window.addEventListener(
   }, [])
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-      }}
-    >
+    <div className="air-hand-tracker">
       <video
         ref={videoRef}
         style={{
@@ -1116,13 +1117,7 @@ window.addEventListener(
 
       <canvas
         ref={canvasRef}
-        style={{
-          width: '100%',
-          maxWidth: '1200px',
-          height: '700px',
-          border:
-            '2px solid white',
-        }}
+        className="air-hand-tracker-canvas"
       />
     </div>
   )

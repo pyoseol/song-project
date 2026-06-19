@@ -58,13 +58,13 @@ export default function HandTracker() {
     // 기타 줄 설정
     // =========================
 
-    const stringsTop = 160
+    const stringsTop = 190
 
-    const stringGap = 30
+    const stringGap = 38
 
-    const stringsPaddingX = 100
-    const stringsStartX = 330;
-    const stringsEndX = 50
+    const stringsPaddingX = 92
+    const stringsStartX = 420;
+    const stringsEndX = 92
 
 
 
@@ -102,41 +102,41 @@ const drumPads = [
   {
     name: 'Kick',
     row: 0,
-    x: 450,
-    y: 420,
-    radius: 60,
+    x: 640,
+    y: 460,
+    radius: 78,
   },
 
   {
     name: 'Snare',
     row: 1,
-    x: 450,
-    y: 280,
-    radius: 60,
+    x: 640,
+    y: 300,
+    radius: 78,
   },
 
   {
     name: 'HiHat',
     row: 2,
-    x: 300,
-    y: 220,
-    radius: 55,
+    x: 460,
+    y: 235,
+    radius: 70,
   },
 
   {
     name: 'Clap',
     row: 3,
-    x: 600,
-    y: 220,
-    radius: 55,
+    x: 820,
+    y: 235,
+    radius: 70,
   },
 
   {
     name: 'Perc',
     row: 4,
-    x: 450,
-    y: 120,
-    radius: 55,
+    x: 640,
+    y: 140,
+    radius: 70,
   },
 ]
 const whiteNotes = [
@@ -150,27 +150,27 @@ const whiteNotes = [
   'C5'
 ]
 
-const whiteKeyWidth = 50
-const whiteKeyHeight = 220
+const whiteKeyWidth = 128
+const whiteKeyHeight = 250
 
-const pianoStartX = 0
+const pianoStartX = 88
 
-const pianoY = 380
+const pianoY = 452
 
 const pianoKeys = whiteNotes.map(
   (note, index) => ({
     note,
     x:
       pianoStartX +
-      index * (whiteKeyWidth + 20),
+      index * (whiteKeyWidth + 8),
     y: pianoY,
     width: whiteKeyWidth,
     height: whiteKeyHeight,
   })
 )
 
-const blackKeyWidth = 32
-const blackKeyHeight = 120
+const blackKeyWidth = 72
+const blackKeyHeight = 142
 
 const blackNotes = [
   { note: 'C#4', whiteIndex: 0 },
@@ -187,8 +187,8 @@ const blackKeys = blackNotes.map(
     x:
       pianoStartX +
       (whiteIndex + 1) *
-        (whiteKeyWidth + 20) -
-      blackKeyWidth / 2 - 3,
+        (whiteKeyWidth + 8) -
+      blackKeyWidth / 2 - 4,
 
     y: pianoY,
 
@@ -202,15 +202,15 @@ const blackKeys = blackNotes.map(
     // 코드 박스 설정
     // =========================
 
-    const chordStartX = 10
+    const chordStartX = 72
 
-    const chordStartY = 300
+    const chordStartY = 350
 
-    const chordWidth = 60
+    const chordWidth = 78
 
-    const chordHeight = 40
+    const chordHeight = 56
 
-    const chordGap = 0
+    const chordGap = 8
 
    const chordNames = [
     'A',
@@ -267,10 +267,10 @@ const blackKeys = blackNotes.map(
     let hoverStart = 0
 
     const strumZone = {
-      x: 380,
-      y: 120,
-      width: 180,
-      height: 260,
+      x: 900,
+      y: 150,
+      width: 260,
+      height: 320,
     }
 
     function playStroke(
@@ -368,8 +368,8 @@ const blackKeys = blackNotes.map(
         canvas.height = displayHeight
       }
 
-      const layoutWidth = 720
-      const layoutHeight = 620
+      const layoutWidth = 1280
+      const layoutHeight = 720
       const layoutScale = Math.min(
         canvas.width / layoutWidth,
         canvas.height / layoutHeight
@@ -389,27 +389,6 @@ const blackKeys = blackNotes.map(
         canvas.width,
         canvas.height
       )
-
-      // =========================
-      // 좌우 반전 카메라
-      // =========================
-
-      ctx.save()
-
-      ctx.scale(-1, 1)
-
-      const videoAspect = video.videoWidth / Math.max(1, video.videoHeight)
-      const canvasAspect = canvas.width / Math.max(1, canvas.height)
-      const drawWidth =
-        canvasAspect > videoAspect ? canvas.width : canvas.height * videoAspect
-      const drawHeight =
-        canvasAspect > videoAspect ? canvas.width / videoAspect : canvas.height
-      const drawX = (canvas.width - drawWidth) / 2
-      const drawY = (canvas.height - drawHeight) / 2
-
-      ctx.drawImage(video, -drawX - drawWidth, drawY, drawWidth, drawHeight)
-
-      ctx.restore()
 
       ctx.save()
       ctx.translate(layoutOffsetX, layoutOffsetY)
@@ -1154,9 +1133,9 @@ window.addEventListener(
     <div className="air-hand-tracker">
       <video
         ref={videoRef}
-        style={{
-          display: 'none',
-        }}
+        className="air-hand-tracker-video"
+        muted
+        playsInline
       />
 
       <canvas

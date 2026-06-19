@@ -360,10 +360,13 @@ const blackKeys = blackNotes.map(
       // 캔버스 크기
       // =========================
 
-      canvas.width = video.videoWidth
+      const displayWidth = Math.max(1, Math.round(canvas.clientWidth || video.videoWidth))
+      const displayHeight = Math.max(1, Math.round(canvas.clientHeight || video.videoHeight))
 
-      canvas.height =
-        video.videoHeight
+      if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+        canvas.width = displayWidth
+        canvas.height = displayHeight
+      }
 
       // =========================
       // 화면 초기화
@@ -384,13 +387,16 @@ const blackKeys = blackNotes.map(
 
       ctx.scale(-1, 1)
 
-      ctx.drawImage(
-        video,
-        -canvas.width,
-        0,
-        canvas.width,
-        canvas.height
-      )
+      const videoAspect = video.videoWidth / Math.max(1, video.videoHeight)
+      const canvasAspect = canvas.width / Math.max(1, canvas.height)
+      const drawHeight =
+        canvasAspect > videoAspect ? canvas.height : canvas.width / videoAspect
+      const drawWidth =
+        canvasAspect > videoAspect ? canvas.height * videoAspect : canvas.width
+      const drawX = (canvas.width - drawWidth) / 2
+      const drawY = (canvas.height - drawHeight) / 2
+
+      ctx.drawImage(video, -drawX - drawWidth, drawY, drawWidth, drawHeight)
 
       ctx.restore()
 
@@ -650,7 +656,7 @@ if (instrumentMode === 'piano') {
             // 수정된 부분
             const fingerY =
               indexFinger.y *
-              video.videoHeight
+              canvas.height
 
           if (instrumentMode === 'drum') {
             drumPads.forEach(async pad => {
@@ -980,7 +986,7 @@ if (instrumentMode === 'piano') {
                 // 수정된 부분
                 const y =
                   landmark.y *
-                  video.videoHeight
+                  canvas.height
 
                 ctx.beginPath()
 

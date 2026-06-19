@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HandTracker from '../components/HandTracker';
 import SiteHeader from '../components/layout/SiteHeader';
 import './AirGuitar.css';
 
 type AirInstrumentMode = 'guitar' | 'drum' | 'piano';
+
+type AirInstrumentStateEvent = CustomEvent<{
+  instrumentMode: AirInstrumentMode;
+  strumMode: boolean;
+}>;
 
 const modeButtons: Array<{ key: AirInstrumentMode; label: string; eventKey: string }> = [
   { key: 'guitar', label: '기타', eventKey: '1' },
@@ -20,6 +25,20 @@ export default function AirGuitar() {
   const navigate = useNavigate();
   const [activeMode, setActiveMode] = useState<AirInstrumentMode>('guitar');
   const [isStrumMode, setIsStrumMode] = useState(true);
+
+  useEffect(() => {
+    const handleStateChange = (event: Event) => {
+      const { instrumentMode, strumMode } = (event as AirInstrumentStateEvent).detail;
+
+      setActiveMode(instrumentMode);
+      setIsStrumMode(strumMode);
+    };
+
+    window.addEventListener('air-instrument-state-change', handleStateChange);
+    return () => {
+      window.removeEventListener('air-instrument-state-change', handleStateChange);
+    };
+  }, []);
 
   return (
     <div className="air-instrument-page">
@@ -47,10 +66,7 @@ export default function AirGuitar() {
                   key={mode.key}
                   type="button"
                   className={activeMode === mode.key ? 'is-active' : ''}
-                  onClick={() => {
-                    setActiveMode(mode.key);
-                    sendAirInstrumentKey(mode.eventKey);
-                  }}
+                  onClick={() => sendAirInstrumentKey(mode.eventKey)}
                 >
                   {mode.label}
                 </button>
@@ -61,10 +77,7 @@ export default function AirGuitar() {
               type="button"
               className={`air-instrument-strum-button${isStrumMode ? ' is-active' : ''}`}
               disabled={activeMode !== 'guitar'}
-              onClick={() => {
-                setIsStrumMode((current) => !current);
-                sendAirInstrumentKey('m');
-              }}
+              onClick={() => sendAirInstrumentKey('m')}
             >
               {isStrumMode ? '스트럼' : '줄 연주'}
             </button>

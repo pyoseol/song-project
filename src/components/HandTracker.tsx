@@ -43,6 +43,17 @@ export default function HandTracker() {
       piano: '피아노',
     }
 
+    function dispatchAirInstrumentState() {
+      window.dispatchEvent(
+        new CustomEvent('air-instrument-state-change', {
+          detail: {
+            instrumentMode,
+            strumMode,
+          },
+        })
+      )
+    }
+
     // =========================
     // 기타 줄 설정
     // =========================
@@ -311,7 +322,11 @@ const blackKeys = blackNotes.map(
 
       const stream =
         await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            aspectRatio: { ideal: 16 / 9 },
+          },
         })
 
       if (!videoRef.current) return
@@ -1048,6 +1063,7 @@ if (instrumentMode === 'piano') {
     }
 
     setupHandTracking()
+    dispatchAirInstrumentState()
 
   const handleKeyDown = (
   e: KeyboardEvent
@@ -1062,6 +1078,8 @@ if (instrumentMode === 'piano') {
     strumMode =
       !strumMode
 
+    dispatchAirInstrumentState()
+
     console.log(
       '연주 방식:',
       strumMode
@@ -1074,16 +1092,19 @@ if (instrumentMode === 'piano') {
 
  if (e.key === '1') {
   instrumentMode = 'guitar'
+  dispatchAirInstrumentState()
   console.log('기타')
 }
 
 if (e.key === '2') {
   instrumentMode = 'drum'
+  dispatchAirInstrumentState()
   console.log('드럼')
 }
 
 if (e.key === '3') {
   instrumentMode = 'piano'
+  dispatchAirInstrumentState()
   console.log('피아노')
 }
 

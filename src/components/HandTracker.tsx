@@ -378,6 +378,40 @@ const blackKeys = blackNotes.map(
         (canvas.width - layoutWidth * layoutScale) / 2
       const layoutOffsetY =
         (canvas.height - layoutHeight * layoutScale) / 2
+      const videoAspect =
+        video.videoWidth && video.videoHeight
+          ? video.videoWidth / video.videoHeight
+          : canvas.width / canvas.height
+      const canvasAspect =
+        canvas.width / canvas.height
+      const coveredVideoWidth =
+        canvasAspect > videoAspect
+          ? canvas.width
+          : canvas.height * videoAspect
+      const coveredVideoHeight =
+        canvasAspect > videoAspect
+          ? canvas.width / videoAspect
+          : canvas.height
+      const coveredVideoOffsetX =
+        (canvas.width - coveredVideoWidth) / 2
+      const coveredVideoOffsetY =
+        (canvas.height - coveredVideoHeight) / 2
+      const toLayoutPoint = (
+        landmark: { x: number; y: number }
+      ) => {
+        const visibleX =
+          canvas.width -
+          (coveredVideoOffsetX +
+            landmark.x * coveredVideoWidth)
+        const visibleY =
+          coveredVideoOffsetY +
+          landmark.y * coveredVideoHeight
+
+        return {
+          x: (visibleX - layoutOffsetX) / layoutScale,
+          y: (visibleY - layoutOffsetY) / layoutScale,
+        }
+      }
 
       // =========================
       // 화면 초기화
@@ -642,15 +676,14 @@ if (instrumentMode === 'piano') {
             const indexFinger =
               landmarks[8]
 
-            const fingerX =
-              layoutWidth -
-              indexFinger.x *
-                layoutWidth
+            const fingerPoint =
+              toLayoutPoint(indexFinger)
 
-            // 수정된 부분
+            const fingerX =
+              fingerPoint.x
+
             const fingerY =
-              indexFinger.y *
-              layoutHeight
+              fingerPoint.y
 
           if (instrumentMode === 'drum') {
             drumPads.forEach(async pad => {
@@ -972,15 +1005,14 @@ if (instrumentMode === 'piano') {
 
             landmarks.forEach(
               landmark => {
-                const x =
-                  layoutWidth -
-                  landmark.x *
-                    layoutWidth
+                const point =
+                  toLayoutPoint(landmark)
 
-                // 수정된 부분
+                const x =
+                  point.x
+
                 const y =
-                  landmark.y *
-                  layoutHeight
+                  point.y
 
                 ctx.beginPath()
 

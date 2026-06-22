@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as Tone from 'tone';
 import {
@@ -167,9 +167,124 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
   const [isUploadingShareCover, setIsUploadingShareCover] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const backingTrackInputRef = useRef<HTMLInputElement | null>(null);
+  const backingTrackAudioRef = useRef<HTMLAudioElement | null>(null);
+  const backingTrackUrlRef = useRef('');
+  const backingTrackTimerRef = useRef<number | null>(null);
+  const previousPlaybackStepRef = useRef<number | null>(null);
+  const [backingTrackName, setBackingTrackName] = useState('');
+  const [backingTrackVolume, setBackingTrackVolume] = useState(0.7);
 
   const currentBar = Math.floor(currentStep / BAR_LENGTH) + 1;
   const totalBars = Math.max(1, Math.ceil(steps / BAR_LENGTH));
+
+  const getBackingTrackStartTime = (step = loopRange?.start ?? 0) =>
+    step * (60 / bpm / 4);
+
+  const clearBackingTrackTimer = () => {
+    if (backingTrackTimerRef.current !== null) {
+      window.clearTimeout(backingTrackTimerRef.current);
+      backingTrackTimerRef.current = null;
+    }
+  };
+
+  const stopBackingTrack = (resetToStart = true) => {
+    clearBackingTrackTimer();
+    const audio = backingTrackAudioRef.current;
+    if (!audio) return;
+    audio.pause();
+    if (resetToStart) {
+      audio.currentTime = Math.min(getBackingTrackStartTime(), audio.duration || Infinity);
+    }
+  };
+
+  const startBackingTrack = (step = loopRange?.start ?? 0) => {
+    const audio = backingTrackAudioRef.current;
+    if (!audio || !backingTrackName) return;
+
+    clearBackingTrackTimer();
+    const startTime = getBackingTrackStartTime(step);
+    audio.currentTime = Math.min(startTime, audio.duration || Infinity);
+    backingTrackTimerRef.current = window.setTimeout(() => {
+      backingTrackTimerRef.current = null;
+      void audio.play().catch((error) => {
+        console.error('MP3 playback start failed:', error);
+      });
+    }, getPlaybackStartDelaySeconds() * 1000);
+  };
+
+  useEffect(() => {
+    const audio = backingTrackAudioRef.current;
+    return () => {
+      clearBackingTrackTimer();
+      audio?.pause();
+      if (backingTrackUrlRef.current) URL.revokeObjectURL(backingTrackUrlRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (backingTrackAudioRef.current) {
+      backingTrackAudioRef.current.volume = backingTrackVolume;
+    }
+  }, [backingTrackVolume]);
+
+  useEffect(() => {
+    const handlePlaybackStep = (event: Event) => {
+      if (!backingTrackName) return;
+      const step = (event as CustomEvent<{ step: number }>).detail.step;
+      const previousStep = previousPlaybackStepRef.current;
+      const loopRestarted = loopRange
+        ? previousStep === loopRange.end && step === loopRange.start
+        : previousStep !== null && step < previousStep;
+
+      if (loopRestarted) {
+        const audio = backingTrackAudioRef.current;
+        if (audio) {
+          audio.currentTime = step * (60 / bpm / 4);
+          if (audio.paused) void audio.play().catch(() => undefined);
+        }
+      }
+      previousPlaybackStepRef.current = step;
+    };
+
+    window.addEventListener('composer-playhead-step', handlePlaybackStep);
+    return () => window.removeEventListener('composer-playhead-step', handlePlaybackStep);
+  }, [backingTrackName, bpm, loopRange]);
+
+  const handleSelectBackingTrack = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.mp3') && file.type !== 'audio/mpeg') {
+      alert('MP3 파일만 선택할 수 있습니다.');
+      return;
+    }
+
+    stopBackingTrack(false);
+    if (backingTrackUrlRef.current) URL.revokeObjectURL(backingTrackUrlRef.current);
+    const url = URL.createObjectURL(file);
+    backingTrackUrlRef.current = url;
+    setBackingTrackName(file.name);
+
+    const audio = backingTrackAudioRef.current;
+    if (audio) {
+      audio.src = url;
+      audio.load();
+    }
+  };
+
+  const removeBackingTrack = () => {
+    stopBackingTrack(false);
+    const audio = backingTrackAudioRef.current;
+    if (audio) {
+      audio.removeAttribute('src');
+      audio.load();
+    }
+    if (backingTrackUrlRef.current) URL.revokeObjectURL(backingTrackUrlRef.current);
+    backingTrackUrlRef.current = '';
+    setBackingTrackName('');
+  };
 
   const createProjectSnapshot = (): SongProject => {
     return buildSongProjectSnapshot(useSongStore.getState());
@@ -215,6 +330,8 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
     if (isPlaying) {
       Tone.Transport.stop();
       Tone.Transport.position = 0;
+      stopBackingTrack();
+      previousPlaybackStepRef.current = null;
       setCurrentStep(loopRange?.start ?? 0);
       setPlaying(false);
       return;
@@ -227,12 +344,14 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
       Tone.Transport.position = 0;
       setCurrentStep(loopRange?.start ?? 0);
       Tone.Transport.start(`+${getPlaybackStartDelaySeconds()}`);
+      startBackingTrack(loopRange?.start ?? 0);
       setPlaying(true);
       onPlayStarted?.();
     } catch (error) {
       console.error('Playback start failed:', error);
       Tone.Transport.stop();
       Tone.Transport.position = 0;
+      stopBackingTrack();
       setCurrentStep(loopRange?.start ?? 0);
       setPlaying(false);
       alert('재생을 시작하지 못했습니다. 브라우저를 새로고침한 뒤 다시 시도해 주세요.');
@@ -241,6 +360,9 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
 
   const handleGoToFirstBar = () => {
     Tone.Transport.position = '0:0:0';
+    stopBackingTrack(false);
+    if (backingTrackAudioRef.current) backingTrackAudioRef.current.currentTime = 0;
+    previousPlaybackStepRef.current = null;
     setLoopRange(null);
     setCurrentStep(0);
     window.dispatchEvent(new Event(GO_TO_FIRST_BAR_EVENT));
@@ -258,6 +380,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
 
     Tone.Transport.stop();
     Tone.Transport.position = 0;
+    stopBackingTrack(false);
     clear();
     setCurrentStep(0);
     setPlaying(false);
@@ -501,6 +624,48 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
       </div>
 
       <div className="transport-actions">
+        <div className={`transport-backing-track${backingTrackName ? ' is-loaded' : ''}`}>
+          <button
+            type="button"
+            className="transport-button transport-button--backing"
+            onClick={() => backingTrackInputRef.current?.click()}
+            title={backingTrackName || 'MP3 반주 파일 추가'}
+          >
+            {backingTrackName ? `MP3 · ${backingTrackName}` : '+ MP3 추가'}
+          </button>
+          {backingTrackName ? (
+            <>
+              <input
+                className="transport-backing-volume"
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={backingTrackVolume}
+                onChange={(event) => setBackingTrackVolume(Number(event.target.value))}
+                aria-label="MP3 볼륨"
+                title={`MP3 볼륨 ${Math.round(backingTrackVolume * 100)}%`}
+              />
+              <button
+                type="button"
+                className="transport-backing-remove"
+                onClick={removeBackingTrack}
+                aria-label="MP3 제거"
+                title="MP3 제거"
+              >
+                ×
+              </button>
+            </>
+          ) : null}
+        </div>
+        <input
+          ref={backingTrackInputRef}
+          type="file"
+          accept="audio/mpeg,.mp3"
+          onChange={handleSelectBackingTrack}
+          style={{ display: 'none' }}
+        />
+        <audio ref={backingTrackAudioRef} preload="metadata" />
         <button
           type="button"
           className="transport-button transport-button--with-icon transport-button--tool"

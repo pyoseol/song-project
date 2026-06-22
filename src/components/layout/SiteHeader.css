@@ -2,18 +2,25 @@
   position: sticky;
   top: 0;
   z-index: 40;
+  width: 100%;
+  height: 56px;
+  min-height: 56px;
+  box-sizing: border-box;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(16, 16, 17, 0.96);
   backdrop-filter: blur(14px);
 }
 
 .site-header-inner {
+  position: relative;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 24px;
   max-width: 1320px;
-  min-height: 56px;
+  width: 100%;
+  height: 55px;
+  min-height: 55px;
   margin: 0 auto;
   padding: 0 18px;
 }
@@ -28,7 +35,12 @@
   align-items: center;
   justify-content: center;
   width: 28px;
+  min-width: 28px;
+  max-width: 28px;
   height: 28px;
+  min-height: 28px;
+  max-height: 28px;
+  flex: 0 0 28px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -49,15 +61,24 @@
 }
 
 .site-header-nav {
+  position: absolute;
+  left: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 16px;
   min-width: 0;
+  height: 34px;
+  transform: translateX(-50%);
 }
 
 .site-header-nav-link {
+  height: 34px;
   min-height: 34px;
+  max-height: 34px;
+  box-sizing: border-box;
+  line-height: 1;
+  white-space: nowrap;
   padding: 0 14px;
   border: 0;
   border-radius: 999px;
@@ -78,14 +99,18 @@
 }
 
 .site-header-nav-link.is-active {
-  background: rgba(255, 255, 255, 0.06);
+  background: transparent;
 }
 
 .site-header-tools {
+  grid-column: 3;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
+  height: 34px;
+  min-height: 34px;
+  white-space: nowrap;
 }
 
 .site-header-extra {
@@ -95,11 +120,15 @@
 
 .site-header-account .topbar-account {
   gap: 0;
+  height: 34px;
 }
 
 .site-header-account .topbar-account-link,
 .site-header-account .topbar-account-profile {
-  height: auto;
+  height: 34px;
+  min-height: 34px;
+  max-height: 34px;
+  box-sizing: border-box;
   padding: 0;
   border: 0;
   background: transparent;
@@ -148,6 +177,17 @@
   font-weight: 700;
 }
 
+.site-header .notification-bell,
+.site-header .notification-bell-trigger {
+  width: 34px;
+  min-width: 34px;
+  max-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  max-height: 34px;
+  box-sizing: border-box;
+}
+
 @media (max-width: 1180px) {
   .site-header-inner {
     gap: 16px;
@@ -165,9 +205,11 @@
 
 @media (max-width: 920px) {
   .site-header-nav {
+    position: static;
     overflow-x: auto;
     justify-content: flex-start;
     padding-bottom: 4px;
+    transform: none;
   }
 
   .site-header-nav::-webkit-scrollbar {

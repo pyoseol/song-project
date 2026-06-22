@@ -170,6 +170,61 @@
   font-weight: 700;
 }
 
+.transport-backing-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.transport-button--backing {
+  max-width: 170px;
+  overflow: hidden;
+  border-color: rgba(121, 255, 67, 0.28);
+  color: #deffd1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transport-backing-track.is-loaded {
+  padding-right: 7px;
+  border: 1px solid #2a2d32;
+  border-radius: 9px;
+  background: #0f1114;
+}
+
+.transport-backing-track.is-loaded .transport-button--backing {
+  border: 0;
+  background: transparent;
+}
+
+.transport-backing-volume {
+  width: 58px;
+  accent-color: #79ff43;
+  cursor: pointer;
+}
+
+.transport-backing-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #25282e;
+  color: #c7cad0;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.transport-backing-remove:hover {
+  background: #3a2024;
+  color: #ffb4bd;
+}
+
 .transport-button--icon-only {
   width: 36px;
   min-width: 36px;

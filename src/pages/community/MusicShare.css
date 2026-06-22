@@ -604,3 +604,33 @@
     width: auto;
   }
 }
+
+/* Main landing design system */
+.music-share-page {
+  background: radial-gradient(circle at 10% 8%, rgba(99, 230, 190, 0.13), transparent 26%), radial-gradient(circle at 88% 8%, rgba(139, 124, 246, 0.17), transparent 30%), linear-gradient(180deg, #101420 0%, var(--product-bg) 100%);
+}
+
+.music-share-shell { max-width: 1320px; padding-top: 34px; gap: 18px; }
+.music-share-sidebar, .music-share-content, .music-share-comment-modal {
+  border-color: var(--product-border);
+  border-radius: var(--product-radius);
+  background: var(--product-surface);
+  box-shadow: var(--product-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+.music-share-content { padding: 28px; }
+.music-share-sidebar-kicker, .music-share-content-kicker { background: rgba(99, 230, 190, 0.08); color: #a9ead7; }
+.music-share-title { font-size: 38px; letter-spacing: -0.045em; }
+.music-share-toolbar { padding: 14px; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 18px; background: rgba(7, 10, 17, 0.28); }
+.music-share-search input, .music-share-sort-select { border-color: rgba(255, 255, 255, 0.09); background: rgba(7, 10, 17, 0.56); color: var(--product-text); }
+.music-share-tag-button.is-active, .music-share-page-button.is-active, .music-share-floating-action { border-color: rgba(99, 230, 190, 0.2); background: rgba(99, 230, 190, 0.13); color: #d9fff3; }
+.music-share-card { border-color: var(--product-border); border-radius: 20px; background: var(--product-surface-strong); box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24); transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+.music-share-card:hover { border-color: rgba(99, 230, 190, 0.2); box-shadow: 0 28px 58px rgba(0, 0, 0, 0.34); transform: translateY(-3px); }
+.music-share-card-chip, .music-share-card-favorite-button.is-active, .music-share-card-action.is-active { color: #a9ead7; }
+
+@media (max-width: 720px) {
+  .music-share-content { padding: 18px; }
+  .music-share-title { font-size: 30px; }
+}

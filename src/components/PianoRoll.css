@@ -771,6 +771,41 @@
   overflow: auto;
 }
 
+.piano-roll,
+.piano-roll-melody-scroller {
+  scrollbar-color: rgba(99, 230, 190, 0.62) #0b0f17;
+  scrollbar-width: thin;
+}
+
+.piano-roll::-webkit-scrollbar,
+.piano-roll-melody-scroller::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+.piano-roll::-webkit-scrollbar-track,
+.piano-roll-melody-scroller::-webkit-scrollbar-track {
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: #0b0f17;
+}
+
+.piano-roll::-webkit-scrollbar-thumb,
+.piano-roll-melody-scroller::-webkit-scrollbar-thumb {
+  border: 2px solid #0b0f17;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(99, 230, 190, 0.72), rgba(139, 124, 246, 0.62));
+}
+
+.piano-roll::-webkit-scrollbar-thumb:hover,
+.piano-roll-melody-scroller::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, #63e6be, #8b7cf6);
+}
+
+.piano-roll::-webkit-scrollbar-corner,
+.piano-roll-melody-scroller::-webkit-scrollbar-corner {
+  background: #0b0f17;
+}
+
 .piano-roll--melody-detached .piano-roll-sidebar {
   position: relative;
   flex: 0 0 var(--piano-sidebar-width);

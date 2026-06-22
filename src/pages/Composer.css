@@ -1,7 +1,7 @@
 .composer-page {
   display: flex;
   flex-direction: column;
-  width: 100vw;
+  width: 100%;
   height: 100vh;
   overflow: hidden;
   background: #1f1f20;
@@ -2070,12 +2070,84 @@
 }
 
 .composer-drums-wrap::-webkit-scrollbar-corner {
-  background: rgba(255, 255, 255, 0.06);
+  background: #0b0f17;
+}
+
+.composer-main,
+.composer-drums-wrap,
+.composer-guide-panel,
+.composer-tab-picker-menu {
+  scrollbar-color: rgba(99, 230, 190, 0.62) #0b0f17;
+  scrollbar-width: thin;
+}
+
+.composer-drums-wrap::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+.composer-drums-wrap::-webkit-scrollbar-track {
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: #0b0f17;
+}
+
+.composer-drums-wrap::-webkit-scrollbar-thumb {
+  border: 2px solid #0b0f17;
+  background: linear-gradient(90deg, rgba(99, 230, 190, 0.72), rgba(139, 124, 246, 0.62));
+  background-clip: padding-box;
+}
+
+.composer-drums-wrap::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, #63e6be, #8b7cf6);
+  background-clip: padding-box;
 }
 
 .composer-sequencer-body {
+  --sequencer-label-width: 160px;
+  --sequencer-label-gap: 12px;
+  position: relative;
   min-width: 100%;
   width: max-content;
+}
+
+.composer-sequencer-playhead {
+  position: absolute;
+  top: 18px;
+  bottom: 0;
+  left: calc(
+    var(--sequencer-label-width) + var(--sequencer-label-gap) +
+      (var(--sequencer-step-index) * (84px + 10px)) + 42px - 2px
+  );
+  z-index: 20;
+  width: 4px;
+  border-radius: 999px;
+  background: #a3e635;
+  box-shadow:
+    0 0 0 1px rgba(10, 15, 8, 0.72),
+    0 0 10px rgba(163, 230, 53, 0.95),
+    0 0 24px rgba(163, 230, 53, 0.55);
+  pointer-events: none;
+}
+
+.composer-sequencer-playhead::before {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px 3px 7px 7px;
+  background: #d9f99d;
+  box-shadow: 0 0 12px rgba(163, 230, 53, 0.9);
+  content: '';
+  transform: translateX(-50%);
+}
+
+.composer-sequencer-playhead::after {
+  position: absolute;
+  inset: 28px -40px 0;
+  border-radius: 10px;
+  background: rgba(163, 230, 53, 0.07);
+  content: '';
 }
 
 .composer-sequencer-rows {
@@ -2553,6 +2625,11 @@
     gap: 10px;
   }
 
+  .composer-sequencer-body {
+    --sequencer-label-width: 132px;
+    --sequencer-label-gap: 10px;
+  }
+
   .composer-drum-track {
     padding: 14px 12px;
   }
@@ -2632,4 +2709,55 @@
   .composer-main {
     padding: 8px;
   }
+}
+
+/* Main landing design system */
+.composer-page {
+  background: var(--product-bg);
+}
+
+.composer-workbar {
+  border-bottom-color: var(--product-border);
+  background: rgba(11, 14, 22, 0.94);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.2);
+}
+
+.composer-mode-strip span,
+.composer-help-toggle-button.is-active {
+  border-color: rgba(99, 230, 190, 0.22);
+  background: rgba(99, 230, 190, 0.1);
+  color: #cffff0;
+}
+
+.composer-tab-strip {
+  border-bottom-color: var(--product-border);
+}
+
+.composer-tab-card {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(37, 42, 55, 0.94), rgba(18, 22, 31, 0.94));
+}
+
+.composer-tab-card.is-active {
+  border-color: rgba(99, 230, 190, 0.2);
+  border-bottom-color: #151a23;
+  background: linear-gradient(180deg, rgba(39, 50, 61, 0.98), rgba(21, 26, 35, 0.98));
+  box-shadow: inset 0 2px 0 rgba(99, 230, 190, 0.34);
+}
+
+.composer-main,
+.composer-main--melody,
+.composer-main--lyrics,
+.composer-main--drums,
+.composer-main--bass {
+  background: radial-gradient(circle at 8% 5%, rgba(99, 230, 190, 0.08), transparent 25%), radial-gradient(circle at 92% 5%, rgba(139, 124, 246, 0.1), transparent 28%), var(--product-bg);
+}
+
+.composer-roll-shell,
+.composer-drum-panel,
+.composer-lyrics-tab-panel,
+.composer-empty-tab-panel {
+  border-color: var(--product-border);
+  background-color: var(--product-surface-strong);
+  box-shadow: var(--product-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }

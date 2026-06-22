@@ -390,3 +390,25 @@
     width: 100%;
   }
 }
+
+/* Main landing design system */
+.collab-page {
+  background: radial-gradient(circle at 12% 8%, rgba(99, 230, 190, 0.13), transparent 27%), radial-gradient(circle at 86% 8%, rgba(139, 124, 246, 0.17), transparent 30%), linear-gradient(180deg, #101420 0%, var(--product-bg) 100%);
+}
+
+.collab-shell { max-width: 1320px; padding-top: 46px; }
+.collab-hero, .collab-panel, .collab-source-card, .collab-project-card, .collab-empty-card, .collab-panel-note, .collab-hero-stat {
+  border-color: var(--product-border);
+  background: var(--product-surface);
+  box-shadow: var(--product-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+.collab-hero, .collab-panel { border-radius: var(--product-radius); }
+.collab-hero-kicker, .collab-connection-chip { color: #a9ead7; }
+.collab-hero h1 { font-size: clamp(38px, 4vw, 54px); letter-spacing: -0.045em; }
+.collab-primary-button { border-color: transparent; background: linear-gradient(135deg, #f1fffb, #c9f8e9); color: #10251f; }
+.collab-secondary-button { border-color: rgba(255, 255, 255, 0.11); background: rgba(255, 255, 255, 0.045); }
+.collab-project-card, .collab-source-card { border-radius: 18px; transition: transform 0.2s ease, border-color 0.2s ease; }
+.collab-project-card:hover, .collab-source-card:hover { border-color: rgba(99, 230, 190, 0.18); transform: translateY(-2px); }

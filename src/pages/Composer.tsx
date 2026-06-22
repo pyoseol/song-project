@@ -2896,6 +2896,11 @@ export function Composer() {
       <div className="composer-drum-panel">
         <div className="composer-drums-wrap">
           <div className="composer-sequencer-body">
+            <div
+              className="composer-sequencer-playhead"
+              style={{ '--sequencer-step-index': `${currentStep}` } as CSSProperties}
+              aria-hidden="true"
+            />
             <div className="composer-sequencer-header">
               <div className="composer-drum-step-spacer">Pattern</div>
 
@@ -3471,6 +3476,11 @@ export function Composer() {
             <div className="composer-drum-panel">
               <div className="composer-drums-wrap">
                 <div className="composer-sequencer-body">
+                  <div
+                    className="composer-sequencer-playhead"
+                    style={{ '--sequencer-step-index': `${currentStep}` } as CSSProperties}
+                    aria-hidden="true"
+                  />
                   <div className="composer-sequencer-header">
                     <div className="composer-drum-step-spacer">Pattern</div>
 

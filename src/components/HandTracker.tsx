@@ -3,7 +3,7 @@ import {
   FilesetResolver,
   HandLandmarker,
 } from '@mediapipe/tasks-vision'
-
+import * as Tone from 'tone'
 // 기존 프로젝트 기타 사운드 import
 import { 
   acousticGuitarSynth,
@@ -18,7 +18,14 @@ import {
 
 
 export default function HandTracker() {
-  const videoRef =
+
+  const mediaRecorderRef =
+  useRef<MediaRecorder | null>(null)
+
+const recordedChunksRef =
+  useRef<Blob[]>([])
+
+ const videoRef =
     useRef<HTMLVideoElement | null>(null)
 
   const canvasRef =
@@ -418,15 +425,51 @@ const blackKeys = blackNotes.map(
       // =========================
 
       ctx.clearRect(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-      )
+  0,
+  0,
+  canvas.width,
+  canvas.height
+)
 
-      ctx.save()
-      ctx.translate(layoutOffsetX, layoutOffsetY)
-      ctx.scale(layoutScale, layoutScale)
+// =========================
+// 카메라 영상 먼저 그리기
+// =========================
+
+if (video.readyState >= 2) {
+  ctx.save()
+
+  // 좌우 반전
+  ctx.scale(-1, 1)
+
+  ctx.drawImage(
+    video,
+    -coveredVideoOffsetX -
+      coveredVideoWidth,
+    coveredVideoOffsetY,
+    coveredVideoWidth,
+    coveredVideoHeight
+  )
+
+  ctx.restore()
+}
+
+// =========================
+// UI 스케일 적용
+// =========================
+
+ctx.save()
+
+ctx.translate(
+  layoutOffsetX,
+  layoutOffsetY
+)
+
+ctx.scale(
+  layoutScale,
+  layoutScale
+)
+
+    
 
       // =========================
       // 기타 줄 그리기
@@ -1124,6 +1167,95 @@ if (instrumentMode === 'piano') {
     
   }
 
+  // =========================
+      // 녹화 기능 
+      // =========================
+  function startRecording() {
+  const canvas = canvasRef.current
+
+  if (!canvas) return
+
+  // 영상
+  const canvasStream =
+    canvas.captureStream(60)
+
+  // 오디오
+ const audioCtx =
+  Tone.getContext()
+    .rawContext as AudioContext
+
+const audioDest =
+  audioCtx.createMediaStreamDestination()
+
+  Tone.getDestination().connect(
+    audioDest
+  )
+
+  // 영상 + 오디오 합치기
+  const stream =
+    new MediaStream([
+      ...canvasStream.getVideoTracks(),
+      ...audioDest.stream.getAudioTracks(),
+    ])
+
+  const recorder =
+    new MediaRecorder(stream, {
+      mimeType: 'video/webm',
+    })
+
+  recordedChunksRef.current = []
+
+  recorder.ondataavailable = e => {
+    if (e.data.size > 0) {
+      recordedChunksRef.current.push(
+        e.data
+      )
+    }
+  }
+
+  recorder.start()
+
+  mediaRecorderRef.current =
+    recorder
+
+  console.log('녹화 시작')
+}
+
+function stopRecording() {
+  const recorder =
+    mediaRecorderRef.current
+
+  if (!recorder) return
+
+  recorder.onstop = () => {
+    const blob = new Blob(
+      recordedChunksRef.current,
+      {
+        type: 'video/webm',
+      }
+    )
+
+    const url =
+      URL.createObjectURL(blob)
+
+    const a =
+      document.createElement('a')
+
+    a.href = url
+
+    a.download =
+      `recording-${Date.now()}.webm`
+
+    a.click()
+
+    URL.revokeObjectURL(url)
+
+    console.log('녹화 저장 완료')
+  }
+
+  recorder.stop()
+}
+
  if (e.key === '1') {
   instrumentMode = 'guitar'
   dispatchAirInstrumentState()
@@ -1140,6 +1272,14 @@ if (e.key === '3') {
   instrumentMode = 'piano'
   dispatchAirInstrumentState()
   console.log('피아노')
+}
+
+if (e.key === 'r') {
+  startRecording()
+}
+
+if (e.key === 's') {
+  stopRecording()
 }
 
 }
@@ -1176,4 +1316,5 @@ window.addEventListener(
       />
     </div>
   )
+
 }

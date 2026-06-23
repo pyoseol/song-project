@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ShortComment, ShortItem } from '../types/shorts';
+import type { ShortComment, ShortItem, ShortTone, ShortVisibility } from '../types/shorts';
 import {
   addShortCommentOnServer,
   createShortOnServer,
@@ -46,11 +46,62 @@ type ShortsState = {
 
 let shortsBootstrapPromise: Promise<void> | null = null;
 
+const SHORT_TONES = new Set<ShortTone>(['lime', 'cyan', 'violet', 'amber']);
+const SHORT_VISIBILITIES = new Set<ShortVisibility>(['public', 'private']);
+
+function normalizeShort(short: Partial<ShortItem> & { id?: string }, index: number): ShortItem {
+  const tags = Array.isArray(short.tags) ? short.tags.filter(Boolean) : [];
+  const likedBy = Array.isArray(short.likedBy) ? short.likedBy.filter(Boolean) : [];
+  const tone = SHORT_TONES.has(short.tone as ShortTone) ? (short.tone as ShortTone) : 'lime';
+  const visibility = SHORT_VISIBILITIES.has(short.visibility as ShortVisibility)
+    ? (short.visibility as ShortVisibility)
+    : 'public';
+
+  return {
+    id: short.id ?? `short-${index}`,
+    title: short.title ?? 'Untitled Short',
+    description: short.description ?? '',
+    creatorName: short.creatorName ?? 'composer',
+    creatorEmail: short.creatorEmail ?? '',
+    tags,
+    createdAt: Number.isFinite(short.createdAt) ? Number(short.createdAt) : Date.now(),
+    durationLabel: short.durationLabel ?? '0:15',
+    likeCount: Number.isFinite(short.likeCount) ? Number(short.likeCount) : likedBy.length,
+    viewCount: Number.isFinite(short.viewCount) ? Number(short.viewCount) : 0,
+    visibility,
+    tone,
+    likedBy,
+    videoUrl: short.videoUrl,
+    videoStorageKey: short.videoStorageKey,
+    videoFileName: short.videoFileName,
+    videoSizeBytes: short.videoSizeBytes,
+    audioUrl: short.audioUrl,
+    audioStorageKey: short.audioStorageKey,
+    audioFileName: short.audioFileName,
+    audioSizeBytes: short.audioSizeBytes,
+  };
+}
+
+function normalizeComment(comment: Partial<ShortComment> & { id?: string }, index: number): ShortComment {
+  return {
+    id: comment.id ?? `short-comment-${index}`,
+    shortId: comment.shortId ?? '',
+    authorName: comment.authorName ?? 'composer',
+    authorEmail: comment.authorEmail ?? '',
+    content: comment.content ?? '',
+    createdAt: Number.isFinite(comment.createdAt) ? Number(comment.createdAt) : Date.now(),
+  };
+}
+
 function applySnapshot(snapshot: ShortsSnapshot) {
   useShortsStore.setState((state) => ({
     ...state,
-    shorts: (snapshot.shorts ?? []) as ShortItem[],
-    comments: (snapshot.comments ?? []) as ShortComment[],
+    shorts: (snapshot.shorts ?? []).map((short, index) =>
+      normalizeShort(short as Partial<ShortItem>, index)
+    ),
+    comments: (snapshot.comments ?? [])
+      .map((comment, index) => normalizeComment(comment as Partial<ShortComment>, index))
+      .filter((comment) => comment.shortId),
     bootstrapStatus: 'ready',
     bootstrapError: null,
   }));

@@ -98,6 +98,18 @@ function parseTags(value: string) {
     .slice(0, 5);
 }
 
+function getShortTags(short: ShortItem) {
+  return Array.isArray(short.tags) ? short.tags : [];
+}
+
+function getShortLikedBy(short: ShortItem) {
+  return Array.isArray(short.likedBy) ? short.likedBy : [];
+}
+
+function getShortTone(short: ShortItem): ShortTone {
+  return short.tone && SHORT_TONE_BACKGROUNDS[short.tone] ? short.tone : 'lime';
+}
+
 function formatFileSize(bytes: number) {
   if (bytes >= 1024 * 1024) {
     return `${(bytes / (1024 * 1024)).toFixed(0)}MB`;
@@ -116,9 +128,9 @@ function createFormState(short?: ShortItem, resolvedVideoUrl?: string): ShortsFo
   return {
     title: short.title,
     description: short.description,
-    tags: short.tags.join(', '),
+    tags: getShortTags(short).join(', '),
     durationLabel: short.durationLabel,
-    tone: short.tone,
+    tone: getShortTone(short),
     visibility: short.visibility,
     videoUrl: resolvedVideoUrl ?? short.videoUrl ?? '',
     videoStorageKey: short.videoStorageKey ?? '',
@@ -194,7 +206,7 @@ export default function ShortsPage() {
         return [];
       }
 
-      return orderedShorts.filter((short) => short.likedBy.includes(user.email));
+      return orderedShorts.filter((short) => getShortLikedBy(short).includes(user.email));
     }
 
     return orderedShorts;
@@ -204,7 +216,7 @@ export default function ShortsPage() {
     () => ({
       all: shorts.length,
       mine: user ? shorts.filter((short) => short.creatorEmail === user.email).length : 0,
-      liked: user ? shorts.filter((short) => short.likedBy.includes(user.email)).length : 0,
+      liked: user ? shorts.filter((short) => getShortLikedBy(short).includes(user.email)).length : 0,
     }),
     [shorts, user]
   );
@@ -728,7 +740,7 @@ export default function ShortsPage() {
       return;
     }
 
-    const alreadyLiked = short.likedBy.includes(user.email);
+    const alreadyLiked = getShortLikedBy(short).includes(user.email);
     try {
       await toggleLike(short.id, user.email);
     setAnimatedLikeShortId(short.id);
@@ -932,7 +944,7 @@ export default function ShortsPage() {
                 {filteredShorts.map((short, index) => {
                   const isActive = index === safeActiveIndex;
                   const isOwnShort = user?.email === short.creatorEmail;
-                  const isLiked = user ? short.likedBy.includes(user.email) : false;
+                  const isLiked = user ? getShortLikedBy(short).includes(user.email) : false;
                   const reelComments = commentsByShortId[short.id] ?? [];
                   const isCommentOpen = activeCommentShortId === short.id;
                   const resolvedVideoUrl =
@@ -949,7 +961,7 @@ export default function ShortsPage() {
                     >
                       <div
                         className="shorts-reel-surface"
-                        style={{ backgroundImage: SHORT_TONE_BACKGROUNDS[short.tone] }}
+                        style={{ backgroundImage: SHORT_TONE_BACKGROUNDS[getShortTone(short)] }}
                       >
                         {resolvedVideoUrl ? (
                           <video
@@ -1021,7 +1033,7 @@ export default function ShortsPage() {
                             <p>{short.description}</p>
 
                             <div className="shorts-reel-tags">
-                              {short.tags.map((tag) => (
+                              {getShortTags(short).map((tag) => (
                                 <span key={`${short.id}-${tag}`} className="shorts-tag">
                                   #{tag}
                                 </span>

@@ -169,15 +169,14 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
   const [isUploadingShareCover, setIsUploadingShareCover] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const backingTrackInputRef = useRef<HTMLInputElement | null>(null);
   const backingTrackAudioRef = useRef<HTMLAudioElement | null>(null);
   const backingTrackUrlRef = useRef('');
   const backingTrackTimerRef = useRef<number | null>(null);
   const previousPlaybackStepRef = useRef<number | null>(null);
   const previousBackingTrackSourceBpmRef = useRef(bpm);
-  const [backingTrackName, setBackingTrackName] = useState('');
-  const [backingTrackVolume, setBackingTrackVolume] = useState(0.7);
-  const [backingTrackSourceBpm, setBackingTrackSourceBpm] = useState(bpm);
+  const [backingTrackName] = useState('');
+  const [backingTrackVolume] = useState(0.7);
+  const [backingTrackSourceBpm] = useState(bpm);
 
   const currentBar = Math.floor(currentStep / BAR_LENGTH) + 1;
   const totalBars = Math.max(1, Math.ceil(steps / BAR_LENGTH));
@@ -275,42 +274,6 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
     window.addEventListener('composer-playhead-step', handlePlaybackStep);
     return () => window.removeEventListener('composer-playhead-step', handlePlaybackStep);
   }, [backingTrackName, backingTrackSourceBpm, loopRange]);
-
-  const handleSelectBackingTrack = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-
-    if (!file.name.toLowerCase().endsWith('.mp3') && file.type !== 'audio/mpeg') {
-      alert('MP3 파일만 선택할 수 있습니다.');
-      return;
-    }
-
-    stopBackingTrack(false);
-    if (backingTrackUrlRef.current) URL.revokeObjectURL(backingTrackUrlRef.current);
-    const url = URL.createObjectURL(file);
-    backingTrackUrlRef.current = url;
-    setBackingTrackName(file.name);
-    setBackingTrackSourceBpm(bpm);
-
-    const audio = backingTrackAudioRef.current;
-    if (audio) {
-      audio.src = url;
-      audio.load();
-    }
-  };
-
-  const removeBackingTrack = () => {
-    stopBackingTrack(false);
-    const audio = backingTrackAudioRef.current;
-    if (audio) {
-      audio.removeAttribute('src');
-      audio.load();
-    }
-    if (backingTrackUrlRef.current) URL.revokeObjectURL(backingTrackUrlRef.current);
-    backingTrackUrlRef.current = '';
-    setBackingTrackName('');
-  };
 
   const createProjectSnapshot = (): SongProject => {
     return buildSongProjectSnapshot(useSongStore.getState());
@@ -655,64 +618,6 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
       </div>
 
       <div className="transport-actions">
-        <div className={`transport-backing-track${backingTrackName ? ' is-loaded' : ''}`}>
-          <button
-            type="button"
-            className="transport-button transport-button--backing"
-            onClick={() => backingTrackInputRef.current?.click()}
-            title={backingTrackName || 'MP3 반주 파일 추가'}
-          >
-            {backingTrackName ? `MP3 · ${backingTrackName}` : '+ MP3 추가'}
-          </button>
-          {backingTrackName ? (
-            <>
-              <input
-                className="transport-backing-volume"
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={backingTrackVolume}
-                onChange={(event) => setBackingTrackVolume(Number(event.target.value))}
-                aria-label="MP3 볼륨"
-                title={`MP3 볼륨 ${Math.round(backingTrackVolume * 100)}%`}
-              />
-              <label className="transport-backing-bpm" title="업로드한 MP3의 원본 BPM">
-                <span>원본</span>
-                <input
-                  type="number"
-                  min={40}
-                  max={240}
-                  value={backingTrackSourceBpm}
-                  onChange={(event) => {
-                    const nextBpm = Number(event.target.value);
-                    if (Number.isFinite(nextBpm)) {
-                      setBackingTrackSourceBpm(Math.min(240, Math.max(40, nextBpm)));
-                    }
-                  }}
-                  aria-label="MP3 원본 BPM"
-                />
-              </label>
-              <button
-                type="button"
-                className="transport-backing-remove"
-                onClick={removeBackingTrack}
-                aria-label="MP3 제거"
-                title="MP3 제거"
-              >
-                ×
-              </button>
-            </>
-          ) : null}
-        </div>
-        <input
-          ref={backingTrackInputRef}
-          type="file"
-          accept="audio/mpeg,.mp3"
-          onChange={handleSelectBackingTrack}
-          style={{ display: 'none' }}
-        />
-        <audio ref={backingTrackAudioRef} preload="metadata" />
         <button
           type="button"
           className="transport-button transport-button--with-icon transport-button--tool"

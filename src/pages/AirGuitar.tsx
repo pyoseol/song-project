@@ -59,6 +59,7 @@ export default function AirGuitar() {
 
   const handleApplyRecording = () => {
     const mode = recordedMode ?? activeMode;
+
     loadProject(createAirInstrumentProject(mode));
     navigate('/composer?source=air-instrument');
   };

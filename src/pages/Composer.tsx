@@ -72,7 +72,7 @@ import {
 import './Composer.css';
 
 type ComposerTab = ComposerTabKey;
-type TabPickerOption = ComposerTab | 'airInstrument';
+type TabPickerOption = ComposerTab | 'airInstrument' | 'videoOverlay';
 type TabPickerGroup = {
   title: string;
   options: TabPickerOption[];
@@ -190,8 +190,8 @@ const tabPickerGroups: TabPickerGroup[] = [
     ],
   },
   {
-    title: '라이브 연주',
-    options: ['airInstrument'],
+    title: '영상 · 라이브',
+    options: ['videoOverlay', 'airInstrument'],
   },
 ];
 const COLLAB_BAR_LENGTH = 16;
@@ -579,6 +579,11 @@ export function Composer() {
     bass: 4,
   });
   const [isTabPickerOpen, setIsTabPickerOpen] = useState(false);
+  const [videoOverlay, setVideoOverlay] = useState<{ url: string; name: string } | null>(null);
+  const [videoOverlayVolume, setVideoOverlayVolume] = useState(1);
+  const [isVideoOverlayMuted, setIsVideoOverlayMuted] = useState(false);
+  const [videoOverlayAudioMessage, setVideoOverlayAudioMessage] = useState('');
+  const [isMediaOverlayCompact, setIsMediaOverlayCompact] = useState(false);
   const [isHelpOverlayEnabled, setIsHelpOverlayEnabled] = useState(false);
   const [activeHelpZone, setActiveHelpZone] = useState<ComposerHelpZone | null>(null);
   const [lyricsViewMode, setLyricsViewMode] = useState<LyricsViewMode>('notes');
@@ -603,6 +608,9 @@ export function Composer() {
   const tabStripRef = useRef<HTMLDivElement | null>(null);
   const tabPickerRef = useRef<HTMLDivElement | null>(null);
   const tabAddButtonRef = useRef<HTMLButtonElement | null>(null);
+  const videoOverlayInputRef = useRef<HTMLInputElement | null>(null);
+  const videoOverlayPlayerRef = useRef<HTMLVideoElement | null>(null);
+  const videoOverlayUrlRef = useRef('');
   const mixerStripRef = useRef<HTMLDivElement | null>(null);
   const mainViewportRef = useRef<HTMLElement | null>(null);
   const melodyChordBarRef = useRef<HTMLElement | null>(null);
@@ -713,12 +721,127 @@ export function Composer() {
       return '에어 악기';
     }
 
+    if (tab === 'videoOverlay') {
+      return videoOverlay ? `영상 · ${videoOverlay.name}` : '영상 오버레이';
+    }
+
     const openCount =
       (openTabs.includes(tab) ? 1 : 0) +
       (tab === 'lyrics' ? 0 : extraTracks.filter((track) => track.instrument === tab).length);
 
     return openCount > 1 ? `${tabPickerLabels[tab]} ${openCount}개` : tabPickerLabels[tab];
   };
+
+  useEffect(() => {
+    return () => {
+      if (videoOverlayUrlRef.current) {
+        URL.revokeObjectURL(videoOverlayUrlRef.current);
+      }
+    };
+  }, []);
+
+  const handleSelectVideoOverlay = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith('video/')) {
+      window.alert('영상 파일을 선택해주세요.');
+      return;
+    }
+
+    if (videoOverlayUrlRef.current) {
+      URL.revokeObjectURL(videoOverlayUrlRef.current);
+    }
+
+    const url = URL.createObjectURL(file);
+    videoOverlayUrlRef.current = url;
+    setVideoOverlay({ url, name: file.name });
+    setVideoOverlayVolume(1);
+    setIsVideoOverlayMuted(false);
+    setVideoOverlayAudioMessage('');
+    setIsMediaOverlayCompact(false);
+  };
+
+  const handleVideoOverlayVolumeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextVolume = Number(event.target.value);
+    setVideoOverlayVolume(nextVolume);
+    setIsVideoOverlayMuted(nextVolume === 0);
+  };
+
+  const handleToggleVideoOverlayMute = () => {
+    setIsVideoOverlayMuted((current) => !current);
+  };
+
+  const applyVideoOverlayAudioSettings = useCallback(
+    (video: HTMLVideoElement) => {
+      video.defaultMuted = false;
+      video.removeAttribute('muted');
+      video.muted = isVideoOverlayMuted;
+      video.volume = videoOverlayVolume;
+    },
+    [isVideoOverlayMuted, videoOverlayVolume]
+  );
+
+  useEffect(() => {
+    const player = videoOverlayPlayerRef.current;
+    if (!player) {
+      return;
+    }
+
+    applyVideoOverlayAudioSettings(player);
+  }, [applyVideoOverlayAudioSettings, videoOverlay]);
+
+  const handleVideoOverlayPlay = (event: React.SyntheticEvent<HTMLVideoElement>) => {
+    applyVideoOverlayAudioSettings(event.currentTarget);
+  };
+
+  const handlePlayVideoOverlayWithSound = async () => {
+    const video = videoOverlayPlayerRef.current;
+    if (!video) {
+      return;
+    }
+
+    setIsVideoOverlayMuted(false);
+    setVideoOverlayVolume(1);
+    video.defaultMuted = false;
+    video.removeAttribute('muted');
+    video.muted = false;
+    video.volume = 1;
+
+    try {
+      await video.play();
+      window.setTimeout(() => {
+        const media = video as HTMLVideoElement & {
+          webkitAudioDecodedByteCount?: number;
+          audioTracks?: { length: number };
+        };
+        const hasKnownAudioTrack =
+          (media.audioTracks?.length ?? 0) > 0 ||
+          (media.webkitAudioDecodedByteCount ?? 0) > 0;
+
+        setVideoOverlayAudioMessage(
+          hasKnownAudioTrack
+            ? '영상 소리가 켜졌습니다.'
+            : '이 MP4에서 재생 가능한 오디오 트랙을 찾지 못했습니다.'
+        );
+      }, 1200);
+    } catch {
+      setVideoOverlayAudioMessage('브라우저가 영상 소리 재생을 차단했습니다. 다시 눌러주세요.');
+    }
+  };
+
+  const handleCloseVideoOverlay = useCallback(() => {
+    if (videoOverlayUrlRef.current) {
+      URL.revokeObjectURL(videoOverlayUrlRef.current);
+      videoOverlayUrlRef.current = '';
+    }
+
+    setVideoOverlay(null);
+  }, []);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -1627,6 +1750,12 @@ export function Composer() {
 
   const handleOpenTab = useCallback(
     (tab: TabPickerOption, allowDuplicateTrack = true) => {
+      if (tab === 'videoOverlay') {
+        setIsTabPickerOpen(false);
+        videoOverlayInputRef.current?.click();
+        return;
+      }
+
       if (tab === 'airInstrument') {
         setIsTabPickerOpen(false);
         navigate('/air-guitar');
@@ -2998,6 +3127,13 @@ export function Composer() {
       }${isHelpOverlayEnabled ? ' is-help-enabled' : ''}${isPlaying ? ' is-playing' : ''}`}
     >
       <SiteHeader activeSection="composer" />
+      <input
+        ref={videoOverlayInputRef}
+        type="file"
+        accept="video/*"
+        hidden
+        onChange={handleSelectVideoOverlay}
+      />
 
       <div className="composer-workbar">
         <div className="composer-mode-strip" aria-label="작곡 화면 모드">
@@ -3157,9 +3293,16 @@ export function Composer() {
                         <div className="composer-tab-picker-section-title">{group.title}</div>
                         {group.options.map((tab) => {
                           const isAirInstrument = tab === 'airInstrument';
-                          const isOpen = !isAirInstrument && openTabs.includes(tab);
+                          const isVideoOverlay = tab === 'videoOverlay';
+                          const isMediaOption = isAirInstrument || isVideoOverlay;
+                          const isOpen =
+                            isAirInstrument
+                              ? false
+                              : isVideoOverlay
+                                ? Boolean(videoOverlay)
+                                : openTabs.includes(tab);
                           const isActive =
-                            !isAirInstrument && activeTab === tab && !activeTrackId;
+                            !isMediaOption && activeTab === tab && !activeTrackId;
 
                           return (
                             <button
@@ -3185,6 +3328,82 @@ export function Composer() {
           </div>
         </div>
       </div>
+
+      {videoOverlay ? (
+        <aside
+          className={`composer-media-overlay composer-video-overlay${
+            isMediaOverlayCompact ? ' is-compact' : ''
+          }`}
+          aria-label="영상 오버레이"
+        >
+          <div className="composer-media-overlay-head">
+            <div>
+              <span>VIDEO OVERLAY</span>
+              <strong>{videoOverlay.name}</strong>
+            </div>
+            <div className="composer-media-overlay-actions">
+              <button
+                type="button"
+                className="composer-video-sound-play"
+                onClick={handlePlayVideoOverlayWithSound}
+              >
+                소리 켜고 재생
+              </button>
+              <div className="composer-video-volume-control">
+                <button
+                  type="button"
+                  onClick={handleToggleVideoOverlayMute}
+                  aria-label={isVideoOverlayMuted ? '영상 소리 켜기' : '영상 음소거'}
+                  title={isVideoOverlayMuted ? '소리 켜기' : '음소거'}
+                >
+                  {isVideoOverlayMuted || videoOverlayVolume === 0 ? '🔇' : '🔊'}
+                </button>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={isVideoOverlayMuted ? 0 : videoOverlayVolume}
+                  onChange={handleVideoOverlayVolumeChange}
+                  aria-label="영상 음량"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMediaOverlayCompact((current) => !current)}
+                aria-label={isMediaOverlayCompact ? '영상 크게 보기' : '영상 작게 보기'}
+              >
+                {isMediaOverlayCompact ? '□' : '—'}
+              </button>
+              <button type="button" onClick={handleCloseVideoOverlay} aria-label="영상 닫기">
+                ×
+              </button>
+            </div>
+          </div>
+          <video
+            key={videoOverlay.url}
+            ref={videoOverlayPlayerRef}
+            src={videoOverlay.url}
+            controls
+            playsInline
+            loop
+            preload="auto"
+            onLoadedMetadata={(event) => applyVideoOverlayAudioSettings(event.currentTarget)}
+            onLoadedData={(event) => applyVideoOverlayAudioSettings(event.currentTarget)}
+            onCanPlay={(event) => applyVideoOverlayAudioSettings(event.currentTarget)}
+            onPlay={handleVideoOverlayPlay}
+          />
+          {videoOverlayAudioMessage ? (
+            <div
+              className={`composer-video-audio-message${
+                videoOverlayAudioMessage.includes('찾지 못했습니다') ? ' is-error' : ''
+              }`}
+            >
+              {videoOverlayAudioMessage}
+            </div>
+          ) : null}
+        </aside>
+      ) : null}
 
       {collabId ? (
         <section className={`composer-collab-banner is-${connectionStatus}`}>

@@ -539,3 +539,152 @@
     width: 100%;
   }
 }
+
+/* Main product design system */
+.session-detail-page {
+  background:
+    radial-gradient(circle at 8% 8%, rgba(56, 214, 188, 0.13), transparent 30%),
+    radial-gradient(circle at 92% 8%, rgba(116, 103, 255, 0.15), transparent 32%),
+    linear-gradient(180deg, #101622 0%, #090d14 100%);
+}
+
+.session-detail-shell {
+  width: min(1240px, calc(100% - 40px));
+  padding: 42px 0 80px;
+}
+
+.session-detail-hero,
+.session-detail-card,
+.session-detail-empty {
+  border-color: rgba(151, 205, 199, 0.14);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.045), transparent 42%),
+    rgba(15, 20, 31, 0.9);
+  box-shadow:
+    0 24px 58px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.018) inset;
+  backdrop-filter: blur(16px);
+}
+
+.session-detail-back,
+.session-detail-actions button,
+.session-detail-empty button,
+.session-status-control button,
+.session-applicant-actions button,
+.session-application-form button {
+  border-color: rgba(255, 255, 255, 0.09);
+  background: rgba(7, 11, 18, 0.68);
+}
+
+.session-detail-back:hover,
+.session-detail-actions button:hover,
+.session-detail-empty button:hover {
+  border-color: rgba(104, 241, 204, 0.3);
+}
+
+.session-detail-hero {
+  position: relative;
+  overflow: hidden;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  border-radius: 28px;
+  padding: 38px;
+}
+
+.session-detail-hero::after {
+  content: "";
+  position: absolute;
+  right: -70px;
+  bottom: -120px;
+  width: 320px;
+  height: 320px;
+  border: 1px solid rgba(104, 241, 204, 0.09);
+  border-radius: 50%;
+  box-shadow: 0 0 0 52px rgba(104, 241, 204, 0.02);
+  pointer-events: none;
+}
+
+.session-detail-title,
+.session-detail-contact {
+  position: relative;
+  z-index: 1;
+}
+
+.session-detail-title h1 {
+  font-size: clamp(36px, 4.4vw, 58px);
+  line-height: 1.15;
+  letter-spacing: -0.045em;
+}
+
+.session-detail-title p {
+  color: #aab7c8;
+  font-size: 15px;
+}
+
+.session-detail-contact,
+.session-status-control,
+.session-collab-link-panel,
+.session-application-summary,
+.session-applicant-card,
+.session-application-state {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(104, 241, 204, 0.09), transparent 38%),
+    rgba(7, 11, 18, 0.58);
+}
+
+.session-detail-contact {
+  border-radius: 22px;
+}
+
+.session-detail-contact span,
+.session-detail-card > span {
+  color: #91efd7;
+}
+
+.session-detail-badges span,
+.session-detail-chip-list strong,
+.session-detail-tag-list strong,
+.session-reviewed-list span {
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.session-detail-status {
+  background: rgba(104, 241, 204, 0.12) !important;
+  color: #bff8e9 !important;
+}
+
+.session-detail-actions button:first-child,
+.session-collab-link-panel > button,
+.session-collab-create button,
+.session-applicant-actions button:first-child,
+.session-application-form button {
+  border-color: transparent;
+  background: linear-gradient(135deg, #eafff8, #bcefdc);
+  color: #10231e;
+}
+
+.session-detail-card {
+  border-radius: 22px;
+  padding: 26px;
+}
+
+.session-detail-grid {
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.session-application-form select,
+.session-application-form textarea,
+.session-collab-create select {
+  border-color: rgba(255, 255, 255, 0.09);
+  background: rgba(6, 10, 17, 0.72);
+  outline: none;
+}
+
+.session-application-form select:focus,
+.session-application-form textarea:focus,
+.session-collab-create select:focus {
+  border-color: rgba(104, 241, 204, 0.4);
+  box-shadow: 0 0 0 3px rgba(104, 241, 204, 0.07);
+}

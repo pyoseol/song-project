@@ -115,6 +115,159 @@
   min-width: 0;
 }
 
+/* Composer media overlays */
+.composer-tab-picker-item.is-videoOverlay:hover {
+  border-color: rgba(91, 225, 204, 0.34);
+  background: rgba(91, 225, 204, 0.1);
+}
+
+.composer-media-overlay {
+  position: fixed;
+  z-index: 1200;
+  top: 82px;
+  right: 24px;
+  width: min(520px, calc(100vw - 48px));
+  overflow: hidden;
+  border: 1px solid rgba(104, 241, 204, 0.25);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(116, 103, 255, 0.16), transparent 36%),
+    rgba(10, 14, 23, 0.96);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.035) inset;
+  backdrop-filter: blur(18px);
+}
+
+.composer-media-overlay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 12px 10px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.composer-media-overlay-head > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.composer-media-overlay-head span {
+  color: #8eeed5;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.composer-media-overlay-head strong {
+  overflow: hidden;
+  color: #f6fbff;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-media-overlay-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.composer-video-volume-control {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-right: 3px;
+}
+
+.composer-video-volume-control input {
+  width: 76px;
+  accent-color: #68f1cc;
+  cursor: pointer;
+}
+
+.composer-media-overlay-actions button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #edf7f5;
+  font: inherit;
+  cursor: pointer;
+}
+
+.composer-media-overlay-actions button:hover {
+  border-color: rgba(104, 241, 204, 0.3);
+  background: rgba(104, 241, 204, 0.1);
+}
+
+.composer-media-overlay-actions .composer-video-sound-play {
+  width: auto;
+  padding: 0 11px;
+  border-color: rgba(104, 241, 204, 0.3);
+  background: rgba(104, 241, 204, 0.12);
+  color: #caffef;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.composer-video-audio-message {
+  padding: 8px 14px 10px;
+  background: rgba(104, 241, 204, 0.08);
+  color: #aaf4df;
+  font-size: 11px;
+  text-align: center;
+}
+
+.composer-video-audio-message.is-error {
+  background: rgba(255, 139, 139, 0.09);
+  color: #ffb0b0;
+}
+
+.composer-video-overlay video {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: #05070b;
+}
+
+.composer-video-overlay video {
+  max-height: min(64vh, 520px);
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+}
+
+.composer-media-overlay.is-compact {
+  width: 280px;
+}
+
+.composer-media-overlay.is-compact video {
+  max-height: 158px;
+}
+
+@media (max-width: 720px) {
+  .composer-media-overlay {
+    top: 68px;
+    right: 12px;
+    width: calc(100vw - 24px);
+  }
+
+  .composer-video-volume-control input {
+    width: 54px;
+  }
+
+  .composer-media-overlay-actions .composer-video-sound-play {
+    padding: 0 8px;
+    font-size: 10px;
+  }
+}
+
 .composer-help-toggle-button {
   position: absolute;
   top: 50%;

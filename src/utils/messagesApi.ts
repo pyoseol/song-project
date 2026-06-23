@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, deleteDoc, getDocs, query, where, updateDoc, arrayUnion, onSnapshot, limit, orderBy } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, getDocs, query, where, updateDoc, arrayUnion, onSnapshot, limit, orderBy, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase'; // ★ 주의: 실제 firebase.ts 경로에 맞게 수정하세요!
 import type { FriendProfile } from '../store/friendStore';
 import type { DirectMessage, MessageMember, MessageThread } from '../store/messageStore';
@@ -109,22 +109,45 @@ export async function createGroupThreadOnServer(payload: { ownerEmail: string; o
 
 export async function sendThreadMessageOnServer(payload: { ownerEmail: string; threadId: string; authorName: string; content: string; }) {
   const msgRef = doc(collection(db, 'messages_items'));
-  await setDoc(msgRef, {
+  const threadRef = doc(db, 'messages_threads', payload.threadId);
+  const createdAt = Date.now();
+  const message: DirectMessage = {
+    id: msgRef.id,
     threadId: payload.threadId,
     authorEmail: payload.ownerEmail,
     authorName: payload.authorName,
     content: payload.content,
-    createdAt: Date.now(),
+    createdAt,
     isRead: false
+  };
+  const batch = writeBatch(db);
+
+  batch.set(msgRef, {
+    threadId: message.threadId,
+    authorEmail: message.authorEmail,
+    authorName: message.authorName,
+    content: message.content,
+    createdAt: message.createdAt,
+    isRead: message.isRead
   });
 
-  await updateDoc(doc(db, 'messages_threads', payload.threadId), {
-    lastMessageAt: Date.now(),
+  batch.update(threadRef, {
+    lastMessageAt: createdAt,
     lastPreview: payload.content,
     readBy: [payload.ownerEmail] // 새 메시지가 오면 읽음 처리 초기화
   });
 
-  return { snapshot: await fetchMessagesBootstrap({ ownerEmail: payload.ownerEmail, ownerName: payload.authorName }) };
+  await batch.commit();
+
+  return {
+    message,
+    threadPatch: {
+      id: payload.threadId,
+      lastMessageAt: createdAt,
+      lastPreview: payload.content,
+      readBy: [payload.ownerEmail],
+    },
+  };
 }
 
 export async function markThreadReadOnServer(payload: { threadId: string; readerEmail: string }) {
@@ -142,6 +165,7 @@ export function subscribeToMessagesRealtime(ownerEmail: string, onUpdate: (snaps
   unsubscribers = [];
 
   let state: MessageSnapshot = { friends: [], threads: [], messagesByThread: {} };
+  let messageUnsubscribers: (() => void)[] = [];
 
   // 친구 목록 실시간 구독
   const unsubFriends = onSnapshot(query(collection(db, 'messages_friends'), where('ownerEmail', '==', ownerEmail)), (snap) => {
@@ -154,6 +178,11 @@ export function subscribeToMessagesRealtime(ownerEmail: string, onUpdate: (snaps
   const unsubThreads = onSnapshot(query(collection(db, 'messages_threads'), where('memberEmails', 'array-contains', ownerEmail)), (snap) => {
     const threads = snap.docs.map(d => ({ id: d.id, ...d.data() } as MessageThread));
     state.threads = threads;
+    messageUnsubscribers.forEach(unsub => unsub());
+    messageUnsubscribers = [];
+    state.messagesByThread = Object.fromEntries(
+      threads.map((thread) => [thread.id, state.messagesByThread[thread.id] ?? []])
+    );
     
     threads.forEach(t => {
        const unsubMsgs = onSnapshot(
@@ -169,8 +198,9 @@ export function subscribeToMessagesRealtime(ownerEmail: string, onUpdate: (snaps
               .sort((a, b) => a.createdAt - b.createdAt); 
            
            onUpdate({ ...state });
-         }
+          }
        );
+       messageUnsubscribers.push(unsubMsgs);
        unsubscribers.push(unsubMsgs); // (참고) 기존 코드에 맞춰 구독 해제 배열에 추가
     });
     onUpdate({ ...state });
@@ -178,6 +208,8 @@ export function subscribeToMessagesRealtime(ownerEmail: string, onUpdate: (snaps
   unsubscribers.push(unsubThreads);
 
   return () => {
+    messageUnsubscribers.forEach(unsub => unsub());
+    messageUnsubscribers = [];
     unsubscribers.forEach(unsub => unsub());
     unsubscribers = [];
   };

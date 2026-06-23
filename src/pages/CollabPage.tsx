@@ -21,6 +21,13 @@ function formatCount(value: number) {
   return value.toLocaleString('ko-KR');
 }
 
+function getConnectionLabel(status: ReturnType<typeof useCollabStore.getState>['connectionStatus']) {
+  if (status === 'connected') return '실시간 서버 연결됨';
+  if (status === 'connecting') return '실시간 서버 연결 중';
+  if (status === 'error') return '실시간 서버 연결 실패';
+  return '실시간 서버 대기 중';
+}
+
 export default function CollabPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -37,15 +44,11 @@ export default function CollabPage() {
   const [actionError, setActionError] = useState('');
 
   useEffect(() => {
-    void initializeRealtime().catch((error) => {
-      console.error(error);
-    });
+    void initializeRealtime().catch(console.error);
   }, [initializeRealtime]);
 
   useEffect(() => {
-    void seedLibrary().catch((error) => {
-      console.error(error);
-    });
+    void seedLibrary().catch(console.error);
   }, [seedLibrary]);
 
   const sortedProjects = useMemo(
@@ -73,14 +76,39 @@ export default function CollabPage() {
     [projects]
   );
 
-  const readyProjects = myComposerProjects.filter((project) => !linkedProjectIds.has(project.id));
+  const readyProjects = useMemo(
+    () => myComposerProjects.filter((project) => !linkedProjectIds.has(project.id)),
+    [linkedProjectIds, myComposerProjects]
+  );
 
   const totalMembers = useMemo(() => {
     const uniqueEmails = new Set(projects.flatMap((project) => project.members.map((member) => member.email)));
     return uniqueEmails.size;
   }, [projects]);
 
-  const openTaskCount = tasks.filter((task) => !task.completed).length;
+  const openTaskCount = useMemo(() => tasks.filter((task) => !task.completed).length, [tasks]);
+
+  const latestMessageByProject = useMemo(() => {
+    const map = new Map<string, string>();
+    [...messages]
+      .sort((left, right) => right.createdAt - left.createdAt)
+      .forEach((message) => {
+        if (!map.has(message.projectId)) {
+          map.set(message.projectId, message.content);
+        }
+      });
+    return map;
+  }, [messages]);
+
+  const openTasksByProject = useMemo(() => {
+    const map = new Map<string, number>();
+    tasks.forEach((task) => {
+      if (!task.completed) {
+        map.set(task.projectId, (map.get(task.projectId) ?? 0) + 1);
+      }
+    });
+    return map;
+  }, [tasks]);
 
   const handleCreateCollab = async (projectId: string) => {
     if (!user) {
@@ -89,9 +117,7 @@ export default function CollabPage() {
     }
 
     const sourceProject = myComposerProjects.find((project) => project.id === projectId);
-    if (!sourceProject) {
-      return;
-    }
+    if (!sourceProject) return;
 
     try {
       setActionError('');
@@ -110,9 +136,7 @@ export default function CollabPage() {
       navigate(`/collab/${collabId}`);
     } catch (error) {
       console.error(error);
-      setActionError(
-        error instanceof Error ? error.message : '협업 작업실을 만들지 못했습니다.'
-      );
+      setActionError(error instanceof Error ? error.message : '협업 프로젝트를 만들지 못했습니다.');
     }
   };
 
@@ -132,9 +156,7 @@ export default function CollabPage() {
         });
       } catch (error) {
         console.error(error);
-        setActionError(
-          error instanceof Error ? error.message : '협업 작업실에 참여하지 못했습니다.'
-        );
+        setActionError(error instanceof Error ? error.message : '협업 프로젝트에 참여하지 못했습니다.');
         return;
       }
     }
@@ -152,24 +174,16 @@ export default function CollabPage() {
         <section className="collab-hero">
           <div>
             <span className="collab-hero-kicker">Collab Studio</span>
-            <h1>함께 곡을 다듬는 협업 작업실</h1>
+            <h1>같이 만드는 곡은 더 멀리 갑니다</h1>
             <p>
-              저장한 프로젝트를 협업으로 전환하고, 팀원과 할 일과 피드백을 한 공간에서
-              이어갈 수 있습니다. 이제 협업 서버를 통해 실제로 동기화됩니다.
+              저장한 작곡 프로젝트를 협업방으로 전환하고, 멤버와 작업·피드백·수정 내역을 한 공간에서 이어가세요.
+              실시간 동기화로 팀 작업 흐름을 더 가볍게 만들었습니다.
             </p>
             <div className="collab-connection-row">
               <span className={`collab-connection-chip is-${connectionStatus}`}>
-                {connectionStatus === 'connected'
-                  ? '실시간 서버 연결됨'
-                  : connectionStatus === 'connecting'
-                    ? '실시간 서버 연결 중'
-                    : connectionStatus === 'error'
-                      ? '실시간 서버 연결 실패'
-                      : '실시간 서버 대기 중'}
+                {getConnectionLabel(connectionStatus)}
               </span>
-              {connectionError || actionError ? (
-                <small>{actionError || connectionError}</small>
-              ) : null}
+              {connectionError || actionError ? <small>{actionError || connectionError}</small> : null}
             </div>
           </div>
 
@@ -180,7 +194,7 @@ export default function CollabPage() {
             </article>
             <article className="collab-hero-stat">
               <strong>{formatCount(totalMembers)}</strong>
-              <span>참여 중인 멤버</span>
+              <span>참여 멤버</span>
             </article>
             <article className="collab-hero-stat">
               <strong>{formatCount(openTaskCount)}</strong>
@@ -193,7 +207,7 @@ export default function CollabPage() {
           <aside className="collab-panel collab-panel--sticky">
             <div className="collab-panel-head">
               <strong>빠른 시작</strong>
-              <span>내 저장곡으로 바로 협업을 열 수 있어요.</span>
+              <span>내 작곡 프로젝트를 협업방으로 바로 전환할 수 있어요.</span>
             </div>
 
             {user ? (
@@ -210,7 +224,7 @@ export default function CollabPage() {
                       <button
                         type="button"
                         className="collab-primary-button"
-                        onClick={() => handleCreateCollab(project.id)}
+                        onClick={() => void handleCreateCollab(project.id)}
                       >
                         협업 시작
                       </button>
@@ -219,82 +233,86 @@ export default function CollabPage() {
                 </div>
               ) : (
                 <div className="collab-empty-card">
-                  저장된 작곡 프로젝트가 없거나 이미 협업으로 연결됐어요.
+                  연결 가능한 개인 작곡 프로젝트가 없어요. 작곡 화면에서 먼저 곡을 저장해보세요.
                 </div>
               )
             ) : (
               <div className="collab-empty-card">
-                로그인하면 내 프로젝트로 협업 작업실을 바로 만들 수 있어요.
+                로그인하면 내 프로젝트로 협업방을 바로 만들 수 있어요.
               </div>
             )}
 
             <div className="collab-panel-note">
-              <strong>이런 흐름으로 쓰면 좋아요</strong>
-              <p>작곡 저장 → 협업 시작 → 팀원 참여 → 할 일/채팅 정리 → 작곡 화면 열기</p>
+              <strong>추천 흐름</strong>
+              <p>작곡 저장 → 협업 시작 → 멤버 참여 → 댓글과 체크리스트로 수정 방향 정리 → 작곡 화면에서 이어 작업</p>
             </div>
           </aside>
 
           <section className="collab-panel">
             <div className="collab-panel-head">
               <strong>진행 중인 협업</strong>
-              <span>최근 수정된 순서대로 정리했습니다.</span>
+              <span>최근 업데이트된 프로젝트가 먼저 보여요.</span>
             </div>
 
             <div className="collab-project-list">
-              {sortedProjects.map((project) => {
-                const isMember = user
-                  ? project.members.some((member) => member.email === user.email)
-                  : false;
-                const projectTaskCount = tasks.filter(
-                  (task) => task.projectId === project.id && !task.completed
-                ).length;
-                const lastMessage = messages.find((message) => message.projectId === project.id);
+              {sortedProjects.length ? (
+                sortedProjects.map((project) => {
+                  const isMember = user
+                    ? project.members.some((member) => member.email === user.email)
+                    : false;
+                  const projectTaskCount = openTasksByProject.get(project.id) ?? 0;
+                  const lastMessage = latestMessageByProject.get(project.id);
 
-                return (
-                  <article key={project.id} className="collab-project-card">
-                    <div className="collab-project-top">
-                      <span className={`collab-status-chip is-${project.status}`}>
-                        {STATUS_LABEL[project.status]}
-                      </span>
-                      <span className="collab-project-date">{formatDate(project.updatedAt)}</span>
-                    </div>
-
-                    <div className="collab-project-copy">
-                      <h2>{project.title}</h2>
-                      <p>{project.summary}</p>
-                    </div>
-
-                    <div className="collab-project-meta">
-                      <span>{project.genre}</span>
-                      <span>{project.bpm} BPM</span>
-                      <span>{project.steps} steps</span>
-                      <span>{project.members.length}명 참여</span>
-                      <span>남은 작업 {projectTaskCount}</span>
-                    </div>
-
-                    <div className="collab-project-tags">
-                      {project.tags.map((tag) => (
-                        <span key={`${project.id}-${tag}`}>#{tag}</span>
-                      ))}
-                    </div>
-
-                    <div className="collab-project-foot">
-                      <div>
-                        <strong>최근 코멘트</strong>
-                        <span>{lastMessage?.content ?? '아직 남겨진 코멘트가 없어요.'}</span>
+                  return (
+                    <article key={project.id} className="collab-project-card">
+                      <div className="collab-project-top">
+                        <span className={`collab-status-chip is-${project.status}`}>
+                          {STATUS_LABEL[project.status]}
+                        </span>
+                        <span className="collab-project-date">{formatDate(project.updatedAt)}</span>
                       </div>
 
-                      <button
-                        type="button"
-                        className="collab-secondary-button"
-                        onClick={() => handleOpenProject(project)}
-                      >
-                        {isMember ? '작업실 열기' : '참여하고 열기'}
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
+                      <div className="collab-project-copy">
+                        <h2>{project.title}</h2>
+                        <p>{project.summary || '아직 프로젝트 설명이 없습니다.'}</p>
+                      </div>
+
+                      <div className="collab-project-meta">
+                        <span>{project.genre || '장르 미정'}</span>
+                        <span>{project.bpm} BPM</span>
+                        <span>{project.steps} steps</span>
+                        <span>{project.members.length}명 참여</span>
+                        <span>남은 작업 {projectTaskCount}</span>
+                      </div>
+
+                      {project.tags.length ? (
+                        <div className="collab-project-tags">
+                          {project.tags.map((tag) => (
+                            <span key={`${project.id}-${tag}`}>#{tag}</span>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      <div className="collab-project-foot">
+                        <div>
+                          <strong>최근 코멘트</strong>
+                          <span>{lastMessage ?? '아직 남겨진 코멘트가 없어요.'}</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="collab-secondary-button"
+                          onClick={() => void handleOpenProject(project)}
+                        >
+                          {isMember ? '작업실 열기' : '참여하고 열기'}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })
+              ) : (
+                <div className="collab-empty-card">아직 진행 중인 협업 프로젝트가 없습니다.</div>
+              )}
             </div>
           </section>
         </section>

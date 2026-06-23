@@ -43,7 +43,7 @@ let playbackStep = 0;
 const PLAYBACK_START_DELAY_SECONDS = 0.08;
 const AUDIO_LOOK_AHEAD_SECONDS = 0.12;
 let cachedVolumeKey = "";
-let cachedExtraTrackVolumeSource: ExtraInstrumentTrack[] | null = null;
+let cachedExtraTrackVolumeKey = "";
 let cachedBusVolumes: InstrumentVolumes | null = null;
 let lastAppliedTransportBpm = 0;
 
@@ -226,17 +226,20 @@ function applyLiveVolumes(volumes: InstrumentVolumes, extraTracks: ExtraInstrume
 
 function getLiveBusVolumes(volumes: InstrumentVolumes, extraTracks: ExtraInstrumentTrack[] = []) {
   const volumeKey = `${volumes.melody}|${volumes.violin}|${volumes.saxophone}|${volumes.guitar}|${volumes.drums}|${volumes.bass}|${volumes.glockenspiel}|${volumes.piccolo}|${volumes.supportingPiano}|${volumes.chicagoStreet}|${volumes.studioAltoSax}`;
+  const extraTrackVolumeKey = extraTracks
+    .map((track) => `${track.id}:${track.instrument}:${track.volume}`)
+    .join("|");
 
   if (
     cachedBusVolumes &&
     cachedVolumeKey === volumeKey &&
-    cachedExtraTrackVolumeSource === extraTracks
+    cachedExtraTrackVolumeKey === extraTrackVolumeKey
   ) {
     return cachedBusVolumes;
   }
 
   cachedVolumeKey = volumeKey;
-  cachedExtraTrackVolumeSource = extraTracks;
+  cachedExtraTrackVolumeKey = extraTrackVolumeKey;
   cachedBusVolumes = applyLiveVolumes(volumes, extraTracks);
   return cachedBusVolumes;
 }
@@ -579,7 +582,7 @@ export async function preparePlaybackEngine() {
   initTransport();
   const state = useSongStore.getState();
   cachedVolumeKey = "";
-  cachedExtraTrackVolumeSource = null;
+  cachedExtraTrackVolumeKey = "";
   cachedBusVolumes = null;
   getLiveBusVolumes(state.volumes, state.extraTracks);
 }
@@ -672,12 +675,14 @@ export function initTransport() {
   Tone.Transport.cancel();
   const initialState = useSongStore.getState();
   playbackStep = initialState.loopRange?.start ?? initialState.currentStep;
-  const playbackPlan = buildPlaybackPlan(initialState);
-  const playbackBpm = initialState.bpm;
-  const playbackSteps = initialState.steps;
-  const playbackLoopRange = initialState.loopRange;
 
   loopId = Tone.Transport.scheduleRepeat((time) => {
+    const latestState = useSongStore.getState();
+    const playbackPlan = buildPlaybackPlan(latestState);
+    const playbackBpm = latestState.bpm;
+    const playbackSteps = latestState.steps;
+    const playbackLoopRange = latestState.loopRange;
+
     if (lastAppliedTransportBpm !== playbackBpm) {
       Tone.Transport.bpm.value = playbackBpm;
       lastAppliedTransportBpm = playbackBpm;

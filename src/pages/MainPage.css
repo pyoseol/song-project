@@ -831,6 +831,31 @@
   gap: 20px;
 }
 
+.main-hot-action-button {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.main-hot-action-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.main-hot-action-button.is-heart.is-active {
+  color: #ff8798;
+}
+
 .main-hot-actions i {
   position: relative;
   display: inline-flex;
@@ -848,25 +873,17 @@
 }
 
 .main-hot-actions .is-download::before {
-  position: absolute;
-  top: 2px;
-  left: 10px;
-  width: 2px;
-  height: 15px;
-  background: #ffffff;
-  content: "";
+  display: none;
 }
 
 .main-hot-actions .is-download::after {
-  position: absolute;
-  right: 3px;
-  bottom: 2px;
-  left: 3px;
-  height: 7px;
-  border-right: 2px solid #ffffff;
-  border-bottom: 2px solid #ffffff;
-  border-left: 2px solid #ffffff;
-  content: "";
+  display: none;
+}
+
+.main-hot-actions .is-download {
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3v11m0 0 4-4m-4 4-4-4M5 16v4h14v-4' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 21px 21px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3v11m0 0 4-4m-4 4-4-4M5 16v4h14v-4' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 21px 21px no-repeat;
 }
 
 .main-hot-actions .is-signal::before,
@@ -1221,6 +1238,172 @@
   }
 }
 
+/* Composer community spotlight final alignment */
+.main-content-grid {
+  margin-top: 24px !important;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) {
+  display: grid !important;
+  grid-template-columns: minmax(260px, 0.82fr) minmax(0, 1.18fr) !important;
+  gap: 34px !important;
+  min-height: 0 !important;
+  padding: 34px !important;
+  align-items: stretch !important;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide)::after {
+  position: absolute;
+  right: 28px;
+  bottom: 24px;
+  width: 180px;
+  height: 180px;
+  border: 1px solid rgba(99, 230, 190, 0.065);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 38px rgba(139, 124, 246, 0.025),
+    0 0 70px rgba(99, 230, 190, 0.08);
+  content: '';
+  pointer-events: none;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-panel-head {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  gap: 14px !important;
+  margin: 0 !important;
+  text-align: left !important;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-panel-head > div {
+  display: grid;
+  gap: 12px;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-panel-head h2 {
+  max-width: 420px;
+  font-size: clamp(38px, 4.8vw, 58px) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -0.055em !important;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-panel-head h2 {
+  font-size: 0 !important;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-panel-head h2::before {
+  color: #fff;
+  content: '작곡러들이 보는 글';
+  font-size: clamp(38px, 4.8vw, 58px);
+  line-height: 1.08;
+  letter-spacing: -0.055em;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-panel-head h2::after {
+  display: block;
+  max-width: 390px;
+  margin-top: 16px;
+  color: rgba(218, 226, 238, 0.72);
+  content: '작곡 팁, 피드백, 장비 이야기까지 지금 커뮤니티에서 많이 보는 글이에요.';
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.75;
+  letter-spacing: -0.02em;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-panel-head button {
+  position: relative;
+  min-width: 126px !important;
+  min-height: 44px !important;
+  padding: 0 18px !important;
+  background: linear-gradient(135deg, #f1fffb, #c9f8e9) !important;
+  color: #10251f !important;
+  font-size: 0 !important;
+  font-weight: 900 !important;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-panel-head button::before {
+  content: '게시판 보기';
+  font-size: 14px;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list {
+  display: grid !important;
+  align-content: center !important;
+  gap: 12px !important;
+  min-height: 250px;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list:empty::before {
+  display: grid;
+  min-height: 190px;
+  place-items: center;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
+  background: rgba(7, 10, 16, 0.38);
+  color: rgba(221, 229, 240, 0.72);
+  content: '아직 보여줄 게시글이 없어요. 커뮤니티에 첫 글을 남겨보세요.';
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list button {
+  min-height: 76px !important;
+  grid-template-columns: 84px minmax(0, 1fr) auto !important;
+  padding: 14px 18px !important;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02)),
+    rgba(7, 10, 16, 0.48) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list button:first-child {
+  background:
+    linear-gradient(90deg, rgba(99, 230, 190, 0.12), rgba(255, 255, 255, 0.026) 42%),
+    rgba(7, 10, 16, 0.52) !important;
+  box-shadow:
+    inset 3px 0 0 rgba(99, 230, 190, 0.68),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list span {
+  min-width: 54px;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 920px) {
+  .main-content-grid > .main-panel:not(.main-panel--wide) {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+
+  .main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list {
+    align-content: start !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .main-content-grid > .main-panel:not(.main-panel--wide) {
+    padding: 24px !important;
+  }
+
+  .main-content-grid > .main-panel:not(.main-panel--wide) .main-panel-head h2::before {
+    font-size: clamp(30px, 9vw, 40px);
+  }
+
+  .main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list button {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 /* Production landing polish */
 .main-page {
   --main-accent: #63e6be;
@@ -1229,7 +1412,7 @@
   isolation: isolate;
   overflow-x: clip;
   overflow-y: visible;
-  background-color: #0b0d14;
+  background-color: var(--product-bg);
 }
 
 .main-page::before,
@@ -2105,5 +2288,314 @@
 
   .main-featured-cover::after {
     transform: translate(-50%, -50%) scale(0.9);
+  }
+}
+
+/* Final art direction pass */
+.main-page {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.main-shell {
+  width: min(1280px, calc(100% - 56px));
+}
+
+.main-hero {
+  grid-template-columns: minmax(430px, 0.92fr) minmax(580px, 1.08fr);
+  gap: clamp(44px, 4.5vw, 68px);
+}
+
+.main-hero-copy {
+  isolation: isolate;
+}
+
+.main-hero-copy::after {
+  position: absolute;
+  top: 8%;
+  right: -24px;
+  bottom: 8%;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  content: '';
+}
+
+.main-hero h1 {
+  max-width: 640px;
+  font-size: clamp(52px, 5vw, 72px);
+  line-height: 1.15;
+  letter-spacing: -0.052em;
+}
+
+.main-hero p {
+  max-width: 500px;
+  color: #a7b3c6;
+}
+
+.main-generator-card,
+.main-showcase,
+.main-feature-grid button,
+.main-hot-chart,
+.main-panel {
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 30px 74px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.055);
+}
+
+.main-generator-card {
+  max-width: 560px;
+}
+
+.main-generator-prompt {
+  border-color: rgba(255, 255, 255, 0.075);
+  background:
+    linear-gradient(135deg, rgba(99, 230, 190, 0.025), transparent 42%),
+    rgba(5, 8, 15, 0.5);
+}
+
+.main-generator-prompt::after {
+  background: linear-gradient(135deg, #8df0d3, #63e6be);
+  box-shadow: 0 10px 26px rgba(99, 230, 190, 0.26);
+}
+
+.main-showcase {
+  background:
+    radial-gradient(circle at 74% 18%, rgba(139, 124, 246, 0.16), transparent 31%),
+    radial-gradient(circle at 16% 78%, rgba(99, 230, 190, 0.12), transparent 32%),
+    linear-gradient(155deg, rgba(28, 33, 47, 0.97), rgba(10, 13, 21, 0.98));
+}
+
+.main-now-playing {
+  border-color: rgba(255, 255, 255, 0.11);
+  background: rgba(8, 11, 18, 0.62);
+}
+
+.main-featured-copy strong {
+  text-wrap: balance;
+}
+
+.main-feature-grid button {
+  --feature-accent: 99, 230, 190;
+}
+
+.main-feature-grid button:nth-child(2) {
+  --feature-accent: 139, 124, 246;
+}
+
+.main-feature-grid button:nth-child(3) {
+  --feature-accent: 103, 197, 238;
+}
+
+.main-feature-grid button:hover {
+  border-color: rgba(var(--feature-accent), 0.22);
+  box-shadow:
+    0 30px 62px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.065);
+}
+
+.main-feature-grid button::before {
+  border-color: rgba(var(--feature-accent), 0.1);
+}
+
+.main-hot-chart-head h2 {
+  text-wrap: balance;
+}
+
+.main-hot-chart-list {
+  animation: main-chart-enter 0.3s ease both;
+}
+
+@keyframes main-chart-enter {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.main-hot-chart-row {
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.main-track-list button,
+.main-post-list button {
+  border-color: rgba(255, 255, 255, 0.045);
+}
+
+/* Main community post spotlight */
+.main-content-grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.main-content-grid > .main-panel--wide {
+  display: none;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) {
+  position: relative;
+  overflow: hidden;
+  padding: 46px 34px 34px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 13% -10%, rgba(139, 124, 246, 0.14), transparent 35%),
+    radial-gradient(circle at 90% 0%, rgba(99, 230, 190, 0.1), transparent 32%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.042), rgba(255, 255, 255, 0.014)),
+    rgba(15, 18, 27, 0.84);
+  box-shadow:
+    0 30px 74px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.055);
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide)::before {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 38px 38px;
+  mask-image: linear-gradient(180deg, black 0%, transparent 78%);
+  pointer-events: none;
+  content: "";
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-panel-head {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 13px;
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-panel-head h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(34px, 4vw, 42px);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-panel-head button {
+  min-width: 96px;
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list {
+  position: relative;
+  z-index: 1;
+  gap: 8px;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list button {
+  min-height: 72px;
+  grid-template-columns: 92px minmax(0, 1fr) 180px;
+  gap: 18px;
+  align-items: center;
+  padding: 12px 18px;
+  border-color: transparent;
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.026);
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list button:first-child {
+  border-color: rgba(221, 193, 103, 0.15);
+  background: linear-gradient(90deg, rgba(199, 169, 83, 0.09), rgba(255, 255, 255, 0.026) 38%);
+  box-shadow: inset 3px 0 0 rgba(222, 194, 104, 0.62);
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list button:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.16);
+  transform: translateY(-1px);
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list span {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 26px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(99, 230, 190, 0.08);
+  color: #a9ead7;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list strong {
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list small {
+  margin: 0;
+  color: #9aa5b5;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: right;
+}
+
+@media (max-width: 1180px) {
+  .main-shell {
+    width: min(100% - 40px, 980px);
+  }
+
+  .main-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .main-hero-copy::after {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .main-shell {
+    width: min(100% - 24px, 680px);
+  }
+
+  .main-hero h1 {
+    font-size: clamp(40px, 12vw, 54px);
+  }
+
+  .main-content-grid > .main-panel:not(.main-panel--wide) {
+    padding: 30px 16px 18px;
+    border-radius: 22px;
+  }
+
+  .main-content-grid > .main-panel:not(.main-panel--wide) .main-panel-head {
+    align-items: center;
+    margin-bottom: 22px;
+  }
+
+  .main-content-grid > .main-panel:not(.main-panel--wide) .main-panel-head h2 {
+    font-size: clamp(28px, 8vw, 34px);
+  }
+
+  .main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list button {
+    min-height: 92px;
+    grid-template-columns: 1fr;
+    gap: 7px;
+    padding: 14px;
+  }
+
+  .main-content-grid > .main-panel:not(.main-panel--wide) .main-post-list small {
+    text-align: left;
   }
 }

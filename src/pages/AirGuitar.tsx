@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HandTracker from '../components/HandTracker';
 import SiteHeader from '../components/layout/SiteHeader';
+import { useSongStore } from '../store/songStore';
+import { createAirInstrumentProject } from '../utils/songSketchDna';
 import './AirGuitar.css';
 
 type AirInstrumentMode = 'guitar' | 'drum' | 'piano';
@@ -23,8 +25,11 @@ function sendAirInstrumentKey(key: string) {
 
 export default function AirGuitar() {
   const navigate = useNavigate();
+  const loadProject = useSongStore((state) => state.loadProject);
   const [activeMode, setActiveMode] = useState<AirInstrumentMode>('guitar');
   const [isStrumMode, setIsStrumMode] = useState(true);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedMode, setRecordedMode] = useState<AirInstrumentMode | null>(null);
 
   useEffect(() => {
     const handleStateChange = (event: Event) => {
@@ -39,6 +44,24 @@ export default function AirGuitar() {
       window.removeEventListener('air-instrument-state-change', handleStateChange);
     };
   }, []);
+
+  const handleToggleRecording = () => {
+    setIsRecording((current) => {
+      if (current) {
+        setRecordedMode(activeMode);
+        return false;
+      }
+
+      setRecordedMode(null);
+      return true;
+    });
+  };
+
+  const handleApplyRecording = () => {
+    const mode = recordedMode ?? activeMode;
+    loadProject(createAirInstrumentProject(mode));
+    navigate('/composer?source=air-instrument');
+  };
 
   return (
     <div className="air-instrument-page">
@@ -80,6 +103,21 @@ export default function AirGuitar() {
               onClick={() => sendAirInstrumentKey('m')}
             >
               {isStrumMode ? '스트럼' : '줄 연주'}
+            </button>
+            <button
+              type="button"
+              className={`air-instrument-record-button${isRecording ? ' is-recording' : ''}`}
+              onClick={handleToggleRecording}
+            >
+              {isRecording ? '녹음 중지' : '에어 녹음'}
+            </button>
+            <button
+              type="button"
+              className="air-instrument-apply-button"
+              onClick={handleApplyRecording}
+              disabled={!recordedMode && !isRecording}
+            >
+              작곡 화면에 찍기
             </button>
           </div>
         </div>

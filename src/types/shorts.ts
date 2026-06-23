@@ -28,6 +28,10 @@ export type ShortItem = {
   videoStorageKey?: string;
   videoFileName?: string;
   videoSizeBytes?: number;
+  audioUrl?: string;
+  audioStorageKey?: string;
+  audioFileName?: string;
+  audioSizeBytes?: number;
 };
 
 export const SHORT_TONE_BACKGROUNDS: Record<ShortTone, string> = {

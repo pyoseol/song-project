@@ -48,6 +48,15 @@ export async function uploadShortVideoOnServer(payload: { creatorEmail: string; 
   return { url, storageKey };
 }
 
+export async function uploadShortAudioOnServer(payload: { creatorEmail: string; file: File; }) {
+  const storageKey = `shorts_audio/${Date.now()}_${payload.file.name}`;
+  const audioRef = ref(storage, storageKey);
+  await uploadBytes(audioRef, payload.file);
+  const url = await getDownloadURL(audioRef);
+
+  return { url, storageKey };
+}
+
 export async function createShortOnServer(payload: Record<string, any>) {
   const newRef = doc(collection(db, 'shorts'));
   const shortId = newRef.id;
@@ -94,6 +103,15 @@ export async function deleteShortOnServer(payload: { shortId: string; userEmail:
       } catch (error) {
         // 혹시 파일이 이미 없거나 지우는 데 실패하더라도, 앱이 멈추지 않게 처리
         console.error('동영상 파일 삭제 실패:', error);
+      }
+    }
+
+    if (shortData.audioStorageKey) {
+      const audioRef = ref(storage, shortData.audioStorageKey);
+      try {
+        await deleteObject(audioRef);
+      } catch (error) {
+        console.error('숏폼 MP3 파일 삭제 실패:', error);
       }
     }
   }

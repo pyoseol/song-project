@@ -2761,3 +2761,358 @@
   background-color: var(--product-surface-strong);
   box-shadow: var(--product-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
+
+/* Cleaner lyrics workspace */
+.composer-main--lyrics {
+  align-items: flex-start;
+  justify-content: center;
+  padding: 34px clamp(18px, 4vw, 54px);
+  overflow: auto;
+}
+
+.composer-lyrics-tab-panel {
+  width: min(1040px, 100%);
+  gap: 22px;
+  padding: clamp(22px, 3vw, 34px);
+  border-color: rgba(255, 255, 255, 0.095);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 12% -8%, rgba(99, 230, 190, 0.12), transparent 34%),
+    radial-gradient(circle at 92% 0%, rgba(139, 124, 246, 0.12), transparent 32%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.012)),
+    rgba(13, 17, 26, 0.9);
+  box-shadow:
+    0 30px 74px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.055);
+}
+
+.composer-lyrics-tab-head {
+  position: relative;
+  gap: 10px;
+  max-width: 680px;
+}
+
+.composer-lyrics-tab-head span {
+  width: fit-content;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 11px;
+  border: 1px solid rgba(99, 230, 190, 0.18);
+  border-radius: 999px;
+  background: rgba(99, 230, 190, 0.075);
+  color: #a9ead7;
+  font-size: 10px;
+}
+
+.composer-lyrics-tab-head strong {
+  font-size: clamp(34px, 4vw, 48px);
+  line-height: 1.08;
+  letter-spacing: -0.045em;
+}
+
+.composer-lyrics-tab-head p {
+  max-width: 560px;
+  color: #9ca8ba;
+  font-size: 15px;
+}
+
+.composer-lyrics-view-tabs {
+  width: fit-content;
+  max-width: 100%;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  background: rgba(4, 7, 13, 0.34);
+}
+
+.composer-lyrics-view-tabs button {
+  min-width: 92px;
+  min-height: 38px;
+  border: 0;
+  background: transparent;
+  color: #8793a5;
+  font-size: 12px;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.composer-lyrics-view-tabs button.is-active {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.065);
+  color: #f7fafc;
+}
+
+.composer-lyrics-note-list {
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 22px;
+  background: rgba(5, 8, 15, 0.32);
+}
+
+.composer-lyrics-note-row {
+  min-height: 70px;
+  grid-template-columns: 46px minmax(150px, 210px) minmax(240px, 1fr);
+  gap: 14px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.025);
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.composer-lyrics-note-row:hover,
+.composer-lyrics-note-row:focus-within {
+  border-color: rgba(99, 230, 190, 0.13);
+  background: rgba(255, 255, 255, 0.052);
+  transform: translateY(-1px);
+}
+
+.composer-lyrics-note-index {
+  min-height: 46px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(99, 230, 190, 0.18), rgba(139, 124, 246, 0.08));
+  color: #cffff0;
+  font-size: 13px;
+}
+
+.composer-lyrics-note-meta {
+  min-height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  background: rgba(255, 255, 255, 0.03);
+  color: #a7b3c6;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.composer-lyrics-note-row input {
+  width: 100%;
+  min-width: 0;
+  height: 46px;
+  border-color: rgba(255, 255, 255, 0.075);
+  border-radius: 15px;
+  background: rgba(5, 8, 15, 0.58);
+  color: #f8fafc;
+  font-size: 15px;
+}
+
+.composer-lyrics-note-row input::placeholder {
+  color: #637085;
+}
+
+.composer-lyrics-note-row input:focus {
+  border-color: rgba(99, 230, 190, 0.42);
+  background: rgba(7, 11, 19, 0.78);
+  box-shadow: 0 0 0 4px rgba(99, 230, 190, 0.08);
+}
+
+.composer-lyrics-match-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.composer-lyrics-match-card,
+.composer-lyrics-full-view,
+.composer-lyrics-empty {
+  border-color: rgba(255, 255, 255, 0.075);
+  background: rgba(5, 8, 15, 0.38);
+}
+
+.composer-lyrics-match-card {
+  min-height: 132px;
+  padding: 16px;
+  border-radius: 18px;
+}
+
+.composer-lyrics-match-card p {
+  color: #f8fafc;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.composer-lyrics-full-view {
+  min-height: 190px;
+  padding: 24px;
+  border-radius: 22px;
+  color: #f8fafc;
+  font-size: clamp(20px, 2.4vw, 28px);
+  line-height: 1.9;
+}
+
+.composer-lyrics-empty {
+  padding: 52px 22px;
+  border-radius: 22px;
+  color: #9ca8ba;
+  line-height: 1.7;
+}
+
+@media (max-width: 760px) {
+  .composer-main--lyrics {
+    padding: 18px 12px;
+  }
+
+  .composer-lyrics-tab-panel {
+    padding: 18px;
+    border-radius: 22px;
+  }
+
+  .composer-lyrics-view-tabs {
+    width: 100%;
+    border-radius: 18px;
+  }
+
+  .composer-lyrics-view-tabs button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .composer-lyrics-note-row {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .composer-lyrics-note-row input {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Composer viewport guard: prevent the browser page scrollbar from showing beside the app */
+html:has(.composer-page),
+body:has(.composer-page) {
+  overflow: hidden;
+  background: #0b0d14;
+  scrollbar-gutter: auto;
+}
+
+body:has(.composer-page) .app-root {
+  overflow: hidden;
+  background: #0b0d14;
+}
+
+.composer-page {
+  max-height: 100dvh;
+}
+
+.composer-main--lyrics {
+  min-height: 0;
+  padding-top: 42px;
+  padding-bottom: 96px;
+  scroll-padding-top: 42px;
+  overscroll-behavior: contain;
+}
+
+.composer-lyrics-tab-panel {
+  flex: 0 0 auto;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.composer-lyrics-note-list {
+  max-height: min(54vh, 520px);
+  overflow: auto;
+  padding-right: 14px;
+}
+
+@media (max-width: 760px) {
+  .composer-main--lyrics {
+    padding-top: 22px;
+    padding-bottom: 112px;
+    scroll-padding-top: 22px;
+  }
+
+  .composer-lyrics-note-list {
+    max-height: none;
+    overflow: visible;
+    padding-right: 12px;
+  }
+}
+
+/* Lyrics tab cleanup: simple, unclipped, single-scroll layout */
+.composer-main--lyrics {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 32px 24px 104px;
+}
+
+.composer-lyrics-tab-panel {
+  width: min(980px, 100%);
+  gap: 18px;
+  padding: 26px;
+  border-radius: 24px;
+}
+
+.composer-lyrics-tab-head {
+  gap: 8px;
+  max-width: none;
+}
+
+.composer-lyrics-tab-head strong {
+  font-size: 34px;
+  line-height: 1.15;
+}
+
+.composer-lyrics-tab-head p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.composer-lyrics-view-tabs {
+  margin-top: 2px;
+}
+
+.composer-lyrics-note-list {
+  max-height: none;
+  overflow: visible;
+  padding: 8px;
+  border-radius: 18px;
+  background: rgba(5, 8, 15, 0.24);
+}
+
+.composer-lyrics-note-row {
+  min-height: 58px;
+  grid-template-columns: 44px 190px minmax(0, 1fr);
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 14px;
+}
+
+.composer-lyrics-note-index {
+  min-height: 40px;
+  border-radius: 12px;
+}
+
+.composer-lyrics-note-meta {
+  min-height: 40px;
+  border-radius: 12px;
+}
+
+.composer-lyrics-note-row input {
+  height: 40px;
+  border-radius: 12px;
+}
+
+@media (max-width: 760px) {
+  .composer-main--lyrics {
+    padding: 18px 12px 112px;
+  }
+
+  .composer-lyrics-tab-panel {
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .composer-lyrics-tab-head strong {
+    font-size: 30px;
+  }
+
+  .composer-lyrics-note-row {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .composer-lyrics-note-row input {
+    grid-column: 1 / -1;
+  }
+}

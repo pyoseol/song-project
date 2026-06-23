@@ -3,7 +3,7 @@ import type { SongProject } from './songStore';
 import { useSongStore, buildSongProjectSnapshot } from './songStore'; 
 import { db } from '../firebase'; 
 import { 
-  collection, doc, setDoc, updateDoc, deleteDoc, getDoc, onSnapshot, increment, arrayUnion 
+  collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, increment, arrayUnion, query, orderBy, limit, writeBatch
 } from 'firebase/firestore';
 
 // ============================================================================
@@ -165,7 +165,7 @@ function restoreFromFirestore(data: any): any {
 let unsubscribes: (() => void)[] = [];
 
 // ✅ Error 4 해결: get 변수를 제거했습니다.
-export const useCollabStore = create<CollabState>((set) => ({
+export const useCollabStore = create<CollabState>((set, get) => ({
   version: 0, projects: [], messages: [], tasks: [], presenceByProject: {}, composerLocksByProject: {}, composerHistoryByProject: {},
   connectionStatus: 'idle', connectionError: null,
 
@@ -174,17 +174,17 @@ export const useCollabStore = create<CollabState>((set) => ({
     set({ connectionStatus: 'connecting', connectionError: null });
 
     try {
-      unsubscribes.push(onSnapshot(collection(db, 'collab_projects'), (snap) => {
+      unsubscribes.push(onSnapshot(query(collection(db, 'collab_projects'), orderBy('updatedAt', 'desc'), limit(80)), (snap) => {
         const projects = snap.docs.map(d => restoreFromFirestore({ id: d.id, ...d.data() }));
         set({ projects, connectionStatus: 'connected' });
       }));
 
-      unsubscribes.push(onSnapshot(collection(db, 'collab_messages'), (snap) => {
+      unsubscribes.push(onSnapshot(query(collection(db, 'collab_messages'), orderBy('createdAt', 'desc'), limit(160)), (snap) => {
         const messages = snap.docs.map(d => ({ id: d.id, ...d.data() } as CollabMessage));
         set({ messages });
       }));
 
-      unsubscribes.push(onSnapshot(collection(db, 'collab_tasks'), (snap) => {
+      unsubscribes.push(onSnapshot(query(collection(db, 'collab_tasks'), orderBy('createdAt', 'desc'), limit(240)), (snap) => {
         const tasks = snap.docs.map(d => ({ id: d.id, ...d.data() } as CollabTask));
         set({ tasks });
       }));
@@ -209,7 +209,7 @@ export const useCollabStore = create<CollabState>((set) => ({
         set({ composerLocksByProject });
       }));
 
-      unsubscribes.push(onSnapshot(collection(db, 'collab_history'), (snap) => {
+      unsubscribes.push(onSnapshot(query(collection(db, 'collab_history'), orderBy('createdAt', 'desc'), limit(160)), (snap) => {
         const historyList = snap.docs.map(d => ({ id: d.id, ...d.data() } as CollabComposerHistoryEntry));
         const composerHistoryByProject: Record<string, CollabComposerHistoryEntry[]> = {};
         historyList.forEach(entry => {
@@ -248,19 +248,27 @@ export const useCollabStore = create<CollabState>((set) => ({
 
   addMessage: async (projectId, payload) => {
     const msgRef = doc(collection(db, 'collab_messages'));
-    await setDoc(msgRef, { id: msgRef.id, projectId, authorEmail: payload.email, authorName: payload.name, content: payload.content, createdAt: Date.now() });
+    const now = Date.now();
+    const batch = writeBatch(db);
+    batch.set(msgRef, { id: msgRef.id, projectId, authorEmail: payload.email, authorName: payload.name, content: payload.content, createdAt: now });
+    batch.update(doc(db, 'collab_projects', projectId), { updatedAt: now });
+    await batch.commit();
   },
 
   addTask: async (projectId, payload) => {
     const taskRef = doc(collection(db, 'collab_tasks'));
-    await setDoc(taskRef, { id: taskRef.id, projectId, content: payload.content, completed: false, assigneeName: payload.assigneeName, createdAt: Date.now() });
+    const now = Date.now();
+    const batch = writeBatch(db);
+    batch.set(taskRef, { id: taskRef.id, projectId, content: payload.content, completed: false, assigneeName: payload.assigneeName, createdAt: now });
+    batch.update(doc(db, 'collab_projects', projectId), { updatedAt: now });
+    await batch.commit();
   },
 
   // ✅ Error 5 해결: 사용하지 않는 projectId에 밑줄(_)을 추가해 경고를 무시합니다.
   toggleTask: async (_projectId, taskId) => {
     const taskRef = doc(db, 'collab_tasks', taskId);
-    const snap = await getDoc(taskRef);
-    if (snap.exists()) await updateDoc(taskRef, { completed: !snap.data().completed });
+    const task = get().tasks.find((item) => item.id === taskId);
+    if (task) await updateDoc(taskRef, { completed: !task.completed });
   },
 
   setStatus: async (projectId, status) => {

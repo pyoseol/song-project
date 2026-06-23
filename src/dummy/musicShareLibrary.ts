@@ -1,4 +1,5 @@
 import type { ComposerProjectRecord } from '../store/composerLibraryStore';
+import type { SongProject } from '../store/songStore';
 
 export type MusicShareCategory =
   | 'all'
@@ -26,6 +27,7 @@ export type MusicShareTrackCard = {
   projectId?: string;
   creatorEmail?: string;
   imageUrl?: string;
+  project?: SongProject;
 };
 
 export const MUSIC_SHARE_CATEGORIES: Array<{
@@ -248,6 +250,7 @@ export function buildSharedTrackCard(
     isSharedProject: true,
     projectId: project.id,
     creatorEmail: project.creatorEmail,
+    project: project.project,
     imageUrl:
       project.coverImageUrl ||
       SHARED_TRACK_IMAGE_MAP[project.id] ||

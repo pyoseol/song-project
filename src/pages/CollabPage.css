@@ -412,3 +412,112 @@
 .collab-secondary-button { border-color: rgba(255, 255, 255, 0.11); background: rgba(255, 255, 255, 0.045); }
 .collab-project-card, .collab-source-card { border-radius: 18px; transition: transform 0.2s ease, border-color 0.2s ease; }
 .collab-project-card:hover, .collab-source-card:hover { border-color: rgba(99, 230, 190, 0.18); transform: translateY(-2px); }
+
+/* Collab polish */
+.collab-shell {
+  padding-top: 58px;
+}
+
+.collab-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 290px;
+  align-items: stretch;
+}
+
+.collab-hero::before {
+  content: '';
+  position: absolute;
+  inset: -30% 44% auto -12%;
+  height: 360px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(99, 230, 190, 0.2), transparent 62%);
+  filter: blur(12px);
+  pointer-events: none;
+}
+
+.collab-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.collab-hero h1 {
+  max-width: 760px;
+  line-height: 1.12;
+}
+
+.collab-hero p {
+  max-width: 700px;
+  color: rgba(232, 238, 246, 0.76);
+}
+
+.collab-hero-stats {
+  align-content: stretch;
+}
+
+.collab-hero-stat {
+  display: grid;
+  align-content: center;
+  min-height: 82px;
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)),
+    rgba(8, 12, 20, 0.52);
+}
+
+.collab-grid {
+  grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
+}
+
+.collab-panel-head {
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.collab-source-card,
+.collab-project-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(99, 230, 190, 0.08), transparent 32%),
+    rgba(8, 12, 20, 0.56);
+}
+
+.collab-project-card {
+  padding: 22px;
+}
+
+.collab-project-copy h2 {
+  font-size: 26px;
+  line-height: 1.2;
+}
+
+.collab-project-copy p,
+.collab-project-foot span {
+  word-break: keep-all;
+}
+
+.collab-project-meta span,
+.collab-project-tags span,
+.collab-status-chip {
+  font-weight: 800;
+}
+
+.collab-project-foot {
+  align-items: center;
+}
+
+.collab-project-foot > div {
+  min-width: 0;
+}
+
+.collab-project-foot span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.collab-secondary-button.is-danger {
+  border-color: rgba(255, 118, 118, 0.34);
+  background: rgba(255, 118, 118, 0.08);
+  color: #ffb6b6;
+}

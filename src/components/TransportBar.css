@@ -204,6 +204,33 @@
   cursor: pointer;
 }
 
+.transport-backing-bpm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #8f9aaa;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.transport-backing-bpm input {
+  width: 48px;
+  height: 26px;
+  padding: 0 4px;
+  border: 1px solid #2a2d32;
+  border-radius: 7px;
+  background: #090c12;
+  color: #d9fff3;
+  font: inherit;
+  text-align: center;
+  outline: none;
+}
+
+.transport-backing-bpm input:focus {
+  border-color: rgba(99, 230, 190, 0.4);
+  box-shadow: 0 0 0 2px rgba(99, 230, 190, 0.08);
+}
+
 .transport-backing-remove {
   display: inline-flex;
   align-items: center;
@@ -689,6 +716,65 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.transport-button--dna {
+  border-color: rgba(99, 230, 190, 0.22);
+  background: rgba(99, 230, 190, 0.1);
+  color: #d9fff3;
+}
+
+.transport-dna-dialog {
+  max-width: 640px;
+}
+
+.transport-dna-summary {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid rgba(99, 230, 190, 0.14);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(99, 230, 190, 0.12), transparent 34%),
+    rgba(7, 10, 17, 0.58);
+}
+
+.transport-dna-summary span,
+.transport-dna-grid span {
+  color: #a9ead7;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.transport-dna-summary strong {
+  color: #fff;
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+.transport-dna-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.transport-dna-grid article {
+  display: grid;
+  gap: 8px;
+  min-height: 86px;
+  padding: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.transport-dna-grid strong {
+  color: #f7fbff;
+  font-size: 15px;
+  line-height: 1.45;
 }
 
 @media (max-width: 1080px) {

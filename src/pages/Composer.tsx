@@ -37,6 +37,7 @@ import {
   GUITAR_TRACK_LABELS,
   MELODY_NOTES,
   MELODY_PIANO_ROW_HEIGHT,
+  MELODY_ROWS,
   PICCOLO_NOTES,
   SAXOPHONE_NOTES,
   SAXOPHONE_ROWS,
@@ -133,7 +134,7 @@ const composerInstrumentLabels: Record<ComposerTab, string> = {
 };
 
 type ComposerHelpZone = 'length' | 'chords' | 'instruments';
-type LyricsViewMode = 'notes' | 'match' | 'full';
+type LyricsViewMode = 'notes' | 'full';
 
 const composerHelpPanels: Record<
   ComposerHelpZone,
@@ -155,7 +156,7 @@ const composerHelpPanels: Record<
   },
   instruments: {
     title: '악기 추가',
-    description: '+ 버튼을 눌러 바이올린, 색소폰, 베이스, 에어 악기 같은 악기를 추가해요.',
+    description: '+ 버튼을 눌러 통기타, 베이스, 에어 악기 같은 악기를 추가해요.',
     gif: '/help/note-length.gif?v=4',
   },
 };
@@ -163,8 +164,6 @@ const composerHelpPanels: Record<
 const tabOrder: ComposerTab[] = [
   'melody',
   'lyrics',
-  'violin',
-  'saxophone',
   'guitar',
   'glockenspiel',
   'piccolo',
@@ -182,8 +181,6 @@ const tabPickerGroups: TabPickerGroup[] = [
   {
     title: '악기 트랙',
     options: [
-      'violin',
-      'saxophone',
       'guitar',
       'glockenspiel',
       'piccolo',
@@ -804,10 +801,24 @@ export function Composer() {
   }, [activeTrackId, extraTracks]);
 
   useEffect(() => {
-    if (violin.length !== VIOLIN_ROWS || saxophone.length !== SAXOPHONE_ROWS || guitar.length !== GUITAR_ROWS) {
+    if (
+      melody.length !== MELODY_ROWS ||
+      melodyLengths.length !== MELODY_ROWS ||
+      violin.length !== VIOLIN_ROWS ||
+      saxophone.length !== SAXOPHONE_ROWS ||
+      guitar.length !== GUITAR_ROWS
+    ) {
       setSteps(steps);
     }
-  }, [guitar.length, saxophone.length, setSteps, steps, violin.length]);
+  }, [
+    guitar.length,
+    melody.length,
+    melodyLengths.length,
+    saxophone.length,
+    setSteps,
+    steps,
+    violin.length,
+  ]);
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
@@ -3302,7 +3313,6 @@ export function Composer() {
             <div className="composer-lyrics-view-tabs">
               {[
                 ['notes', '음별 입력'],
-                ['match', '매칭 보기'],
                 ['full', '전체 가사'],
               ].map(([mode, label]) => (
                 <button
@@ -3336,22 +3346,12 @@ export function Composer() {
               </div>
             ) : null}
 
-            {melodyLyricNotes.length && lyricsViewMode === 'match' ? (
-              <div className="composer-lyrics-match-grid">
-                {melodyLyricNotes.map((item, index) => (
-                  <article key={`${item.row}-${item.col}`} className="composer-lyrics-match-card">
-                    <span>{index + 1}</span>
-                    <strong>{item.note}</strong>
-                    <small>{item.col + 1} step · {item.length}칸</small>
-                    <p>{item.lyric || '가사 없음'}</p>
-                  </article>
-                ))}
-              </div>
-            ) : null}
-
             {melodyLyricNotes.length && lyricsViewMode === 'full' ? (
               <div className="composer-lyrics-full-view">
-                {melodyLyricNotes.map((item) => item.lyric || '□').join(' ')}
+                {melodyLyricNotes
+                  .map((item) => item.lyric)
+                  .filter(Boolean)
+                  .join(' ') || '아직 입력된 가사가 없습니다.'}
               </div>
             ) : null}
 

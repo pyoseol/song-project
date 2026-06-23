@@ -317,6 +317,7 @@ export default function MessagesPage() {
       return;
     }
 
+    setMessageDraft('');
     try {
       await sendMessage({
         threadId: activeThread.id,
@@ -324,8 +325,8 @@ export default function MessagesPage() {
         authorEmail: user.email,
         content,
       });
-      setMessageDraft('');
     } catch (error) {
+      setMessageDraft(content);
       setFormError(error instanceof Error ? error.message : '메시지를 보내지 못했습니다.');
     }
   };

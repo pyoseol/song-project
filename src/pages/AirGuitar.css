@@ -30,7 +30,9 @@
 
 .air-instrument-back-button,
 .air-instrument-segmented button,
-.air-instrument-strum-button {
+.air-instrument-strum-button,
+.air-instrument-record-button,
+.air-instrument-apply-button {
   min-height: 38px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
@@ -53,7 +55,9 @@
 
 .air-instrument-back-button:hover,
 .air-instrument-segmented button:hover,
-.air-instrument-strum-button:hover:not(:disabled) {
+.air-instrument-strum-button:hover:not(:disabled),
+.air-instrument-record-button:hover:not(:disabled),
+.air-instrument-apply-button:hover:not(:disabled) {
   transform: translateY(-1px);
   border-color: rgba(159, 245, 109, 0.3);
   color: #ffffff;
@@ -117,13 +121,32 @@
   padding: 0 13px;
 }
 
+.air-instrument-record-button,
+.air-instrument-apply-button {
+  min-width: 112px;
+  padding: 0 14px;
+}
+
+.air-instrument-record-button.is-recording {
+  border-color: rgba(255, 118, 118, 0.38);
+  background: rgba(255, 118, 118, 0.14);
+  color: #ffd0d0;
+}
+
+.air-instrument-apply-button {
+  border-color: rgba(99, 230, 190, 0.22);
+  background: linear-gradient(135deg, #eafff8, #c8f6e8);
+  color: #10251f;
+}
+
 .air-instrument-strum-button.is-active {
   border-color: rgba(96, 165, 250, 0.34);
   background: rgba(96, 165, 250, 0.14);
   color: #dbeafe;
 }
 
-.air-instrument-strum-button:disabled {
+.air-instrument-strum-button:disabled,
+.air-instrument-apply-button:disabled {
   cursor: not-allowed;
   opacity: 0.42;
 }
@@ -254,7 +277,9 @@
 
 .air-instrument-back-button,
 .air-instrument-segmented button,
-.air-instrument-strum-button {
+.air-instrument-strum-button,
+.air-instrument-record-button,
+.air-instrument-apply-button {
   min-height: 40px;
   border-color: rgba(255, 255, 255, 0.09);
   border-radius: 12px;
@@ -264,7 +289,9 @@
 
 .air-instrument-back-button:hover,
 .air-instrument-segmented button:hover,
-.air-instrument-strum-button:hover:not(:disabled) {
+.air-instrument-strum-button:hover:not(:disabled),
+.air-instrument-record-button:hover:not(:disabled),
+.air-instrument-apply-button:hover:not(:disabled) {
   border-color: rgba(99, 230, 190, 0.24);
 }
 
@@ -290,6 +317,18 @@
   border-color: rgba(139, 124, 246, 0.28);
   background: rgba(139, 124, 246, 0.14);
   color: #e6e1ff;
+}
+
+.air-instrument-record-button.is-recording {
+  border-color: rgba(255, 118, 118, 0.38);
+  background: rgba(255, 118, 118, 0.14);
+  color: #ffd0d0;
+}
+
+.air-instrument-apply-button {
+  border-color: transparent;
+  background: linear-gradient(135deg, #eafff8, #c8f6e8);
+  color: #10251f;
 }
 
 .air-instrument-stage {

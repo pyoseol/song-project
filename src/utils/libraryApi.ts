@@ -3,6 +3,7 @@ import {
 } from 'firebase/firestore';
 import { db, storage } from '../firebase'; // ★ 주의: 실제 firebase.ts 경로에 맞게 수정하세요!
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import type { SongProject } from '../store/songStore';
 // ============================================================================
 // 1. 타입 정의
 // ============================================================================
@@ -27,6 +28,7 @@ export type MusicShareSnapshot = {
     likeCount?: number;
     viewCount?: number;
     downloadCount?: number;
+    project?: SongProject;
   }>;
   likedTrackIdsByUser: Record<string, string[]>;
   recentOpenedTrackIdsByUser: Record<string, string[]>;

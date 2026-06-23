@@ -29,6 +29,43 @@ const POST_DISPLAY: Record<string, { title: string; category: string }> = {
   '5': { title: '베이스 라인 만들 때 리듬부터 잡는 법', category: '작곡' },
 };
 
+const MAIN_FALLBACK_POSTS: Post[] = [
+  {
+    id: 'main-fallback-1',
+    title: '후렴 멜로디가 밋밋할 때 바로 써먹는 방법',
+    content: '반복되는 음 사이에 한두 박자 쉼표를 넣고 마지막 음만 위로 열어보세요.',
+    authorId: 'main',
+    authorName: 'SongMaker',
+    createdAt: Date.now() - 1000 * 60 * 60 * 3,
+    likeCount: 18,
+    viewCount: 142,
+    category: '작곡팁',
+    isHot: true,
+  },
+  {
+    id: 'main-fallback-2',
+    title: '시티팝 코드 진행에 어울리는 드럼 패턴 추천',
+    content: '킥은 단순하게 두고 하이햇으로 움직임을 만드는 쪽이 깔끔합니다.',
+    authorId: 'main',
+    authorName: 'SongMaker',
+    createdAt: Date.now() - 1000 * 60 * 60 * 8,
+    likeCount: 12,
+    viewCount: 98,
+    category: '피드백',
+  },
+  {
+    id: 'main-fallback-3',
+    title: '공유곡 올릴 때 제목을 잘 짓는 작은 팁',
+    content: '장르, 분위기, 용도를 같이 넣으면 사람들이 훨씬 빨리 눌러봅니다.',
+    authorId: 'main',
+    authorName: 'SongMaker',
+    createdAt: Date.now() - 1000 * 60 * 60 * 16,
+    likeCount: 9,
+    viewCount: 76,
+    category: '커뮤니티',
+  },
+];
+
 const TRACK_IMAGE_MAP: Record<string, string> = {
   'trend-1': '/seed-images/music/canon.svg',
   'trend-2': '/seed-images/music/citypop.svg',
@@ -155,6 +192,23 @@ const HOT_CHART_DETAILS: Record<
   },
 };
 
+type HotChartView = 'weekly' | 'genre' | 'monthly';
+
+const HOT_CHART_TABS: Array<{ key: HotChartView; label: string }> = [
+  { key: 'weekly', label: '6월 3주차' },
+  { key: 'genre', label: '장르별' },
+  { key: 'monthly', label: '월간 BGM' },
+];
+
+const HOT_CHART_DESCRIPTIONS: Record<HotChartView, string> = {
+  weekly: '다운로드와 반응이 빠르게 쌓이는 이번 주 공유곡을 모았습니다.',
+  genre: '서로 다른 장르에서 가장 반응이 좋은 대표 공유곡을 골랐습니다.',
+  monthly: '한 달 동안 꾸준히 사랑받은 BGM과 루프를 모았습니다.',
+};
+
+const MONTHLY_BGM_ORDER = ['latest-2', 'trend-6', 'latest-1', 'trend-2', 'trend-8'];
+const CHART_FAVORITES_STORAGE_KEY = 'song-project-chart-favorites';
+
 function formatCount(value: number | undefined) {
   return (value ?? 0).toLocaleString('ko-KR');
 }
@@ -185,6 +239,15 @@ function getWaveformBars(seed: string, count = 44) {
 export default function MainPage() {
   const navigate = useNavigate();
   const [activeCoverIndex, setActiveCoverIndex] = useState(0);
+  const [hotChartView, setHotChartView] = useState<HotChartView>('weekly');
+  const [favoriteTrackIds, setFavoriteTrackIds] = useState<Set<string>>(() => {
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(CHART_FAVORITES_STORAGE_KEY) ?? '[]');
+      return new Set(Array.isArray(stored) ? stored.filter((id): id is string => typeof id === 'string') : []);
+    } catch {
+      return new Set();
+    }
+  });
   const posts = useCommunityStore((state) => state.posts);
   const seedCommunity = useCommunityStore((state) => state.seedCommunity);
 
@@ -198,17 +261,74 @@ export default function MainPage() {
   const featuredTrack = showcaseTracks[activeCoverIndex];
   const featuredTrackDisplay = getTrackDisplay(featuredTrack);
   const latestTracks = LATEST_TRACKS.slice(0, 4);
-  const hotChartTracks = [...TRENDING_TRACKS, ...LATEST_TRACKS]
-    .filter((track) => HOT_CHART_DETAILS[track.id])
-    .sort((left, right) => HOT_CHART_DETAILS[right.id].downloads - HOT_CHART_DETAILS[left.id].downloads)
-    .slice(0, 5);
-  const popularPosts = [...posts]
+  const chartCandidates = [...TRENDING_TRACKS, ...LATEST_TRACKS].filter(
+    (track) => HOT_CHART_DETAILS[track.id]
+  );
+  const hotChartTracks = (() => {
+    if (hotChartView === 'monthly') {
+      return MONTHLY_BGM_ORDER.map((id) => chartCandidates.find((track) => track.id === id)).filter(
+        (track): track is CommunityTrack => Boolean(track)
+      );
+    }
+
+    const ranked = [...chartCandidates].sort(
+      (left, right) => HOT_CHART_DETAILS[right.id].downloads - HOT_CHART_DETAILS[left.id].downloads
+    );
+
+    if (hotChartView === 'genre') {
+      const selectedGenres = new Set<string>();
+      const genreLeaders = ranked.filter((track) => {
+        const genre = HOT_CHART_DETAILS[track.id].tags[0];
+        if (selectedGenres.has(genre)) return false;
+        selectedGenres.add(genre);
+        return true;
+      });
+      return [...genreLeaders, ...ranked.filter((track) => !genreLeaders.includes(track))].slice(0, 5);
+    }
+
+    return ranked.slice(0, 5);
+  })();
+  const popularPosts = [...(posts.length ? posts : MAIN_FALLBACK_POSTS)]
     .sort(
       (left, right) =>
         (right.viewCount ?? 0) - (left.viewCount ?? 0) ||
         (right.likeCount ?? 0) - (left.likeCount ?? 0)
     )
     .slice(0, 5);
+
+  const toggleChartFavorite = (trackId: string) => {
+    setFavoriteTrackIds((current) => {
+      const next = new Set(current);
+      if (next.has(trackId)) next.delete(trackId);
+      else next.add(trackId);
+      window.localStorage.setItem(CHART_FAVORITES_STORAGE_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  const downloadChartTrack = (track: CommunityTrack) => {
+    const display = getTrackDisplay(track);
+    const detail = HOT_CHART_DETAILS[track.id];
+    const content = [
+      `제목: ${display.title}`,
+      `작가: ${detail.artist}`,
+      `코드 진행: ${track.progression}`,
+      `분위기: ${display.mood}`,
+      `태그: ${detail.tags.join(', ')}`,
+      `재생 시간: ${detail.duration}`,
+      '',
+      'Song Project 공유곡 정보',
+    ].join('\n');
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${display.title.replace(/[\\/:*?"<>|]+/g, '-')}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="main-page">
@@ -360,26 +480,39 @@ export default function MainPage() {
               </i>
               공유곡 <em>HOT 5</em>
             </h2>
-            <p>다운로드와 반응이 빠르게 쌓이는 작곡러들의 공유곡을 모았습니다.</p>
-            <div className="main-hot-chart-filters" aria-label="HOT 5 필터">
-              <button type="button" className="is-active">6월 3주차</button>
-              <button type="button">장르별</button>
-              <button type="button">월간 BGM</button>
+            <p>{HOT_CHART_DESCRIPTIONS[hotChartView]}</p>
+            <div className="main-hot-chart-filters" aria-label="HOT 5 차트 보기">
+              {HOT_CHART_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  className={hotChartView === tab.key ? 'is-active' : undefined}
+                  aria-pressed={hotChartView === tab.key}
+                  onClick={() => setHotChartView(tab.key)}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="main-hot-chart-list">
+          <div className="main-hot-chart-list" key={hotChartView}>
             {hotChartTracks.map((track, index) => {
               const displayTrack = getTrackDisplay(track);
               const detail = HOT_CHART_DETAILS[track.id];
               const isEditorsPick = index === 0;
+              const isFavorite = favoriteTrackIds.has(track.id);
 
               return (
-                <button
+                <article
                   key={track.id}
-                  type="button"
                   className={`main-hot-chart-row${isEditorsPick ? ' is-editor-pick' : ''}`}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => navigate('/community/music')}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') navigate('/community/music');
+                  }}
                 >
                   <span className="main-hot-rank">
                     {isEditorsPick ? (
@@ -413,12 +546,33 @@ export default function MainPage() {
                     <strong>{detail.tags[0]}</strong>
                     <small>{detail.tags[1]}</small>
                   </span>
-                  <span className="main-hot-actions" aria-hidden="true">
-                    <i className="is-signal" />
-                    <i className="is-heart">♡</i>
-                    <i className="is-download" />
+                  <span className="main-hot-actions">
+                    <i className="is-signal" aria-hidden="true" />
+                    <button
+                      type="button"
+                      className={`main-hot-action-button is-heart${isFavorite ? ' is-active' : ''}`}
+                      aria-label={isFavorite ? `${displayTrack.title} 좋아요 취소` : `${displayTrack.title} 좋아요`}
+                      aria-pressed={isFavorite}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleChartFavorite(track.id);
+                      }}
+                    >
+                      {isFavorite ? '♥' : '♡'}
+                    </button>
+                    <button
+                      type="button"
+                      className="main-hot-action-button"
+                      aria-label={`${displayTrack.title} 다운로드`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        downloadChartTrack(track);
+                      }}
+                    >
+                      <i className="is-download" aria-hidden="true" />
+                    </button>
                   </span>
-                </button>
+                </article>
               );
             })}
           </div>
@@ -468,9 +622,14 @@ export default function MainPage() {
             <div className="main-post-list">
               {popularPosts.map((post) => {
                 const displayPost = getPostDisplay(post);
+                const isFallbackPost = post.id.startsWith('main-fallback-');
 
                 return (
-                  <button key={post.id} type="button" onClick={() => navigate(`/community/${post.id}`)}>
+                  <button
+                    key={post.id}
+                    type="button"
+                    onClick={() => navigate(isFallbackPost ? '/community' : `/community/${post.id}`)}
+                  >
                     <span>{displayPost.category}</span>
                     <strong>{displayPost.title}</strong>
                     <small>조회 {formatCount(post.viewCount)} · 좋아요 {formatCount(post.likeCount)}</small>

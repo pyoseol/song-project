@@ -839,8 +839,8 @@ export function buildSongProjectSnapshot(state: SongProjectSnapshotInput): SongP
   // 1. 멜로디 압축
   for (let r = 0; r < MELODY_ROWS; r++) {
     for (let s = 0; s < state.steps; s++) {
-      if (state.melody[r][s]) {
-        const duration = state.melodyLengths[r][s] || 1;
+      if (state.melody[r]?.[s]) {
+        const duration = Math.max(1, state.melodyLengths[r]?.[s] ?? 1);
         melodyEvents.push({
           note: MELODY_NOTES[r] as string, 
           start: s,

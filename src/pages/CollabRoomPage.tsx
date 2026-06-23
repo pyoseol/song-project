@@ -11,6 +11,7 @@ import {
 } from '../store/collabStore';
 import { useComposerLibraryStore } from '../store/composerLibraryStore';
 import { useSongStore } from '../store/songStore';
+import { getRecruitUrlFromSketch } from '../utils/songSketchDna';
 import './CollabPage.css';
 import './CollabRoomPage.css';
 
@@ -33,6 +34,13 @@ function getStatusLabel(status: CollabProject['status']) {
   return STATUS_OPTIONS.find((option) => option.key === status)?.label ?? status;
 }
 
+function getConnectionLabel(status: ReturnType<typeof useCollabStore.getState>['connectionStatus']) {
+  if (status === 'connected') return '실시간 서버 연결됨';
+  if (status === 'connecting') return '실시간 서버 연결 중';
+  if (status === 'error') return '실시간 서버 연결 실패';
+  return '실시간 서버 대기 중';
+}
+
 export default function CollabRoomPage() {
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
@@ -52,10 +60,10 @@ export default function CollabRoomPage() {
   const presenceByProject = useCollabStore((state) => state.presenceByProject);
   const touchPresence = useCollabStore((state) => state.touchPresence);
   const leavePresence = useCollabStore((state) => state.leavePresence);
+  const deleteProject = useCollabStore((state) => state.deleteProject);
   const composerProjects = useComposerLibraryStore((state) => state.projects);
   const seedLibrary = useComposerLibraryStore((state) => state.seedLibrary);
   const loadProject = useSongStore((state) => state.loadProject);
-  const deleteProject = useCollabStore((state) => state.deleteProject);
 
   const [messageDraft, setMessageDraft] = useState('');
   const [taskDraft, setTaskDraft] = useState('');
@@ -63,20 +71,15 @@ export default function CollabRoomPage() {
   const [roomError, setRoomError] = useState('');
 
   useEffect(() => {
-    void initializeRealtime().catch((error) => {
-      console.error(error);
-    });
+    void initializeRealtime().catch(console.error);
   }, [initializeRealtime]);
 
   useEffect(() => {
-    void seedLibrary().catch((error) => {
-      console.error(error);
-    });
+    void seedLibrary().catch(console.error);
   }, [seedLibrary]);
 
   const project = projects.find((item) => item.id === projectId) ?? null;
-  const linkedProject =
-    composerProjects.find((item) => item.id === project?.sourceProjectId) ?? null;
+  const linkedProject = composerProjects.find((item) => item.id === project?.sourceProjectId) ?? null;
 
   const projectMessages = useMemo(
     () =>
@@ -100,21 +103,17 @@ export default function CollabRoomPage() {
   );
 
   const isOwner = user?.email === project?.ownerEmail;
-
-  const isMember = user
-    ? project?.members.some((member) => member.email === user.email) ?? false
-    : false;
+  const isMember = user ? project?.members.some((member) => member.email === user.email) ?? false : false;
 
   const activePresenceMembers = useMemo(() => {
     const entries = presenceByProject[projectId ?? ''] ?? [];
-    const liveEntries = entries.filter(
-      (presence) => presenceNow - presence.lastSeenAt <= COLLAB_PRESENCE_TIMEOUT_MS
-    );
     const grouped = new Map<string, string>();
 
-    liveEntries.forEach((presence) => {
-      grouped.set(presence.email, presence.name);
-    });
+    entries
+      .filter((presence) => presenceNow - presence.lastSeenAt <= COLLAB_PRESENCE_TIMEOUT_MS)
+      .forEach((presence) => {
+        grouped.set(presence.email, presence.name);
+      });
 
     return Array.from(grouped, ([email, name]) => ({ email, name }));
   }, [presenceByProject, presenceNow, projectId]);
@@ -128,31 +127,18 @@ export default function CollabRoomPage() {
   }, []);
 
   useEffect(() => {
-    if (!projectId || !user || !isMember) {
-      return;
-    }
+    if (!projectId || !user || !isMember) return;
 
-    void touchPresence(projectId, {
-      email: user.email,
-      name: user.name,
-    }).catch((error) => {
-      console.error(error);
-    });
+    const payload = { email: user.email, name: user.name };
+    void touchPresence(projectId, payload).catch(console.error);
 
     const timer = window.setInterval(() => {
-      void touchPresence(projectId, {
-        email: user.email,
-        name: user.name,
-      }).catch((error) => {
-        console.error(error);
-      });
+      void touchPresence(projectId, payload).catch(console.error);
     }, COLLAB_PRESENCE_PING_INTERVAL_MS);
 
     return () => {
       window.clearInterval(timer);
-      void leavePresence(projectId).catch((error) => {
-        console.error(error);
-      });
+      void leavePresence(projectId).catch(console.error);
     };
   }, [isMember, leavePresence, projectId, touchPresence, user]);
 
@@ -163,11 +149,7 @@ export default function CollabRoomPage() {
         <main className="collab-room-shell">
           <section className="collab-room-missing">
             <strong>협업 작업실을 찾을 수 없습니다.</strong>
-            <button
-              type="button"
-              className="collab-secondary-button"
-              onClick={() => navigate('/collab')}
-            >
+            <button type="button" className="collab-secondary-button" onClick={() => navigate('/collab')}>
               협업 목록으로 돌아가기
             </button>
           </section>
@@ -184,10 +166,7 @@ export default function CollabRoomPage() {
 
     try {
       setRoomError('');
-      await joinProject(project.id, {
-        email: user.email,
-        name: user.name,
-      });
+      await joinProject(project.id, { email: user.email, name: user.name });
     } catch (error) {
       console.error(error);
       setRoomError(error instanceof Error ? error.message : '협업 참여에 실패했습니다.');
@@ -196,62 +175,58 @@ export default function CollabRoomPage() {
 
   const handleOpenComposer = () => {
     const snapshot = project.snapshot ?? linkedProject?.project;
-    if (!snapshot) {
-      return;
-    }
+    if (!snapshot) return;
 
     loadProject(snapshot);
     navigate(`/composer?collab=${project.id}`);
   };
 
   const handleDelete = async () => {
-    if (!user || !isOwner) return; // 방장인지 한 번 더 체크
+    if (!user || !isOwner) return;
+    if (!window.confirm('정말 이 협업 프로젝트를 삭제할까요?\n삭제 후에는 복구할 수 없습니다.')) return;
 
-    if (window.confirm('정말 이 협업 프로젝트를 삭제하시겠습니까?\n삭제 후에는 복구할 수 없습니다.')) {
-      try {
-        await deleteProject(project.id);
-        alert('프로젝트가 삭제되었습니다.');
-        navigate('/collab'); // 삭제 후 목록 페이지로 이동
-      } catch (error) {
-        console.error('프로젝트 삭제 실패:', error);
-        alert('프로젝트 삭제 중 오류가 발생했습니다.');
-      }
+    try {
+      await deleteProject(project.id);
+      navigate('/collab');
+    } catch (error) {
+      console.error(error);
+      setRoomError('프로젝트 삭제 중 오류가 발생했습니다.');
     }
   };
 
   const handleSendMessage = async () => {
-    if (!user || !messageDraft.trim()) {
-      return;
-    }
+    if (!user || !messageDraft.trim()) return;
 
+    const content = messageDraft.trim();
+    setMessageDraft('');
     try {
       setRoomError('');
       await addMessage(project.id, {
         email: user.email,
         name: user.name,
-        content: messageDraft,
+        content,
       });
-      setMessageDraft('');
     } catch (error) {
       console.error(error);
+      setMessageDraft(content);
       setRoomError(error instanceof Error ? error.message : '코멘트를 남기지 못했습니다.');
     }
   };
 
   const handleAddTask = async () => {
-    if (!user || !taskDraft.trim()) {
-      return;
-    }
+    if (!user || !taskDraft.trim()) return;
 
+    const content = taskDraft.trim();
+    setTaskDraft('');
     try {
       setRoomError('');
       await addTask(project.id, {
-        content: taskDraft,
+        content,
         assigneeName: user.name,
       });
-      setTaskDraft('');
     } catch (error) {
       console.error(error);
+      setTaskDraft(content);
       setRoomError(error instanceof Error ? error.message : '작업을 추가하지 못했습니다.');
     }
   };
@@ -265,16 +240,10 @@ export default function CollabRoomPage() {
           <div>
             <span className="collab-hero-kicker">Project Room</span>
             <h1>{project.title}</h1>
-            <p>{project.summary}</p>
+            <p>{project.summary || '멤버들과 방향을 정리하며 곡을 완성해보세요.'}</p>
             <div className="collab-connection-row">
               <span className={`collab-connection-chip is-${connectionStatus}`}>
-                {connectionStatus === 'connected'
-                  ? '실시간 서버 연결됨'
-                  : connectionStatus === 'connecting'
-                    ? '실시간 서버 연결 중'
-                    : connectionStatus === 'error'
-                      ? '실시간 서버 연결 실패'
-                      : '실시간 서버 대기 중'}
+                {getConnectionLabel(connectionStatus)}
               </span>
               {connectionError || roomError ? <small>{roomError || connectionError}</small> : null}
             </div>
@@ -285,15 +254,11 @@ export default function CollabRoomPage() {
               <button
                 key={option.key}
                 type="button"
-                className={`collab-status-button${
-                  project.status === option.key ? ' is-active' : ''
-                }`}
+                className={`collab-status-button${project.status === option.key ? ' is-active' : ''}`}
                 onClick={() => {
                   void setStatus(project.id, option.key).catch((error) => {
                     console.error(error);
-                    setRoomError(
-                      error instanceof Error ? error.message : '상태를 바꾸지 못했습니다.'
-                    );
+                    setRoomError(error instanceof Error ? error.message : '상태를 바꾸지 못했습니다.');
                   });
                 }}
               >
@@ -309,8 +274,7 @@ export default function CollabRoomPage() {
               <div className="collab-room-panel-head">
                 <strong>프로젝트 개요</strong>
                 <span>
-                  {project.genre} · {project.bpm} BPM · {project.steps} steps ·{' '}
-                  {getStatusLabel(project.status)}
+                  {project.genre || '장르 미정'} · {project.bpm} BPM · {project.steps} steps · {getStatusLabel(project.status)}
                 </span>
               </div>
 
@@ -320,7 +284,7 @@ export default function CollabRoomPage() {
                   <strong>{project.ownerName}</strong>
                 </div>
                 <div className="collab-room-summary-card">
-                  <span>팀원</span>
+                  <span>멤버</span>
                   <strong>{project.members.length}명</strong>
                 </div>
                 <div className="collab-room-summary-card">
@@ -333,21 +297,23 @@ export default function CollabRoomPage() {
                 </div>
                 <div className="collab-room-summary-card">
                   <span>연결 프로젝트</span>
-                  <strong>{linkedProject?.title ?? '샘플 협업'}</strong>
+                  <strong>{linkedProject?.title ?? '스냅샷 작업'}</strong>
                 </div>
               </div>
 
-              <div className="collab-room-tag-row">
-                {project.tags.map((tag) => (
-                  <span key={`${project.id}-${tag}`}>#{tag}</span>
-                ))}
-              </div>
+              {project.tags.length ? (
+                <div className="collab-room-tag-row">
+                  {project.tags.map((tag) => (
+                    <span key={`${project.id}-${tag}`}>#{tag}</span>
+                  ))}
+                </div>
+              ) : null}
             </article>
 
             <article className="collab-room-panel">
               <div className="collab-room-panel-head">
                 <strong>작업 체크리스트</strong>
-                <span>남은 포인트를 바로 켜고 끌 수 있어요.</span>
+                <span>해야 할 일을 정리하고 완료된 작업을 바로 체크하세요.</span>
               </div>
 
               <div className="collab-room-task-list">
@@ -360,11 +326,7 @@ export default function CollabRoomPage() {
                         onChange={() => {
                           void toggleTask(project.id, task.id).catch((error) => {
                             console.error(error);
-                            setRoomError(
-                              error instanceof Error
-                                ? error.message
-                                : '작업 상태를 바꾸지 못했습니다.'
-                            );
+                            setRoomError(error instanceof Error ? error.message : '작업 상태를 바꾸지 못했습니다.');
                           });
                         }}
                         disabled={!isMember}
@@ -384,15 +346,10 @@ export default function CollabRoomPage() {
                 <input
                   value={taskDraft}
                   onChange={(event) => setTaskDraft(event.target.value)}
-                  placeholder={isMember ? '새 작업을 입력하세요.' : '참여 후 작업을 추가할 수 있어요.'}
+                  placeholder={isMember ? '새 작업을 입력하세요' : '참여 후 작업을 추가할 수 있어요'}
                   disabled={!isMember}
                 />
-                <button
-                  type="button"
-                  className="collab-primary-button"
-                  onClick={handleAddTask}
-                  disabled={!isMember}
-                >
+                <button type="button" className="collab-primary-button" onClick={handleAddTask} disabled={!isMember}>
                   작업 추가
                 </button>
               </div>
@@ -401,7 +358,7 @@ export default function CollabRoomPage() {
             <article className="collab-room-panel">
               <div className="collab-room-panel-head">
                 <strong>팀 채팅 / 코멘트</strong>
-                <span>마디 방향이나 수정 의견을 짧게 남길 수 있습니다.</span>
+                <span>수정 방향, 피드백, 아이디어를 짧게 남겨두세요.</span>
               </div>
 
               <div className="collab-room-message-list">
@@ -424,16 +381,11 @@ export default function CollabRoomPage() {
                 <textarea
                   value={messageDraft}
                   onChange={(event) => setMessageDraft(event.target.value)}
-                  placeholder={isMember ? '수정 방향이나 피드백을 적어보세요.' : '참여 후 코멘트를 남길 수 있어요.'}
+                  placeholder={isMember ? '수정 방향이나 피드백을 적어보세요' : '참여 후 코멘트를 남길 수 있어요'}
                   rows={4}
                   disabled={!isMember}
                 />
-                <button
-                  type="button"
-                  className="collab-primary-button"
-                  onClick={handleSendMessage}
-                  disabled={!isMember}
-                >
+                <button type="button" className="collab-primary-button" onClick={handleSendMessage} disabled={!isMember}>
                   코멘트 남기기
                 </button>
               </div>
@@ -472,7 +424,7 @@ export default function CollabRoomPage() {
             <article className="collab-room-panel">
               <div className="collab-room-panel-head">
                 <strong>참여 멤버</strong>
-                <span>현재 작업실에 참여 중인 팀원입니다.</span>
+                <span>현재 작업실에 참여 중인 멤버입니다.</span>
               </div>
 
               <div className="collab-member-list">
@@ -491,7 +443,7 @@ export default function CollabRoomPage() {
             <article className="collab-room-panel">
               <div className="collab-room-panel-head">
                 <strong>빠른 액션</strong>
-                <span>작곡 화면과 바로 이어서 작업할 수 있어요.</span>
+                <span>작곡 화면과 협업 목록으로 바로 이동할 수 있어요.</span>
               </div>
 
               <div className="collab-room-side-actions">
@@ -510,21 +462,20 @@ export default function CollabRoomPage() {
                   작곡 화면 열기
                 </button>
 
-                <button
-                  type="button"
-                  className="collab-secondary-button"
-                  onClick={() => navigate('/collab')}
-                >
+                <button type="button" className="collab-secondary-button" onClick={() => navigate('/collab')}>
                   협업 목록으로
                 </button>
 
+                <button
+                  type="button"
+                  className="collab-secondary-button"
+                  onClick={() => navigate(getRecruitUrlFromSketch(project.title, project.genre, 'vocal,guitar,drums,bass'))}
+                >
+                  파트 모집 자동 연결
+                </button>
+
                 {isOwner ? (
-                  <button
-                    type="button"
-                    className="collab-secondary-button is-danger"
-                    style={{ color: '#ff4d4f', borderColor: '#ff4d4f' }} // 빨간색으로 위험(Danger) 표시
-                    onClick={handleDelete}
-                  >
+                  <button type="button" className="collab-secondary-button is-danger" onClick={handleDelete}>
                     프로젝트 삭제
                   </button>
                 ) : null}

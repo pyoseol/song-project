@@ -99,13 +99,74 @@ export const useMessageStore = create<MessageStoreState>((set) => ({
   },
 
   sendMessage: async (payload) => {
-    const response = await sendThreadMessageOnServer({
-      ownerEmail: payload.authorEmail,
+    const createdAt = Date.now();
+    const tempMessage: DirectMessage = {
+      id: `local-${payload.threadId}-${createdAt}`,
       threadId: payload.threadId,
       authorName: payload.authorName,
-      content: payload.content
-    });
-    applySnapshot(payload.authorEmail, response.snapshot);
+      authorEmail: payload.authorEmail,
+      content: payload.content,
+      createdAt,
+      isRead: false,
+    };
+
+    set((state) => ({
+      messagesByThread: {
+        ...state.messagesByThread,
+        [payload.threadId]: [
+          ...(state.messagesByThread[payload.threadId] ?? []),
+          tempMessage,
+        ],
+      },
+      threads: state.threads.map((thread) =>
+        thread.id === payload.threadId
+          ? {
+              ...thread,
+              lastMessageAt: createdAt,
+              lastPreview: payload.content,
+              readBy: [payload.authorEmail],
+            }
+          : thread
+      ),
+    }));
+
+    try {
+      const response = await sendThreadMessageOnServer({
+        ownerEmail: payload.authorEmail,
+        threadId: payload.threadId,
+        authorName: payload.authorName,
+        content: payload.content
+      });
+
+      set((state) => ({
+        messagesByThread: {
+          ...state.messagesByThread,
+          [payload.threadId]: (state.messagesByThread[payload.threadId] ?? [])
+            .map((message) => (message.id === tempMessage.id ? response.message : message))
+            .sort((left, right) => left.createdAt - right.createdAt),
+        },
+        threads: state.threads.map((thread) =>
+          thread.id === payload.threadId
+            ? {
+                ...thread,
+                lastMessageAt: response.threadPatch.lastMessageAt,
+                lastPreview: response.threadPatch.lastPreview,
+                readBy: response.threadPatch.readBy,
+              }
+            : thread
+        ),
+      }));
+    } catch (error) {
+      set((state) => ({
+        messagesByThread: {
+          ...state.messagesByThread,
+          [payload.threadId]: (state.messagesByThread[payload.threadId] ?? []).filter(
+            (message) => message.id !== tempMessage.id
+          ),
+        },
+      }));
+      throw error;
+    }
   },
 
   markThreadRead: async (payload) => {

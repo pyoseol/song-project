@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CommunitySpaceNav from '../../components/community/CommunitySpaceNav';
+import TrackWaveform from '../../components/community/TrackWaveform';
 import SiteHeader from '../../components/layout/SiteHeader';
 import {
   BASE_SHARED_TRACK_LIBRARY,
@@ -407,7 +408,6 @@ export default function MusicShare() {
                 <article
                   key={track.id}
                   className="music-share-card"
-                  style={{ backgroundImage: track.imageUrl ? `linear-gradient(180deg, rgba(10, 12, 16, 0.06), rgba(10, 12, 16, 0.34)), url(${track.imageUrl})` : track.palette }}
                 >
                   <button
                     type="button"
@@ -415,6 +415,15 @@ export default function MusicShare() {
                     onClick={() => handleOpenTrack(track)}
                     aria-label={`${track.title} 열기`}
                   >
+                    <div
+                      className="music-share-card-art"
+                      style={{
+                        backgroundImage: track.imageUrl
+                          ? `url(${track.imageUrl})`
+                          : track.palette,
+                      }}
+                      aria-hidden="true"
+                    />
                     <div className="music-share-card-header">
                       <div className="music-share-card-meta">
                         {track.isSharedProject ? (
@@ -428,6 +437,12 @@ export default function MusicShare() {
                       <strong className="music-share-card-title">{track.title}</strong>
                       <span className="music-share-card-caption">{track.progression}</span>
                       <span className="music-share-card-reference">{track.reference}</span>
+                      <TrackWaveform
+                        className="music-share-card-waveform"
+                        project={track.project}
+                        seed={track.id}
+                        bars={34}
+                      />
                     </div>
                   </button>
 

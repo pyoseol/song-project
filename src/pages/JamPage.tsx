@@ -208,7 +208,7 @@ export default function JamPage() {
 
   return (
     <div className="jam-page">
-      <SiteHeader activeSection="jam" />
+      <SiteHeader />
 
       <main className="jam-shell">
         <section className="jam-hero">

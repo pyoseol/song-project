@@ -13,6 +13,7 @@ import { useSongStore, buildSongProjectSnapshot } from '../store/songStore.ts';
 import { useAuthStore } from '../store/authStore.ts';
 import { useComposerLibraryStore } from '../store/composerLibraryStore.ts';
 import { fetchAiMusic } from '../utils/ai';
+import { analyzeSongSketchDna, getRecruitUrlFromSketch, type SongSketchDna } from '../utils/songSketchDna';
 import { uploadMusicShareCoverOnServer } from '../utils/libraryApi.ts';
 import './TransportBar.css';
 
@@ -145,6 +146,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
 
   const [isExporting, setIsExporting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [songDna, setSongDna] = useState<SongSketchDna | null>(null);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [activeDialog, setActiveDialog] = useState<ComposerDialog>(null);
 
@@ -172,14 +174,16 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
   const backingTrackUrlRef = useRef('');
   const backingTrackTimerRef = useRef<number | null>(null);
   const previousPlaybackStepRef = useRef<number | null>(null);
+  const previousBackingTrackSourceBpmRef = useRef(bpm);
   const [backingTrackName, setBackingTrackName] = useState('');
   const [backingTrackVolume, setBackingTrackVolume] = useState(0.7);
+  const [backingTrackSourceBpm, setBackingTrackSourceBpm] = useState(bpm);
 
   const currentBar = Math.floor(currentStep / BAR_LENGTH) + 1;
   const totalBars = Math.max(1, Math.ceil(steps / BAR_LENGTH));
 
   const getBackingTrackStartTime = (step = loopRange?.start ?? 0) =>
-    step * (60 / bpm / 4);
+    step * (60 / Math.max(1, backingTrackSourceBpm) / 4);
 
   const clearBackingTrackTimer = () => {
     if (backingTrackTimerRef.current !== null) {
@@ -229,6 +233,27 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
   }, [backingTrackVolume]);
 
   useEffect(() => {
+    const audio = backingTrackAudioRef.current;
+    if (!audio) return;
+    const playbackRate = Math.min(4, Math.max(0.25, bpm / Math.max(1, backingTrackSourceBpm)));
+    audio.defaultPlaybackRate = playbackRate;
+    audio.playbackRate = playbackRate;
+    audio.preservesPitch = true;
+  }, [bpm, backingTrackSourceBpm]);
+
+  useEffect(() => {
+    const previousSourceBpm = previousBackingTrackSourceBpmRef.current;
+    previousBackingTrackSourceBpmRef.current = backingTrackSourceBpm;
+    const audio = backingTrackAudioRef.current;
+    if (!audio || !backingTrackName || previousSourceBpm === backingTrackSourceBpm) return;
+    const playbackStep = useSongStore.getState().currentStep;
+    audio.currentTime = Math.min(
+      playbackStep * (60 / Math.max(1, backingTrackSourceBpm) / 4),
+      audio.duration || Infinity
+    );
+  }, [backingTrackName, backingTrackSourceBpm]);
+
+  useEffect(() => {
     const handlePlaybackStep = (event: Event) => {
       if (!backingTrackName) return;
       const step = (event as CustomEvent<{ step: number }>).detail.step;
@@ -240,7 +265,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
       if (loopRestarted) {
         const audio = backingTrackAudioRef.current;
         if (audio) {
-          audio.currentTime = step * (60 / bpm / 4);
+          audio.currentTime = step * (60 / Math.max(1, backingTrackSourceBpm) / 4);
           if (audio.paused) void audio.play().catch(() => undefined);
         }
       }
@@ -249,7 +274,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
 
     window.addEventListener('composer-playhead-step', handlePlaybackStep);
     return () => window.removeEventListener('composer-playhead-step', handlePlaybackStep);
-  }, [backingTrackName, bpm, loopRange]);
+  }, [backingTrackName, backingTrackSourceBpm, loopRange]);
 
   const handleSelectBackingTrack = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -266,6 +291,7 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
     const url = URL.createObjectURL(file);
     backingTrackUrlRef.current = url;
     setBackingTrackName(file.name);
+    setBackingTrackSourceBpm(bpm);
 
     const audio = backingTrackAudioRef.current;
     if (audio) {
@@ -297,6 +323,11 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
 
   const closeDialog = () => {
     setActiveDialog(null);
+  };
+
+  const handleOpenDna = () => {
+    const project = createProjectSnapshot();
+    setSongDna(analyzeSongSketchDna(project, saveTitle.trim() || shareTitle.trim() || '현재 스케치'));
   };
 
   const handleSelectShareCover = (event: ChangeEvent<HTMLInputElement>) => {
@@ -646,6 +677,22 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
                 aria-label="MP3 볼륨"
                 title={`MP3 볼륨 ${Math.round(backingTrackVolume * 100)}%`}
               />
+              <label className="transport-backing-bpm" title="업로드한 MP3의 원본 BPM">
+                <span>원본</span>
+                <input
+                  type="number"
+                  min={40}
+                  max={240}
+                  value={backingTrackSourceBpm}
+                  onChange={(event) => {
+                    const nextBpm = Number(event.target.value);
+                    if (Number.isFinite(nextBpm)) {
+                      setBackingTrackSourceBpm(Math.min(240, Math.max(40, nextBpm)));
+                    }
+                  }}
+                  aria-label="MP3 원본 BPM"
+                />
+              </label>
               <button
                 type="button"
                 className="transport-backing-remove"
@@ -692,6 +739,16 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
           <ResetIcon />
           <span>초기화</span>
         </button>
+        <button type="button" className="transport-button transport-button--dna" onClick={handleOpenDna}>
+          DNA 보기
+        </button>
+        <button
+          type="button"
+          className="transport-button"
+          onClick={() => navigate(getRecruitUrlFromSketch(saveTitle.trim() || shareTitle.trim() || '내 곡 스케치'))}
+        >
+          파트 모집
+        </button>
         <button type="button" className="transport-button" onClick={() => openDialog('save')}>
           저장하기
         </button>
@@ -718,6 +775,63 @@ export const TransportBar = ({ onPlayStarted }: TransportBarProps = {}) => {
           AI 작곡
         </button>
       </div>
+
+      {songDna ? (
+        <div className="transport-dialog-backdrop" onClick={() => setSongDna(null)} aria-hidden="true">
+          <section
+            className="transport-dialog transport-dna-dialog"
+            onClick={(event) => event.stopPropagation()}
+            aria-label="곡 스케치 DNA"
+          >
+            <div className="transport-dialog-header">
+              <div className="transport-dialog-title">
+                <span className="transport-dialog-icon">D</span>
+                <strong>곡 스케치 DNA</strong>
+              </div>
+              <button
+                type="button"
+                className="transport-dialog-close"
+                onClick={() => setSongDna(null)}
+                aria-label="닫기"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="transport-dna-summary">
+              <span>{songDna.title}</span>
+              <strong>{songDna.summary}</strong>
+            </div>
+
+            <div className="transport-dna-grid">
+              <article>
+                <span>Mood</span>
+                <strong>{songDna.mood}</strong>
+              </article>
+              <article>
+                <span>Melody</span>
+                <strong>{songDna.melodyType}</strong>
+              </article>
+              <article>
+                <span>Rhythm</span>
+                <strong>{songDna.rhythmDensity}</strong>
+              </article>
+              <article>
+                <span>Hook</span>
+                <strong>{songDna.hookType}</strong>
+              </article>
+              <article>
+                <span>Use</span>
+                <strong>{songDna.useCase}</strong>
+              </article>
+              <article>
+                <span>Parts</span>
+                <strong>{songDna.activeParts.length ? songDna.activeParts.join(', ') : '아직 없음'}</strong>
+              </article>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {activeDialog ? (
         <div className="transport-dialog-backdrop" onClick={closeDialog} aria-hidden="true">

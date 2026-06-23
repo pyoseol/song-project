@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import SiteHeader from '../../components/layout/SiteHeader';
+import TrackWaveform from '../../components/community/TrackWaveform';
 import {
   BASE_SHARED_TRACK_LIBRARY,
   buildSharedTrackCard,
@@ -11,6 +12,7 @@ import { useComposerLibraryStore } from '../../store/composerLibraryStore';
 import { useMusicShareStore } from '../../store/musicShareStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { useSongStore } from '../../store/songStore';
+import { analyzeSongSketchDna, getProjectFromSharedTrack, getRecruitUrlFromSketch } from '../../utils/songSketchDna';
 import './MusicShareDetail.css';
 
 function formatCount(value: number) {
@@ -101,6 +103,14 @@ export default function MusicShareDetail() {
   
   const liked = !!user && !!track && (likedTrackIdsByUser[user.email] ?? []).includes(track.id);
   const saved = !!user && !!track && (favoriteTrackIdsByUser[user.email] ?? []).includes(track.id);
+  const trackProject = useMemo(() => {
+    if (!track) return null;
+    return projects.find((item) => item.id === track.projectId)?.project ?? track.project ?? null;
+  }, [projects, track]);
+  const trackDna = useMemo(() => {
+    if (!track) return null;
+    return analyzeSongSketchDna(getProjectFromSharedTrack(track, trackProject ?? undefined), track.title);
+  }, [track, trackProject]);
 
   // 🌟 무한 루프 방지용 코드 (순서가 중요합니다! 반드시 track이 정의된 아래에 있어야 합니다)
   const currentTrackId = track?.id;
@@ -190,14 +200,12 @@ export default function MusicShareDetail() {
   };
 
   const handleOpenComposer = () => {
-    if (track.projectId) {
-      const project = projects.find((item) => item.id === track.projectId);
-      if (project) {
-        loadProject(project.project);
-      }
-    }
+    loadProject(getProjectFromSharedTrack(track, trackProject ?? undefined));
+    navigate('/composer?source=shared-track');
+  };
 
-    navigate('/composer');
+  const handleRecruitFromTrack = () => {
+    navigate(getRecruitUrlFromSketch(track.title, track.category, 'vocal,guitar,drums,bass'));
   };
 
 const isOwner = user && track && user.name === track.creatorName;
@@ -274,6 +282,12 @@ const handleDeleteTrack = async () => {
               <span>{formatDate(track.createdAt)}</span>
               <span>{track.progression}</span>
             </div>
+            <TrackWaveform
+              className="music-share-detail-waveform"
+              project={track.project}
+              seed={track.id}
+              bars={58}
+            />
           </div>
         </section>
 
@@ -309,6 +323,20 @@ const handleDeleteTrack = async () => {
               ))}
             </div>
 
+            {trackDna ? (
+              <div className="music-share-detail-dna">
+                <div>
+                  <span>SONG DNA</span>
+                  <strong>{trackDna.summary}</strong>
+                </div>
+                <ul>
+                  <li><b>Mood</b><em>{trackDna.mood}</em></li>
+                  <li><b>Melody</b><em>{trackDna.melodyType}</em></li>
+                  <li><b>Use</b><em>{trackDna.useCase}</em></li>
+                </ul>
+              </div>
+            ) : null}
+
             <div className="music-share-detail-actions">
               <button
                 type="button"
@@ -337,6 +365,13 @@ const handleDeleteTrack = async () => {
                 onClick={handleOpenComposer}
               >
                 작곡 화면에서 열기
+              </button>
+              <button
+                type="button"
+                className="music-share-detail-button"
+                onClick={handleRecruitFromTrack}
+              >
+                파트 모집 연결
               </button>
             </div>
           </article>

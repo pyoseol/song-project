@@ -8,7 +8,6 @@ const Composer = lazy(() =>
 );
 const ProjectLibraryPage = lazy(() => import('./pages/ProjectLibraryPage'));
 const AirGuitar = lazy(() => import('./pages/AirGuitar'));
-const JamPage = lazy(() => import('./pages/JamPage'));
 const CollabPage = lazy(() => import('./pages/CollabPage'));
 const CollabRoomPage = lazy(() => import('./pages/CollabRoomPage'));
 const MessagesPage = lazy(() => import('./pages/MessagesPage'));
@@ -19,6 +18,7 @@ const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const SignupPage = lazy(() => import('./pages/auth/SignupPage'));
 const MusicShare = lazy(() => import('./pages/community/MusicShare'));
 const MusicShareDetail = lazy(() => import('./pages/community/MusicShareDetail'));
+const ShortsPage = lazy(() => import('./pages/community/ShortsPage'));
 const PostDetail = lazy(() => import('./pages/community/PostDetail'));
 const PostList = lazy(() => import('./pages/community/PostList'));
 const PostWrite = lazy(() => import('./pages/community/PostWrite'));
@@ -47,6 +47,7 @@ function App() {
           <Route path="/community" element={<PostList />} />
           <Route path="/community/music" element={<MusicShare />} />
           <Route path="/community/music/:trackId" element={<MusicShareDetail />} />
+          <Route path="/community/shorts" element={<ShortsPage />} />
           <Route path="/community/sessions" element={<SessionRecruitPage />} />
           <Route path="/community/sessions/:postId" element={<SessionRecruitDetailPage />} />
           <Route path="/community/market" element={<UsedMarket />} />
@@ -54,7 +55,6 @@ function App() {
           <Route path="/community/write" element={<PostWrite />} />
           <Route path="/community/:id" element={<PostDetail />} />
           <Route element={<ProtectedRoute />}>
-            <Route path="/jam" element={<JamPage />} />
             <Route path="/collab" element={<CollabPage />} />
             <Route path="/collab/:projectId" element={<CollabRoomPage />} />
             <Route path="/profile" element={<ProfilePage />} />

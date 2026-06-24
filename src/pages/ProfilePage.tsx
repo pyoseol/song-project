@@ -337,6 +337,12 @@ export default function ProfilePage() {
 
             <div className="profile-meta">
               <h1>{displayProfileName}</h1>
+              {user ? (
+                <div className="profile-email" title={user.email}>
+                  <span aria-hidden="true">@</span>
+                  <strong>{user.email}</strong>
+                </div>
+              ) : null}
               <div className="profile-meta-row">
                 <span>프로젝트 {formatCount(myProjects.length)}개</span>
                 <span>저장한 곡 {formatCount(savedTracks.length)}개</span>

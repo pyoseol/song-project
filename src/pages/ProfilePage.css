@@ -119,6 +119,41 @@
   line-height: 1.1;
 }
 
+.profile-email {
+  display: inline-flex;
+  align-items: center;
+  max-width: min(100%, 420px);
+  min-height: 30px;
+  margin-bottom: 12px;
+  padding: 0 11px 0 8px;
+  border: 1px solid rgba(99, 230, 190, 0.16);
+  border-radius: 999px;
+  background: rgba(99, 230, 190, 0.07);
+  color: #b8c8cc;
+  font-size: 12px;
+}
+
+.profile-email > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: rgba(99, 230, 190, 0.12);
+  color: #8eeed5;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.profile-email strong {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .profile-meta-row {
   display: flex;
   align-items: center;
@@ -557,6 +592,10 @@
 
   .profile-meta h1 {
     font-size: 30px;
+  }
+
+  .profile-email {
+    max-width: calc(100vw - 150px);
   }
 
   .profile-meta-row {

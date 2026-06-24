@@ -11,6 +11,7 @@ import {
   type MusicShareSnapshot,
 } from '../utils/libraryApi';
 import type { MusicShareTrackCard } from '../dummy/musicShareLibrary';
+import type { SongProject } from './songStore';
 
 export type MusicShareComment = {
   id: string;
@@ -66,14 +67,137 @@ function getLocalMetrics(metrics?: MusicShareMetrics): MusicShareMetrics {
   };
 }
 
+const MUSIC_SHARE_CATEGORIES = new Set([
+  'classic',
+  'pop',
+  'ballad',
+  'jazz',
+  'citypop',
+  'ost',
+  'anime',
+  'game',
+  'rock',
+]);
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function asString(value: unknown, fallback = '') {
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+}
+
+function asNumber(value: unknown, fallback = 0) {
+  const number = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function asStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string' && Boolean(item.trim()))
+    : [];
+}
+
+function normalizeIdMap(value: unknown): Record<string, string[]> {
+  const record = asRecord(value);
+  if (!record) return {};
+
+  return Object.fromEntries(
+    Object.entries(record).map(([key, ids]) => [key, asStringArray(ids)])
+  );
+}
+
+function normalizeProject(value: unknown): SongProject | undefined {
+  const project = asRecord(value);
+  const tracks = asRecord(project?.tracks);
+  if (!project || !tracks) return undefined;
+  return value as SongProject;
+}
+
+export function normalizeMusicShareTrack(
+  value: unknown,
+  index = 0
+): MusicShareTrackCard | null {
+  const track = asRecord(value);
+  if (!track) return null;
+
+  const id = asString(track.id, `server-track-${index}`);
+  const rawCategory = asString(track.category, 'pop').toLowerCase();
+  const category = MUSIC_SHARE_CATEGORIES.has(rawCategory) ? rawCategory : 'pop';
+  const tags = asStringArray(track.tags);
+  const project = normalizeProject(track.project);
+
+  return {
+    id,
+    title: asString(track.title, '제목 없는 공유곡'),
+    progression: asString(track.progression, '진행 정보 없음'),
+    reference: asString(track.reference, '레퍼런스 정보 없음'),
+    category: category as MusicShareTrackCard['category'],
+    tags: tags.length ? tags : ['공유곡'],
+    palette: asString(
+      track.palette,
+      'linear-gradient(180deg, rgba(57, 72, 87, 0.96), rgba(24, 30, 39, 0.98))'
+    ),
+    createdAt: asNumber(track.createdAt, Date.now() - index),
+    creatorName: asString(track.creatorName, '익명 작곡가'),
+    isSharedProject: Boolean(track.isSharedProject),
+    projectId: asString(track.projectId) || undefined,
+    creatorEmail: asString(track.creatorEmail) || undefined,
+    imageUrl: asString(track.imageUrl) || undefined,
+    project,
+  };
+}
+
+function normalizeComment(value: unknown, index: number): MusicShareComment | null {
+  const comment = asRecord(value);
+  if (!comment) return null;
+
+  return {
+    id: asString(comment.id, `server-comment-${index}`),
+    trackId: asString(comment.trackId),
+    authorName: asString(comment.authorName, '익명'),
+    authorEmail: asString(comment.authorEmail),
+    content: asString(comment.content),
+    createdAt: asNumber(comment.createdAt, Date.now() - index),
+  };
+}
+
+function normalizeMetrics(value: unknown): Record<string, MusicShareMetrics> {
+  const record = asRecord(value);
+  if (!record) return {};
+
+  return Object.fromEntries(
+    Object.entries(record).map(([trackId, rawMetrics]) => {
+      const metrics = asRecord(rawMetrics);
+      return [
+        trackId,
+        {
+          likeCount: Math.max(0, asNumber(metrics?.likeCount)),
+          viewCount: Math.max(0, asNumber(metrics?.viewCount)),
+          downloadCount: Math.max(0, asNumber(metrics?.downloadCount)),
+        },
+      ];
+    })
+  );
+}
+
 function applySnapshot(snapshot: MusicShareSnapshot) {
+  const tracks = (Array.isArray(snapshot?.tracks) ? snapshot.tracks : [])
+    .map(normalizeMusicShareTrack)
+    .filter((track): track is MusicShareTrackCard => Boolean(track));
+  const comments = (Array.isArray(snapshot?.comments) ? snapshot.comments : [])
+    .map(normalizeComment)
+    .filter((comment): comment is MusicShareComment => Boolean(comment?.trackId));
+
   useMusicShareStore.setState((state) => ({
     ...state,
-    tracks: (snapshot.tracks ?? []) as MusicShareTrackCard[],
-    likedTrackIdsByUser: snapshot.likedTrackIdsByUser ?? {},
-    recentOpenedTrackIdsByUser: snapshot.recentOpenedTrackIdsByUser ?? {},
-    trackMetricsById: (snapshot.trackMetricsById ?? {}) as Record<string, MusicShareMetrics>,
-    comments: (snapshot.comments ?? []) as MusicShareComment[],
+    tracks,
+    likedTrackIdsByUser: normalizeIdMap(snapshot?.likedTrackIdsByUser),
+    recentOpenedTrackIdsByUser: normalizeIdMap(snapshot?.recentOpenedTrackIdsByUser),
+    trackMetricsById: normalizeMetrics(snapshot?.trackMetricsById),
+    comments,
     bootstrapStatus: 'ready',
     bootstrapError: null,
   }));
@@ -258,6 +382,25 @@ export const useMusicShareStore = create<MusicShareState>()(
     }),
     {
       name: 'song-maker-music-share',
+      merge: (persistedState, currentState) => {
+        const persisted = asRecord(persistedState);
+        const tracks = (Array.isArray(persisted?.tracks) ? persisted.tracks : [])
+          .map(normalizeMusicShareTrack)
+          .filter((track): track is MusicShareTrackCard => Boolean(track));
+        const comments = (Array.isArray(persisted?.comments) ? persisted.comments : [])
+          .map(normalizeComment)
+          .filter((comment): comment is MusicShareComment => Boolean(comment?.trackId));
+
+        return {
+          ...currentState,
+          ...persisted,
+          tracks,
+          comments,
+          likedTrackIdsByUser: normalizeIdMap(persisted?.likedTrackIdsByUser),
+          recentOpenedTrackIdsByUser: normalizeIdMap(persisted?.recentOpenedTrackIdsByUser),
+          trackMetricsById: normalizeMetrics(persisted?.trackMetricsById),
+        } as MusicShareState;
+      },
       partialize: (state) => ({
         likedTrackIdsByUser: state.likedTrackIdsByUser,
         tracks: state.tracks,

@@ -24,14 +24,20 @@ function seededNoise(seed: number, index: number) {
 }
 
 function getProjectEvents(project?: SongProject) {
-  if (!project) {
+  if (!project || !project.tracks || typeof project.tracks !== 'object') {
     return [];
   }
 
-  return [
-    ...Object.values(project.tracks).flat(),
-    ...(project.extraTracks ?? []).flatMap((track) => track.events ?? []),
-  ];
+  const baseEvents = Object.values(project.tracks).flatMap((events) =>
+    Array.isArray(events) ? events : []
+  );
+  const extraEvents = Array.isArray(project.extraTracks)
+    ? project.extraTracks.flatMap((track) => (Array.isArray(track?.events) ? track.events : []))
+    : [];
+
+  return [...baseEvents, ...extraEvents].filter(
+    (event) => event && typeof event === 'object' && Number.isFinite(Number(event.start))
+  );
 }
 
 function createWaveform(project: SongProject | undefined, seedValue: string, count: number) {

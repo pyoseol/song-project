@@ -39,8 +39,8 @@ function matchesSearch(track: MusicShareTrackCard, keyword: string) {
     track.reference,
     track.category,
     track.creatorName,
-    ...track.tags,
-  ].some((value) => value.toLowerCase().includes(keyword));
+    ...(Array.isArray(track.tags) ? track.tags : []),
+  ].some((value) => String(value ?? '').toLowerCase().includes(keyword));
 }
 
 function formatCount(value: number) {
@@ -103,6 +103,7 @@ export default function MusicShare() {
   const sharedProjectTracks = useMemo(
     () =>
       projects
+        .filter((project) => project && typeof project === 'object')
         .map((project) => buildSharedTrackCard(project))
         .filter((track): track is MusicShareTrackCard => Boolean(track)),
     [projects]
@@ -120,7 +121,9 @@ export default function MusicShare() {
   const filteredTracks = useMemo(() => {
     const visibleTracks = trackLibrary.filter((track) => {
       const matchesCategory = selectedCategory === 'all' || track.category === selectedCategory;
-      const matchesTag = selectedTag === '전체' || track.tags.includes(selectedTag);
+      const matchesTag =
+        selectedTag === '전체' ||
+        (Array.isArray(track.tags) && track.tags.includes(selectedTag));
 
       return matchesCategory && matchesTag && matchesSearch(track, normalizedKeyword);
     });

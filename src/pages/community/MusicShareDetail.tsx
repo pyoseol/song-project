@@ -81,6 +81,7 @@ export default function MusicShareDetail() {
     () => [
       ...BASE_SHARED_TRACK_LIBRARY,
       ...projects
+        .filter((project) => project && typeof project === 'object')
         .map((project) => buildSharedTrackCard(project))
         .filter((track): track is MusicShareTrackCard => Boolean(track)),
       ...serverTracks,

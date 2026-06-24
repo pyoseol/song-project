@@ -1,7 +1,6 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import { useThemeStore } from './store/themeStore';
 
 const MainPage = lazy(() => import('./pages/MainPage'));
 const Composer = lazy(() =>
@@ -33,13 +32,6 @@ function AppFallback() {
 }
 
 function App() {
-  const theme = useThemeStore((state) => state.theme);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    document.documentElement.style.colorScheme = theme;
-  }, [theme]);
-
   return (
     <BrowserRouter>
       <Suspense fallback={<AppFallback />}>

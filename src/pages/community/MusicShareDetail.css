@@ -506,7 +506,9 @@
   width: 66px;
   height: 66px;
   border-radius: 50%;
-  background: rgba(99, 230, 190, 0.045);
+  border: 1px solid rgba(99, 230, 190, 0.14);
+  background: rgba(99, 230, 190, 0.11);
+  box-shadow: 0 0 24px rgba(99, 230, 190, 0.08);
   content: '';
 }
 
@@ -776,7 +778,7 @@
   position: absolute;
   right: 18px;
   top: 6px;
-  color: rgba(255, 255, 255, 0.035);
+  color: rgba(157, 243, 220, 0.11);
   font-size: 72px;
   font-weight: 1000;
   letter-spacing: -0.08em;

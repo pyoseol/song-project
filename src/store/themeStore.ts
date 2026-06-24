@@ -19,9 +19,17 @@ type ThemeStoreState = {
 };
 
 function applyTheme(theme: ThemeMode) {
+  const root = document.documentElement;
+
+  root.classList.add('is-theme-changing');
   document.documentElement.dataset.theme = theme;
-  document.documentElement.style.colorScheme = theme;
   window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      root.classList.remove('is-theme-changing');
+    });
+  });
 }
 
 export const useThemeStore = create<ThemeStoreState>((set, get) => ({

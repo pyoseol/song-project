@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopbarAccount from '../auth/TopbarAccount';
 import NotificationBell from '../notifications/NotificationBell';
+import ThemeToggle from '../theme/ThemeToggle';
 import './SiteHeader.css';
 
 export type SiteHeaderSection =
@@ -65,6 +66,7 @@ export default function SiteHeader({ activeSection = null, rightSlot = null }: S
         </nav>
 
         <div className="site-header-tools">
+          <ThemeToggle />
           <NotificationBell />
           <div className="site-header-account">
             <TopbarAccount />

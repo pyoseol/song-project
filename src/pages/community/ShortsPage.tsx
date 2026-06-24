@@ -15,6 +15,7 @@ import {
   readShortVideoFile,
 } from '../../utils/shortsVideoStorage';
 import { uploadShortAudioOnServer, uploadShortVideoOnServer } from '../../utils/shortsApi';
+import { isFirebaseConfigured } from '../../firebase';
 import './ShortsPage.css';
 
 type ShortsFilter = 'all' | 'mine' | 'liked';
@@ -36,6 +37,29 @@ type ShortsFormState = {
 
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
 const MAX_AUDIO_SIZE = 15 * 1024 * 1024;
+
+function getShortUploadErrorMessage(error: unknown) {
+  const code =
+    typeof error === 'object' && error && 'code' in error
+      ? String((error as { code?: unknown }).code ?? '')
+      : '';
+
+  if (code.includes('storage/unauthorized') || code.includes('permission-denied')) {
+    return '업로드 권한이 없습니다. Firebase 로그인 상태와 Storage/Firestore 규칙을 확인해 주세요.';
+  }
+
+  if (code.includes('storage/quota-exceeded')) {
+    return 'Firebase Storage 용량이 부족해 업로드하지 못했습니다.';
+  }
+
+  if (code.includes('storage/retry-limit-exceeded') || code.includes('network')) {
+    return '네트워크 연결이 불안정합니다. 잠시 후 다시 시도해 주세요.';
+  }
+
+  return error instanceof Error
+    ? `숏폼 등록에 실패했습니다: ${error.message}`
+    : '숏폼 등록에 실패했습니다. Firebase 설정과 업로드 권한을 확인해 주세요.';
+}
 
 const FILTER_OPTIONS: Array<{ key: ShortsFilter; label: string }> = [
   { key: 'all', label: '전체' },
@@ -172,6 +196,7 @@ export default function ShortsPage() {
     {}
   );
   const [formError, setFormError] = useState('');
+  const [isSubmittingShort, setIsSubmittingShort] = useState(false);
   const [animatedLikeShortId, setAnimatedLikeShortId] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement | null>(null);
   const reelRefs = useRef<Array<HTMLElement | null>>([]);
@@ -602,8 +627,19 @@ export default function ShortsPage() {
   const handleSubmitShort = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (isSubmittingShort) {
+      return;
+    }
+
     if (!user) {
       navigate('/login');
+      return;
+    }
+
+    if (!isFirebaseConfigured) {
+      setFormError(
+        'Firebase 설정이 비어 있어 업로드할 수 없습니다. .env.local의 VITE_FIREBASE_* 항목을 입력해 주세요.'
+      );
       return;
     }
 
@@ -640,6 +676,9 @@ export default function ShortsPage() {
     let audioFileName = editingShort?.audioFileName;
     let audioSizeBytes = editingShort?.audioSizeBytes;
 
+    setFormError('');
+    setIsSubmittingShort(true);
+
     try {
       if (uploadedVideoFile) {
         const upload = await uploadShortVideoOnServer({
@@ -662,76 +701,76 @@ export default function ShortsPage() {
         audioFileName = uploadedAudioFile.name;
         audioSizeBytes = uploadedAudioFile.size;
       }
+
+      if (!videoStorageKey && !videoUrl) {
+        throw new Error('업로드할 영상을 선택해 주세요.');
+      }
+
+      if (editingShortId) {
+        await updateShort({
+          shortId: editingShortId,
+          creatorEmail: user.email,
+          title,
+          description,
+          tags,
+          durationLabel,
+          tone: formState.tone,
+          visibility: formState.visibility,
+          videoUrl,
+          videoStorageKey,
+          videoFileName,
+          videoSizeBytes,
+          audioUrl,
+          audioStorageKey,
+          audioFileName,
+          audioSizeBytes,
+        });
+
+        pushNotification({
+          kind: 'shorts',
+          title: '숏폼 수정 완료',
+          body: `"${title}" 숏폼 내용을 업데이트했어요.`,
+          route: '/community/shorts',
+          actorName: user.name,
+        });
+      } else {
+        await createShort({
+          title,
+          description,
+          creatorName: user.name,
+          creatorEmail: user.email,
+          tags,
+          durationLabel,
+          visibility: formState.visibility,
+          tone: formState.tone,
+          videoUrl,
+          videoStorageKey,
+          videoFileName,
+          videoSizeBytes,
+          audioUrl,
+          audioStorageKey,
+          audioFileName,
+          audioSizeBytes,
+        });
+
+        pushNotification({
+          kind: 'shorts',
+          title: '숏폼 업로드 완료',
+          body: `"${title}" 숏폼을 업로드했어요.`,
+          route: '/profile',
+          actorName: user.name,
+        });
+      }
+
+      closeModal();
+      setSelectedFilter('all');
+      setActiveIndex(0);
     } catch (error) {
       console.error(error);
-      setFormError('영상을 저장하지 못했습니다. 브라우저 저장 공간을 확인해 주세요.');
-      return;
+      setFormError(getShortUploadErrorMessage(error));
+    } finally {
+      setIsSubmittingShort(false);
     }
-
-    if (!videoStorageKey && !videoUrl) {
-      setFormError('업로드할 영상을 선택해 주세요.');
-      return;
-    }
-
-    if (editingShortId) {
-      await updateShort({
-        shortId: editingShortId,
-        creatorEmail: user.email,
-        title,
-        description,
-        tags,
-        durationLabel,
-        tone: formState.tone,
-        visibility: formState.visibility,
-        videoUrl,
-        videoStorageKey,
-        videoFileName,
-        videoSizeBytes,
-        audioUrl,
-        audioStorageKey,
-        audioFileName,
-        audioSizeBytes,
-      });
-
-      pushNotification({
-        kind: 'shorts',
-        title: '숏폼 수정 완료',
-        body: `"${title}" 숏폼 내용을 업데이트했어요.`,
-        route: '/community/shorts',
-        actorName: user.name,
-      });
-    } else {
-      await createShort({
-        title,
-        description,
-        creatorName: user.name,
-        creatorEmail: user.email,
-        tags,
-        durationLabel,
-        visibility: formState.visibility,
-        tone: formState.tone,
-        videoUrl,
-        videoStorageKey,
-        videoFileName,
-        videoSizeBytes,
-        audioUrl,
-        audioStorageKey,
-        audioFileName,
-        audioSizeBytes,
-      });
-
-      pushNotification({
-        kind: 'shorts',
-        title: '숏폼 업로드 완료',
-        body: `"${title}" 숏폼을 업로드했어요.`,
-        route: '/profile',
-        actorName: user.name,
-      });
-    }
-
-    closeModal();
-    setSelectedFilter('all');
-    setActiveIndex(0);
   };
 
   const handleToggleLike = async (short: ShortItem) => {
@@ -1407,8 +1446,13 @@ export default function ShortsPage() {
                 <button
                   type="submit"
                   className="shorts-modal-button is-primary"
+                  disabled={isSubmittingShort}
                 >
-                  {editingShortId ? '수정 저장' : '숏폼 등록'}
+                  {isSubmittingShort
+                    ? '업로드 중...'
+                    : editingShortId
+                      ? '수정 저장'
+                      : '숏폼 등록'}
                 </button>
               </div>
             </form>

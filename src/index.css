@@ -28,6 +28,32 @@
   --accent-soft: #dbeafe;
 }
 
+html {
+  background: #0b0d14;
+}
+
+html[data-theme="light"] {
+  background: #f4f6fa;
+  --product-bg: #f4f6fa;
+  --product-surface: rgba(255, 255, 255, 0.88);
+  --product-surface-strong: rgba(255, 255, 255, 0.97);
+  --product-border: rgba(35, 48, 72, 0.12);
+  --product-text: #172033;
+  --product-muted: #657086;
+  --product-shadow: 0 22px 58px rgba(38, 54, 82, 0.12);
+  --bg-main: #ffffff;
+  --bg-soft: #f4f6fa;
+  --bg-panel: #ffffff;
+  --border-light: #dce2eb;
+  --border-soft: #e9edf3;
+  --text-main: #172033;
+  --text-sub: #68748a;
+}
+
+html[data-theme="light"] body {
+  background: #f4f6fa;
+}
+
 *,
 *::before,
 *::after {

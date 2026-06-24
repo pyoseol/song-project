@@ -30,6 +30,7 @@ export default function AirGuitar() {
   const [isStrumMode, setIsStrumMode] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedMode, setRecordedMode] = useState<AirInstrumentMode | null>(null);
+  const [isStarted, setIsStarted] = useState(false);
 
   useEffect(() => {
     const handleStateChange = (event: Event) => {
@@ -90,6 +91,7 @@ export default function AirGuitar() {
                   key={mode.key}
                   type="button"
                   className={activeMode === mode.key ? 'is-active' : ''}
+                  disabled={!isStarted}
                   onClick={() => sendAirInstrumentKey(mode.eventKey)}
                 >
                   {mode.label}
@@ -100,7 +102,7 @@ export default function AirGuitar() {
             <button
               type="button"
               className={`air-instrument-strum-button${isStrumMode ? ' is-active' : ''}`}
-              disabled={activeMode !== 'guitar'}
+              disabled={!isStarted || activeMode !== 'guitar'}
               onClick={() => sendAirInstrumentKey('m')}
             >
               {isStrumMode ? '스트럼' : '줄 연주'}
@@ -108,6 +110,7 @@ export default function AirGuitar() {
             <button
               type="button"
               className={`air-instrument-record-button${isRecording ? ' is-recording' : ''}`}
+              disabled={!isStarted}
               onClick={handleToggleRecording}
             >
               {isRecording ? '녹음 중지' : '에어 녹음'}
@@ -124,7 +127,25 @@ export default function AirGuitar() {
         </div>
 
         <section className="air-instrument-stage" aria-label="에어 악기 연주 화면">
-          <HandTracker />
+          {isStarted ? (
+            <HandTracker />
+          ) : (
+            <div className="air-instrument-start-screen">
+              <span className="air-instrument-start-kicker">AIR INSTRUMENT</span>
+              <h1>카메라로 악기를 연주해 보세요</h1>
+              <p>
+                시작 버튼을 누르면 카메라 권한을 요청하고 손동작 인식을 시작합니다.
+              </p>
+              <button
+                type="button"
+                className="air-instrument-start-button"
+                onClick={() => setIsStarted(true)}
+              >
+                에어 악기 시작하기
+              </button>
+              <small>카메라 영상은 브라우저 안에서만 사용됩니다.</small>
+            </div>
+          )}
         </section>
       </main>
     </div>

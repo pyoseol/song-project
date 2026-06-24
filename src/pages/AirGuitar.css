@@ -146,18 +146,94 @@
 }
 
 .air-instrument-strum-button:disabled,
+.air-instrument-record-button:disabled,
+.air-instrument-segmented button:disabled,
 .air-instrument-apply-button:disabled {
   cursor: not-allowed;
   opacity: 0.42;
 }
 
 .air-instrument-stage {
+  position: relative;
   min-height: 0;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   background: #0c0e12;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.air-instrument-start-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 32px;
+  background:
+    radial-gradient(circle at 50% 36%, rgba(99, 230, 190, 0.13), transparent 28%),
+    linear-gradient(180deg, #10151d, #090c11);
+  color: #f6f9fc;
+  text-align: center;
+}
+
+.air-instrument-start-kicker {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 11px;
+  border: 1px solid rgba(99, 230, 190, 0.2);
+  border-radius: 999px;
+  background: rgba(99, 230, 190, 0.1);
+  color: #a9ead7;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.air-instrument-start-screen h1 {
+  margin: 18px 0 0;
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1.15;
+  letter-spacing: -0.05em;
+}
+
+.air-instrument-start-screen p {
+  max-width: 520px;
+  margin: 14px 0 0;
+  color: #b4c0d0;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.air-instrument-start-button {
+  min-width: 210px;
+  min-height: 52px;
+  margin-top: 26px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #65e9c1, #27b88d);
+  color: #0d2c23;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 16px 34px rgba(39, 184, 141, 0.24);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.air-instrument-start-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px rgba(39, 184, 141, 0.3);
+}
+
+.air-instrument-start-screen small {
+  margin-top: 14px;
+  color: #7f8da1;
+  font-size: 11px;
 }
 
 .air-hand-tracker {

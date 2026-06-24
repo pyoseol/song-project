@@ -15,6 +15,8 @@ const FIREBASE_ENV_KEYS = [
 
 warnMissingEnv(FIREBASE_ENV_KEYS, "Firebase");
 
+export const isFirebaseConfigured = FIREBASE_ENV_KEYS.every((key) => Boolean(readEnv(key)));
+
 const projectId = readEnv("VITE_FIREBASE_PROJECT_ID") || "music-web-final";
 
 const firebaseConfig = {

@@ -1060,6 +1060,24 @@ html[data-theme="light"] :is(.collab-source-card, .collab-project-card):hover {
   box-shadow: var(--light-shadow-hover) !important;
 }
 
+html[data-theme="light"] .collab-source-card strong {
+  color: #172238 !important;
+  font-weight: 850 !important;
+}
+
+html[data-theme="light"] .collab-source-card span {
+  color: #46566d !important;
+  font-weight: 750 !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="light"] .collab-primary-button {
+  border-color: transparent !important;
+  background: linear-gradient(135deg, #36c99f, #1ba77f) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 20px rgba(27, 167, 127, 0.18) !important;
+}
+
 html[data-theme="light"] .collab-hub-tabs {
   border-color: var(--light-border) !important;
   background: #ffffff !important;

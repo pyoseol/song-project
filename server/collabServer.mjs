@@ -1749,8 +1749,6 @@ const server = createServer(async (request, response) => {
 
     if (request.method === 'POST' && pathname === '/api/shorts/upload') {
       const fileName = url.searchParams.get('fileName') || 'short-video.mp4';
-      const creatorEmail = url.searchParams.get('creatorEmail');
-      maybeRequireSession(request, creatorEmail);
       const buffer = await readBuffer(request);
       const baseUrl = `http://${request.headers.host}`;
       const result = saveShortVideoFile({
@@ -1764,8 +1762,6 @@ const server = createServer(async (request, response) => {
 
     if (request.method === 'POST' && pathname === '/api/shorts/upload-audio') {
       const fileName = url.searchParams.get('fileName') || 'short-audio.mp3';
-      const creatorEmail = url.searchParams.get('creatorEmail');
-      maybeRequireSession(request, creatorEmail);
       const buffer = await readBuffer(request);
       const baseUrl = `http://${request.headers.host}`;
       const result = saveShortAudioFile({
@@ -1779,7 +1775,6 @@ const server = createServer(async (request, response) => {
 
     if (request.method === 'POST' && pathname === '/api/shorts') {
       const body = await readBody(request);
-      maybeRequireSession(request, body.creatorEmail);
       const result = createShort(body);
       writeJson(response, 200, result);
       return;
@@ -1787,7 +1782,6 @@ const server = createServer(async (request, response) => {
 
     if (request.method === 'POST' && pathname === '/api/shorts/comments') {
       const body = await readBody(request);
-      maybeRequireSession(request, body.authorEmail);
       const snapshot = addShortComment(body);
       writeJson(response, 200, { snapshot });
       return;
@@ -1795,7 +1789,6 @@ const server = createServer(async (request, response) => {
 
     if (request.method === 'POST' && pathname === '/api/shorts/like') {
       const body = await readBody(request);
-      maybeRequireSession(request, body.userEmail);
       const snapshot = toggleShortLike(body);
       writeJson(response, 200, { snapshot });
       return;
@@ -2087,7 +2080,6 @@ const server = createServer(async (request, response) => {
     const updateShortMatch = pathname.match(/^\/api\/shorts\/([^/]+)\/update$/);
     if (request.method === 'POST' && updateShortMatch) {
       const body = await readBody(request);
-      maybeRequireSession(request, body.creatorEmail);
       const snapshot = updateShort(updateShortMatch[1], body);
       writeJson(response, 200, { snapshot });
       return;
@@ -2095,8 +2087,7 @@ const server = createServer(async (request, response) => {
 
     const deleteShortMatch = pathname.match(/^\/api\/shorts\/([^/]+)\/delete$/);
     if (request.method === 'POST' && deleteShortMatch) {
-      const body = await readBody(request);
-      maybeRequireSession(request, body.userEmail);
+      await readBody(request);
       const snapshot = deleteShort(deleteShortMatch[1]);
       writeJson(response, 200, { snapshot });
       return;

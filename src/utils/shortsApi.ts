@@ -48,6 +48,13 @@ async function uploadShortFile(
     throw new Error(payload?.error || '숏폼 파일 업로드에 실패했습니다.');
   }
 
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(
+      `숏폼 API 서버 주소가 올바르지 않습니다. 현재 서버 주소(${APP_SERVER_URL})와 실행 포트 8788을 확인해 주세요.`
+    );
+  }
+
   const payload = (await response.json()) as UploadResponse;
   const url = kind === 'video' ? payload.videoUrl : payload.audioUrl;
   const storageKey =

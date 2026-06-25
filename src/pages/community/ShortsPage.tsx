@@ -15,7 +15,6 @@ import {
   readShortVideoFile,
 } from '../../utils/shortsVideoStorage';
 import { uploadShortAudioOnServer, uploadShortVideoOnServer } from '../../utils/shortsApi';
-import { isFirebaseConfigured } from '../../firebase';
 import './ShortsPage.css';
 
 type ShortsFilter = 'all' | 'mine' | 'liked';
@@ -45,11 +44,11 @@ function getShortUploadErrorMessage(error: unknown) {
       : '';
 
   if (code.includes('storage/unauthorized') || code.includes('permission-denied')) {
-    return '업로드 권한이 없습니다. Firebase 로그인 상태와 Storage/Firestore 규칙을 확인해 주세요.';
+    return '업로드 권한이 없습니다. 다시 로그인한 뒤 시도해 주세요.';
   }
 
   if (code.includes('storage/quota-exceeded')) {
-    return 'Firebase Storage 용량이 부족해 업로드하지 못했습니다.';
+    return '저장 공간이 부족해 업로드하지 못했습니다.';
   }
 
   if (code.includes('storage/retry-limit-exceeded') || code.includes('network')) {
@@ -58,7 +57,7 @@ function getShortUploadErrorMessage(error: unknown) {
 
   return error instanceof Error
     ? `숏폼 등록에 실패했습니다: ${error.message}`
-    : '숏폼 등록에 실패했습니다. Firebase 설정과 업로드 권한을 확인해 주세요.';
+    : '숏폼 등록에 실패했습니다. 로그인 상태와 업로드 서버를 확인해 주세요.';
 }
 
 const FILTER_OPTIONS: Array<{ key: ShortsFilter; label: string }> = [
@@ -633,13 +632,6 @@ export default function ShortsPage() {
 
     if (!user) {
       navigate('/login');
-      return;
-    }
-
-    if (!isFirebaseConfigured) {
-      setFormError(
-        'Firebase 설정이 비어 있어 업로드할 수 없습니다. .env.local의 VITE_FIREBASE_* 항목을 입력해 주세요.'
-      );
       return;
     }
 

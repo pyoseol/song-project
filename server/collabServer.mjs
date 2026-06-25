@@ -67,7 +67,9 @@ import {
   deleteShort,
   getShortsSnapshot,
   recordShortView,
+  saveShortAudioFile,
   saveShortVideoFile,
+  serveShortAudioUpload,
   serveShortUpload,
   toggleShortLike,
   updateShort,
@@ -1284,6 +1286,19 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  const shortAudioUploadMatch = pathname.match(/^\/uploads\/shorts-audio\/([^/]+)$/);
+  if (request.method === 'GET' && shortAudioUploadMatch) {
+    const served = serveShortAudioUpload(
+      request,
+      response,
+      decodeURIComponent(shortAudioUploadMatch[1])
+    );
+    if (!served) {
+      writeJson(response, 404, { error: '업로드한 숏폼 오디오를 찾을 수 없습니다.' });
+    }
+    return;
+  }
+
   const musicShareUploadMatch = pathname.match(/^\/uploads\/music-share\/([^/]+)$/);
   if (request.method === 'GET' && musicShareUploadMatch) {
     const served = serveMusicShareUpload(
@@ -1739,6 +1754,21 @@ const server = createServer(async (request, response) => {
       const buffer = await readBuffer(request);
       const baseUrl = `http://${request.headers.host}`;
       const result = saveShortVideoFile({
+        buffer,
+        fileName,
+        baseUrl,
+      });
+      writeJson(response, 200, result);
+      return;
+    }
+
+    if (request.method === 'POST' && pathname === '/api/shorts/upload-audio') {
+      const fileName = url.searchParams.get('fileName') || 'short-audio.mp3';
+      const creatorEmail = url.searchParams.get('creatorEmail');
+      maybeRequireSession(request, creatorEmail);
+      const buffer = await readBuffer(request);
+      const baseUrl = `http://${request.headers.host}`;
+      const result = saveShortAudioFile({
         buffer,
         fileName,
         baseUrl,

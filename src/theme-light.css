@@ -58,6 +58,64 @@ html[data-theme="light"] :is(
   color: #172033 !important;
 }
 
+html[data-theme="light"] .air-instrument-toolbar {
+  border-color: var(--light-border) !important;
+  background: #ffffff !important;
+  box-shadow: 0 12px 30px rgba(35, 52, 80, 0.1) !important;
+}
+
+html[data-theme="light"] .air-instrument-title span {
+  color: #08775b !important;
+}
+
+html[data-theme="light"] .air-instrument-title strong {
+  color: #172238 !important;
+}
+
+html[data-theme="light"] :is(
+  .air-instrument-back-button,
+  .air-instrument-play-button,
+  .air-instrument-segmented button,
+  .air-instrument-strum-button,
+  .air-instrument-record-button
+) {
+  border-color: var(--light-border-strong) !important;
+  background: #f7f9fc !important;
+  color: #354158 !important;
+}
+
+html[data-theme="light"] .air-instrument-play-button {
+  border-color: rgba(22, 134, 106, 0.3) !important;
+  background: var(--light-accent-soft) !important;
+  color: #08775b !important;
+}
+
+html[data-theme="light"] .air-instrument-play-button span {
+  color: #08775b !important;
+}
+
+html[data-theme="light"] .air-instrument-play-button.is-playing {
+  border-color: rgba(202, 65, 65, 0.25) !important;
+  background: #fff0f0 !important;
+  color: #b73535 !important;
+}
+
+html[data-theme="light"] .air-instrument-play-button.is-playing span {
+  color: #b73535 !important;
+}
+
+html[data-theme="light"] .air-instrument-segmented {
+  border-color: var(--light-border) !important;
+  background: #eef2f7 !important;
+}
+
+html[data-theme="light"] .air-instrument-segmented button.is-active,
+html[data-theme="light"] .air-instrument-strum-button.is-active {
+  border-color: rgba(22, 134, 106, 0.3) !important;
+  background: var(--light-accent-soft) !important;
+  color: #08775b !important;
+}
+
 html[data-theme="light"] .site-header {
   border-bottom-color: rgba(31, 44, 67, 0.11) !important;
   background: rgba(255, 255, 255, 0.9) !important;
@@ -1245,6 +1303,54 @@ html[data-theme="light"] .community-post-row:hover {
   background: #f4fbf8 !important;
 }
 
+html[data-theme="light"] .community-post-title {
+  color: #172238 !important;
+  font-weight: 800 !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="light"] .community-post-meta {
+  color: #56657b !important;
+  font-weight: 650 !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="light"] .community-post-meta span {
+  color: #56657b !important;
+}
+
+html[data-theme="light"] .community-post-tag {
+  border: 1px solid rgba(22, 134, 106, 0.14) !important;
+  background: #e8f8f3 !important;
+  color: #08775b !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="light"] .community-post-rank {
+  color: #667389 !important;
+}
+
+html[data-theme="light"] .community-post-rank.is-top {
+  color: #d99012 !important;
+}
+
+html[data-theme="light"] .community-post-stat {
+  color: #354158 !important;
+}
+
+html[data-theme="light"] .community-post-stat :is(svg, path) {
+  color: #657187 !important;
+  stroke: currentColor !important;
+}
+
+html[data-theme="light"] .community-post-stat strong {
+  color: #26344b !important;
+}
+
+html[data-theme="light"] .community-post-stat.is-like :is(svg, path) {
+  color: #d99012 !important;
+}
+
 html[data-theme="light"] .community-empty-state {
   background: #ffffff !important;
   color: var(--light-text-soft) !important;
@@ -1651,11 +1757,27 @@ html[data-theme="light"] .community-detail-panel-head strong {
 html[data-theme="light"] :is(
   .community-detail-summary,
   .community-detail-meta,
-  .community-detail-content,
-  .community-detail-content p,
   .community-detail-stat-label
 ) {
   color: var(--light-text-soft) !important;
+}
+
+html[data-theme="light"] .community-detail-summary {
+  color: #56657b !important;
+  font-weight: 600 !important;
+}
+
+html[data-theme="light"] .community-detail-meta,
+html[data-theme="light"] .community-detail-meta :is(span, time) {
+  color: #536177 !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="light"] .community-detail-content,
+html[data-theme="light"] .community-detail-content p {
+  color: #26344b !important;
+  font-weight: 550 !important;
+  opacity: 1 !important;
 }
 
 html[data-theme="light"] .community-detail-stat-card {
@@ -1697,7 +1819,8 @@ html[data-theme="light"] :is(
 html[data-theme="light"] .community-detail-comment-open-button {
   border-color: var(--light-border) !important;
   background: #ffffff !important;
-  color: #657187 !important;
+  color: #46536a !important;
+  font-weight: 750 !important;
 }
 
 html[data-theme="light"] :is(
@@ -1759,13 +1882,34 @@ html[data-theme="light"] :is(
 
 html[data-theme="light"] :is(
   .community-detail-comment-head span,
-  .community-detail-comment-copy p,
   .community-detail-side-author span,
   .community-detail-info-item span,
   .community-detail-side-card p,
   .community-detail-empty-card p
 ) {
   color: var(--light-text-soft) !important;
+}
+
+html[data-theme="light"] .community-detail-comment-copy p {
+  color: #354158 !important;
+  font-weight: 550 !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="light"] .community-detail-comment-head strong {
+  color: #172238 !important;
+}
+
+html[data-theme="light"] .community-detail-comment-head span {
+  color: #657187 !important;
+}
+
+html[data-theme="light"] .community-detail-comment-avatar,
+html[data-theme="light"] .community-detail-meta-avatar {
+  border-color: #cbd5e2 !important;
+  background: #e8eef9 !important;
+  color: #5367b5 !important;
+  opacity: 1 !important;
 }
 
 html[data-theme="light"] .community-detail-info-item {

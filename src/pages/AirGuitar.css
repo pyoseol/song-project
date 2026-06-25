@@ -29,6 +29,7 @@
 }
 
 .air-instrument-back-button,
+.air-instrument-play-button,
 .air-instrument-segmented button,
 .air-instrument-strum-button,
 .air-instrument-record-button,
@@ -54,6 +55,7 @@
 }
 
 .air-instrument-back-button:hover,
+.air-instrument-play-button:hover,
 .air-instrument-segmented button:hover,
 .air-instrument-strum-button:hover:not(:disabled),
 .air-instrument-record-button:hover:not(:disabled),
@@ -61,6 +63,33 @@
   transform: translateY(-1px);
   border-color: rgba(159, 245, 109, 0.3);
   color: #ffffff;
+}
+
+.air-instrument-play-button {
+  display: inline-flex;
+  min-width: 108px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-color: rgba(99, 230, 190, 0.28);
+  background: rgba(99, 230, 190, 0.1);
+  color: #caffef;
+}
+
+.air-instrument-play-button span {
+  color: #63e6be;
+  font-size: 12px;
+}
+
+.air-instrument-play-button.is-playing {
+  border-color: rgba(255, 118, 118, 0.38);
+  background: rgba(255, 118, 118, 0.14);
+  color: #ffd0d0;
+}
+
+.air-instrument-play-button.is-playing span {
+  color: #ff8e8e;
 }
 
 .air-instrument-title {

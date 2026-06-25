@@ -16,6 +16,7 @@ const __dirname = dirname(__filename);
 
 const SHORTS_LEGACY_DATA_PATH = join(__dirname, 'shorts-data.json');
 const SHORTS_UPLOAD_DIR = join(__dirname, 'uploads', 'shorts');
+const SHORTS_AUDIO_UPLOAD_DIR = join(__dirname, 'uploads', 'shorts-audio');
 
 function createId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -29,6 +30,10 @@ function ensureDirs() {
 
   if (!existsSync(SHORTS_UPLOAD_DIR)) {
     mkdirSync(SHORTS_UPLOAD_DIR, { recursive: true });
+  }
+
+  if (!existsSync(SHORTS_AUDIO_UPLOAD_DIR)) {
+    mkdirSync(SHORTS_AUDIO_UPLOAD_DIR, { recursive: true });
   }
 }
 
@@ -147,13 +152,17 @@ function buildUploadUrl(baseUrl, fileName) {
   return `${baseUrl}/uploads/shorts/${encodeURIComponent(fileName)}`;
 }
 
-function deleteUploadIfManaged(storageKey) {
+function buildAudioUploadUrl(baseUrl, fileName) {
+  return `${baseUrl}/uploads/shorts-audio/${encodeURIComponent(fileName)}`;
+}
+
+function deleteUploadIfManaged(storageKey, uploadDir = SHORTS_UPLOAD_DIR) {
   const key = normalizeText(storageKey);
   if (!key) {
     return;
   }
 
-  const filePath = join(SHORTS_UPLOAD_DIR, key);
+  const filePath = join(uploadDir, key);
   if (existsSync(filePath)) {
     try {
       unlinkSync(filePath);
@@ -187,6 +196,23 @@ export function saveShortVideoFile(payload) {
   };
 }
 
+export function saveShortAudioFile(payload) {
+  ensureDirs();
+  const ext = extname(payload.fileName || '').toLowerCase();
+  const safeExt = ext === '.mp3' ? ext : '.mp3';
+  const storageKey = `${createId('short-audio')}${safeExt}`;
+  const filePath = join(SHORTS_AUDIO_UPLOAD_DIR, storageKey);
+
+  writeFileSync(filePath, payload.buffer);
+
+  return {
+    audioUrl: buildAudioUploadUrl(payload.baseUrl, storageKey),
+    audioStorageKey: storageKey,
+    audioFileName: payload.fileName || storageKey,
+    audioSizeBytes: payload.buffer.length,
+  };
+}
+
 export function createShort(payload) {
   const short = {
     id: createId('short'),
@@ -206,6 +232,10 @@ export function createShort(payload) {
     videoStorageKey: payload.videoStorageKey,
     videoFileName: payload.videoFileName,
     videoSizeBytes: payload.videoSizeBytes,
+    audioUrl: payload.audioUrl,
+    audioStorageKey: payload.audioStorageKey,
+    audioFileName: payload.audioFileName,
+    audioSizeBytes: payload.audioSizeBytes,
   };
 
   state = {
@@ -239,6 +269,10 @@ export function updateShort(shortId, payload) {
             videoStorageKey: payload.videoStorageKey ?? short.videoStorageKey,
             videoFileName: payload.videoFileName ?? short.videoFileName,
             videoSizeBytes: payload.videoSizeBytes ?? short.videoSizeBytes,
+            audioUrl: payload.audioUrl ?? short.audioUrl,
+            audioStorageKey: payload.audioStorageKey ?? short.audioStorageKey,
+            audioFileName: payload.audioFileName ?? short.audioFileName,
+            audioSizeBytes: payload.audioSizeBytes ?? short.audioSizeBytes,
           }
         : short
     ),
@@ -252,6 +286,14 @@ export function updateShort(shortId, payload) {
     deleteUploadIfManaged(existingShort.videoStorageKey);
   }
 
+  if (
+    existingShort?.audioStorageKey &&
+    payload.audioStorageKey &&
+    existingShort.audioStorageKey !== payload.audioStorageKey
+  ) {
+    deleteUploadIfManaged(existingShort.audioStorageKey, SHORTS_AUDIO_UPLOAD_DIR);
+  }
+
   saveState();
   return getShortsSnapshot();
 }
@@ -260,6 +302,9 @@ export function deleteShort(shortId) {
   const target = state.shorts.find((short) => short.id === shortId);
   if (target?.videoStorageKey) {
     deleteUploadIfManaged(target.videoStorageKey);
+  }
+  if (target?.audioStorageKey) {
+    deleteUploadIfManaged(target.audioStorageKey, SHORTS_AUDIO_UPLOAD_DIR);
   }
 
   state = {
@@ -361,6 +406,40 @@ export function serveShortUpload(request, response, fileName) {
   response.setHeader('Access-Control-Allow-Origin', '*');
   response.setHeader('Accept-Ranges', 'bytes');
   response.setHeader('Content-Type', contentType);
+
+  if (range) {
+    const [startText, endText] = range.replace(/bytes=/, '').split('-');
+    const start = Number(startText || 0);
+    const end = endText ? Number(endText) : stats.size - 1;
+    const stream = createReadStream(filePath, { start, end });
+
+    response.writeHead(206, {
+      'Content-Range': `bytes ${start}-${end}/${stats.size}`,
+      'Content-Length': end - start + 1,
+    });
+    stream.pipe(response);
+    return true;
+  }
+
+  response.writeHead(200, {
+    'Content-Length': stats.size,
+  });
+  createReadStream(filePath).pipe(response);
+  return true;
+}
+
+export function serveShortAudioUpload(request, response, fileName) {
+  const filePath = join(SHORTS_AUDIO_UPLOAD_DIR, fileName);
+  if (!existsSync(filePath)) {
+    return false;
+  }
+
+  const stats = statSync(filePath);
+  const range = request.headers.range;
+
+  response.setHeader('Access-Control-Allow-Origin', '*');
+  response.setHeader('Accept-Ranges', 'bytes');
+  response.setHeader('Content-Type', 'audio/mpeg');
 
   if (range) {
     const [startText, endText] = range.replace(/bytes=/, '').split('-');

@@ -1000,11 +1000,48 @@ html[data-theme="light"] :is(
 html[data-theme="light"] :is(
   .collab-project-copy p,
   .collab-project-date,
-  .collab-project-meta,
-  .collab-project-tags,
   .collab-panel-note
 ) {
   color: var(--light-text-soft) !important;
+}
+
+html[data-theme="light"] .collab-project-copy h2 {
+  color: #172238 !important;
+}
+
+html[data-theme="light"] .collab-project-copy p {
+  color: #56657b !important;
+  font-weight: 600 !important;
+}
+
+html[data-theme="light"] .collab-project-meta span {
+  border-color: #cdd8e5 !important;
+  background: #eef3f8 !important;
+  color: #354158 !important;
+  font-weight: 850 !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="light"] .collab-project-tags span {
+  border-color: rgba(22, 134, 106, 0.2) !important;
+  background: var(--light-accent-soft) !important;
+  color: #08775b !important;
+  font-weight: 800 !important;
+}
+
+html[data-theme="light"] .collab-project-foot {
+  border-top-color: var(--light-border) !important;
+}
+
+html[data-theme="light"] .collab-project-foot strong {
+  color: #26344b !important;
+  font-weight: 850 !important;
+}
+
+html[data-theme="light"] .collab-project-foot span {
+  color: #536177 !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
 }
 
 html[data-theme="light"] :is(

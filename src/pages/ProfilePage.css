@@ -234,7 +234,8 @@
 }
 
 .profile-content {
-  padding-top: 36px;
+  padding-top: 24px;
+  overflow: visible;
 }
 
 .profile-tab-row {
@@ -242,21 +243,28 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin: 0 auto 24px;
-  padding-bottom: 10px;
+  margin: 0 auto 30px;
+  padding: 0 0 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   max-width: 640px;
   overflow-x: auto;
+  overflow-y: visible;
 }
 
 .profile-tab-button {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 120px;
-  padding: 0 8px 10px;
+  min-height: 34px;
+  padding: 0 12px;
   border: 0;
+  border-radius: 12px;
   background: transparent;
   color: #8e949f;
   font-size: 13px;
+  font-weight: 750;
   cursor: pointer;
 }
 
@@ -266,9 +274,9 @@
 
 .profile-tab-button.is-active::after {
   position: absolute;
-  right: 8px;
-  bottom: -11px;
-  left: 8px;
+  right: 12px;
+  bottom: -9px;
+  left: 12px;
   height: 2px;
   border-radius: 999px;
   background: #8fd63e;

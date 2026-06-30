@@ -177,19 +177,15 @@ export const PianoRoll = ({
   const { activeTab } = useUIStore();
   const isBass = activeTab === 'bass';
   const isGuitar = activeTab === 'guitar';
-  const {
-    melody,
-    melodyLengths,
-    bass,
-    steps,
-    noteLyrics,
-    toggleMelody,
-    toggleBass,
-    applyChord,
-    isPlaying,
-    currentStep,
-    setMelodyLyric,
-  } = useSongStore();
+  const melody = useSongStore((state) => state.melody);
+  const melodyLengths = useSongStore((state) => state.melodyLengths);
+  const bass = useSongStore((state) => state.bass);
+  const steps = useSongStore((state) => state.steps);
+  const noteLyrics = useSongStore((state) => state.noteLyrics);
+  const toggleMelody = useSongStore((state) => state.toggleMelody);
+  const toggleBass = useSongStore((state) => state.toggleBass);
+  const applyChord = useSongStore((state) => state.applyChord);
+  const setMelodyLyric = useSongStore((state) => state.setMelodyLyric);
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawValue, setDrawValue] = useState<boolean | null>(null);
@@ -205,6 +201,11 @@ export const PianoRoll = ({
   );
   const activeLockRef = useRef<{ instrument: 'melody' | 'bass'; barIndex: number } | null>(null);
   const melodyScrollerRef = useRef<HTMLDivElement | null>(null);
+  const initialStepRef = useRef(useSongStore.getState().currentStep);
+  const scrollSyncFrameRef = useRef<number | null>(null);
+  const pendingScrollLeftRef = useRef(0);
+  const lastDrawCellRef = useRef<string | null>(null);
+  const lastMelodyDragLengthRef = useRef<number | null>(null);
 
   useEffect(() => {
     const handleGoToFirstBar = () => {
@@ -218,8 +219,25 @@ export const PianoRoll = ({
     window.addEventListener('composer-go-to-first-bar', handleGoToFirstBar);
     return () => {
       window.removeEventListener('composer-go-to-first-bar', handleGoToFirstBar);
+      if (scrollSyncFrameRef.current !== null) {
+        window.cancelAnimationFrame(scrollSyncFrameRef.current);
+        scrollSyncFrameRef.current = null;
+      }
     };
   }, []);
+
+  const syncMelodyScrollLeft = (scrollLeft: number) => {
+    pendingScrollLeftRef.current = scrollLeft;
+
+    if (scrollSyncFrameRef.current !== null) {
+      return;
+    }
+
+    scrollSyncFrameRef.current = window.requestAnimationFrame(() => {
+      scrollSyncFrameRef.current = null;
+      setMelodyScrollLeft(pendingScrollLeftRef.current);
+    });
+  };
 
   const tutorialGhostNoteMap = useMemo(
     () =>
@@ -255,28 +273,31 @@ export const PianoRoll = ({
   const controlBarHeight = isBass ? 0 : MELODY_CONTROL_BAR_HEIGHT;
   const sidebarTopOffset = bodyTopPadding + controlBarHeight + headerHeight + headerMargin;
 
-  useEffect(() => {
-    if (!isPlaying || currentStep % 4 !== 0 || !melodyScrollerRef.current) {
-      return;
+  const melodyNoteInfoMap = useMemo(() => {
+    if (isBass) {
+      return [] as Array<Array<{ start: number; length: number } | null>>;
     }
 
-    const scroller = melodyScrollerRef.current;
-    const stepLeft = currentStep * (stepWidth + gridGap);
-    const visibleStart = scroller.scrollLeft;
-    const visibleEnd = visibleStart + scroller.clientWidth;
-    const margin = stepWidth * 2;
+    return melody.map((row, rowIndex) => {
+      const lengthRow = melodyLengths[rowIndex] ?? [];
+      const infoRow = Array.from({ length: steps }, () => null as { start: number; length: number } | null);
 
-    if (stepLeft >= visibleStart + margin && stepLeft <= visibleEnd - margin) {
-      return;
-    }
+      row.forEach((active, start) => {
+        if (!active) {
+          return;
+        }
 
-    const targetLeft = Math.max(
-      0,
-      stepLeft - scroller.clientWidth / 2 + stepWidth / 2
-    );
+        const length = Math.max(1, lengthRow[start] ?? 1);
+        const end = Math.min(steps, start + length);
 
-    scroller.scrollLeft = targetLeft;
-  }, [currentStep, gridGap, isPlaying, stepWidth]);
+        for (let col = start; col < end; col += 1) {
+          infoRow[col] = { start, length };
+        }
+      });
+
+      return infoRow;
+    });
+  }, [isBass, melody, melodyLengths, steps]);
 
   const releaseActiveLock = () => {
     if (!activeLockRef.current) {
@@ -292,6 +313,8 @@ export const PianoRoll = ({
       setIsDrawing(false);
       setDrawValue(null);
       setDragMelodyOrigin(null);
+      lastDrawCellRef.current = null;
+      lastMelodyDragLengthRef.current = null;
       releaseActiveLock();
       return;
     }
@@ -312,6 +335,8 @@ export const PianoRoll = ({
     setIsDrawing(false);
     setDrawValue(null);
     setDragMelodyOrigin(null);
+    lastDrawCellRef.current = null;
+    lastMelodyDragLengthRef.current = null;
     releaseActiveLock();
   };
 
@@ -360,25 +385,29 @@ export const PianoRoll = ({
     '--piano-sidebar-width': `${isBass ? 102 : 68}px`,
   } as CSSProperties;
 
-  const sidebarNotes = currentLabels.map((note, row) => {
-    const noteStyle = {
-      '--key-accent': getAccentColor(row, isBass, isGuitar),
-    } as CSSProperties;
+  const sidebarNotes = useMemo(
+    () =>
+      currentLabels.map((note, row) => {
+        const noteStyle = {
+          '--key-accent': getAccentColor(row, isBass, isGuitar),
+        } as CSSProperties;
 
-    return (
-      <div
-        key={`label-${modeClass}-${note}`}
-        className={`piano-roll-key is-${modeClass}${
-          !isBass && isSharpNote(note) ? ' is-sharp' : ' is-natural'
-        }`}
-        style={noteStyle}
-      >
-        {note}
-      </div>
-    );
-  });
+        return (
+          <div
+            key={`label-${modeClass}-${note}`}
+            className={`piano-roll-key is-${modeClass}${
+              !isBass && isSharpNote(note) ? ' is-sharp' : ' is-natural'
+            }`}
+            style={noteStyle}
+          >
+            {note}
+          </div>
+        );
+      }),
+    [currentLabels, isBass, isGuitar, modeClass]
+  );
 
-  const stepHeaderButtons = Array.from({ length: steps }).map((_, col) => {
+  const stepHeaderButtons = useMemo(() => Array.from({ length: steps }).map((_, col) => {
     const barLock = collabBarLocks[Math.floor(col / 16)];
     const isLocked = Boolean(barLock && !barLock.mine);
 
@@ -388,7 +417,7 @@ export const PianoRoll = ({
         type="button"
         data-playhead-step={col}
         className={`piano-roll-step-number${
-          col === currentStep ? ' is-current' : ''
+          col === initialStepRef.current ? ' is-current' : ''
         }${getSubdivisionClassName(col)}${isLocked ? ' is-locked' : ''}${
           loopRange && col >= loopRange.start && col <= loopRange.end ? ' is-loop-active' : ''
         }${loopRange?.end === col ? ' is-loop-end' : ''}`}
@@ -399,17 +428,15 @@ export const PianoRoll = ({
         <span className="sr-only">{col + 1}</span>
       </button>
     );
-  });
+  }), [collabBarLocks, loopRange, onStepHeaderSelect, steps]);
 
-  const gridCells = Array.from({ length: rowCount }).flatMap((_, row) =>
+  const gridCells = useMemo(() => Array.from({ length: rowCount }).flatMap((_, row) =>
     Array.from({ length: steps }).map((__, col) => {
-      const melodyNoteInfo = !isBass
-        ? findMelodyNoteInfo(melody[row] ?? [], melodyLengths[row] ?? [], col)
-        : null;
+      const melodyNoteInfo = !isBass ? melodyNoteInfoMap[row]?.[col] ?? null : null;
       const isNoteStart = Boolean(melodyNoteInfo && melodyNoteInfo.start === col);
       const isNoteTail = Boolean(melodyNoteInfo && melodyNoteInfo.start !== col);
       const active = isBass ? bass[row]?.[col] : isNoteStart;
-      const isCurrent = col === currentStep;
+      const isCurrent = col === initialStepRef.current;
       const barIndex = Math.floor(col / 16);
       const barLock = collabBarLocks[barIndex];
       const isLocked = Boolean(barLock && !barLock.mine);
@@ -451,6 +478,7 @@ export const PianoRoll = ({
               releaseActiveLock();
               setIsDrawing(true);
               setDrawValue(target);
+              lastDrawCellRef.current = `${row}-${col}`;
               return;
             }
 
@@ -481,6 +509,8 @@ export const PianoRoll = ({
               setIsDrawing(false);
               setDrawValue(null);
               setDragMelodyOrigin(null);
+              lastDrawCellRef.current = null;
+              lastMelodyDragLengthRef.current = null;
               releaseActiveLock();
               return;
             }
@@ -490,6 +520,8 @@ export const PianoRoll = ({
             setIsDrawing(true);
             setDrawValue(true);
             setDragMelodyOrigin({ row, col });
+            lastDrawCellRef.current = `${row}-${col}`;
+            lastMelodyDragLengthRef.current = melodyNoteLengthSteps;
             pendingMelodyCommitRef.current = {
               row,
               col,
@@ -510,11 +542,23 @@ export const PianoRoll = ({
                 return;
               }
 
-              toggleMelody(row, dragMelodyOrigin.col, col - dragMelodyOrigin.col + 1);
+              const nextLength = col - dragMelodyOrigin.col + 1;
+              if (lastMelodyDragLengthRef.current === nextLength) {
+                return;
+              }
+
+              lastMelodyDragLengthRef.current = nextLength;
+              toggleMelody(row, dragMelodyOrigin.col, nextLength);
               return;
             }
 
             if (isBass) {
+              const drawCellKey = `${row}-${col}`;
+              if (lastDrawCellRef.current === drawCellKey) {
+                return;
+              }
+
+              lastDrawCellRef.current = drawCellKey;
               handleCellChange(row, col, drawValue);
             }
           }}
@@ -586,7 +630,32 @@ export const PianoRoll = ({
         </div>
       );
     })
-  );
+  ), [
+    applyChord,
+    bass,
+    canEditCollab,
+    collabBarLocks,
+    currentLabels,
+    dragMelodyOrigin,
+    drawValue,
+    gridGap,
+    isBass,
+    isDrawing,
+    isGuitar,
+    melodyNoteInfoMap,
+    melodyNoteLengthSteps,
+    modeClass,
+    noteLyrics,
+    onCommitChordOperation,
+    onCommitMelodyOperation,
+    requestCollabBarLock,
+    releaseCollabBarLock,
+    rowCount,
+    setMelodyLyric,
+    steps,
+    toggleBass,
+    toggleMelody,
+  ]);
 
   if (!isBass) {
     return (
@@ -667,11 +736,11 @@ export const PianoRoll = ({
           ref={melodyScrollerRef}
           className="piano-roll-melody-scroller"
           onScroll={(event) => {
-            if (isPlaying) {
+            if (useSongStore.getState().isPlaying) {
               return;
             }
 
-            setMelodyScrollLeft(event.currentTarget.scrollLeft);
+            syncMelodyScrollLeft(event.currentTarget.scrollLeft);
           }}
         >
           <div className="piano-roll-sidebar">
@@ -689,7 +758,7 @@ export const PianoRoll = ({
                 className="piano-roll-playhead piano-roll-playhead--detached"
                 style={
                   {
-                    '--piano-step-index': `${currentStep}`,
+                    '--piano-step-index': `${initialStepRef.current}`,
                   } as CSSProperties
                 }
               />
@@ -732,7 +801,7 @@ export const PianoRoll = ({
             className="piano-roll-playhead"
             style={
               {
-                '--piano-step-index': `${currentStep}`,
+                '--piano-step-index': `${initialStepRef.current}`,
               } as CSSProperties
             }
           />

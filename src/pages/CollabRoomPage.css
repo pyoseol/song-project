@@ -470,20 +470,9 @@
   word-break: keep-all;
 }
 
-.collab-room-side {
-  position: sticky;
-  top: 92px;
-}
-
 .collab-room-side-actions .collab-secondary-button,
 .collab-room-side-actions .collab-primary-button {
   width: 100%;
-}
-
-@media (max-width: 1100px) {
-  .collab-room-side {
-    position: static;
-  }
 }
 
 @media (max-width: 720px) {

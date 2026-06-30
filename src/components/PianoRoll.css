@@ -413,6 +413,7 @@
   display: grid;
   gap: var(--piano-grid-gap);
   width: max-content;
+  contain: layout paint style;
 }
 
 .piano-roll-grid--melody {
@@ -447,15 +448,13 @@
   border-radius: 12px;
   cursor: pointer;
   transition:
-    transform 0.08s ease,
     border-color 0.12s ease,
-    box-shadow 0.12s ease,
     background 0.12s ease;
   box-sizing: border-box;
 }
 
 .piano-roll-cell:hover {
-  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .piano-roll-cell.is-locked,

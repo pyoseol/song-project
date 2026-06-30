@@ -337,7 +337,7 @@ export default function MainPage() {
       <main className="main-shell">
         <section className="main-hero">
           <div className="main-hero-copy">
-            <span className="main-label">SONG PROJECT</span>
+            <span className="main-label">작곡밥</span>
             <h1>아이디어만 있으면 곡 스케치까지 바로.</h1>
             <p>
               멜로디를 찍고, 가사를 얹고, 공유곡을 참고하면서 나만의 곡을 빠르게 만들어보세요.

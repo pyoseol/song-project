@@ -251,7 +251,7 @@ export const GLOCKENSPIEL_SAMPLE_NOTES = [
 ] as const;
 
 export const GLOCKENSPIEL_NOTES = sortNotesHighToLow(
-  transposeSampleNotesToStart(GLOCKENSPIEL_SAMPLE_NOTES, 'C1', 'C5')
+  transposeSampleNotesToStart(GLOCKENSPIEL_SAMPLE_NOTES, 'C1', 'C1')
 ).reverse();
 
 export const PICCOLO_SAMPLE_NOTES = [

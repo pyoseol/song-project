@@ -542,6 +542,7 @@ export function Composer() {
   });
   const isPlayingRef = useRef(false);
   const liveStepElementsRef = useRef<HTMLElement[]>([]);
+  const liveStepElementCacheRef = useRef(new Map<number, HTMLElement[]>());
   const livePianoPlayheadsRef = useRef<HTMLElement[]>([]);
   const liveSequencerPlayheadsRef = useRef<HTMLElement[]>([]);
   const liveScrollerPairsRef = useRef<Array<{ scroller: HTMLElement; header: HTMLElement | null }>>([]);
@@ -960,6 +961,7 @@ export function Composer() {
         element.classList.remove('is-current-live');
       });
       liveStepElementsRef.current = [];
+      liveStepElementCacheRef.current.clear();
     }
   }, [isPlaying]);
 
@@ -1088,11 +1090,19 @@ export function Composer() {
       liveStepElementsRef.current = [];
 
       const highlightedStep = Math.min(steps - 1, Math.max(0, Math.round(step)));
-      const nextLiveElements = [
-        ...document.querySelectorAll<HTMLElement>(
-          `.piano-roll-step-number[data-playhead-step="${highlightedStep}"], .composer-drum-step-number[data-playhead-step="${highlightedStep}"]`
-        ),
-      ];
+      const cachedLiveElements = liveStepElementCacheRef.current.get(highlightedStep);
+      const nextLiveElements =
+        cachedLiveElements ??
+        [
+          ...document.querySelectorAll<HTMLElement>(
+            `.piano-roll-step-number[data-playhead-step="${highlightedStep}"], .composer-drum-step-number[data-playhead-step="${highlightedStep}"]`
+          ),
+        ];
+
+      if (!cachedLiveElements) {
+        liveStepElementCacheRef.current.set(highlightedStep, nextLiveElements);
+      }
+
       nextLiveElements.forEach((element) => {
         element.classList.add('is-current-live');
       });

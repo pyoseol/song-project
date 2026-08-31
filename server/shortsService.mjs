@@ -232,10 +232,6 @@ export function createShort(payload) {
     videoStorageKey: payload.videoStorageKey,
     videoFileName: payload.videoFileName,
     videoSizeBytes: payload.videoSizeBytes,
-    audioUrl: payload.audioUrl,
-    audioStorageKey: payload.audioStorageKey,
-    audioFileName: payload.audioFileName,
-    audioSizeBytes: payload.audioSizeBytes,
   };
 
   state = {

@@ -5,6 +5,7 @@ import SiteHeader from '../components/layout/SiteHeader';
 import { useAuthStore } from '../store/authStore';
 import { useCollabStore, type CollabProject } from '../store/collabStore';
 import { useComposerLibraryStore } from '../store/composerLibraryStore';
+import { isLocalDevelopmentHost } from '../utils/localEnvironment';
 import './CollabPage.css';
 
 const STATUS_LABEL: Record<CollabProject['status'], string> = {
@@ -190,6 +191,10 @@ export default function CollabPage() {
 
   const handleOpenProject = async (project: CollabProject) => {
     if (!user) {
+      if (isLocalDevelopmentHost()) {
+        navigate(`/collab/${project.id}`);
+        return;
+      }
       navigate('/login');
       return;
     }

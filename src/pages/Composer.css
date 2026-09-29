@@ -2188,8 +2188,8 @@
 
 .composer-sequencer-header {
   display: grid;
-  grid-template-columns: 160px max-content;
-  gap: 12px;
+  grid-template-columns: var(--composer-track-panel-width) max-content;
+  gap: 0;
   width: max-content;
   min-width: 100%;
   padding: 18px 0 8px;
@@ -2295,10 +2295,10 @@
   min-width: 0;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
-  scrollbar-gutter: stable both-edges;
+  scrollbar-gutter: auto;
   scrollbar-width: auto;
   scrollbar-color: rgba(148, 163, 184, 0.72) rgba(255, 255, 255, 0.06);
-  padding: 0 18px 18px;
+  padding: 0 18px 18px 0;
 }
 
 .composer-drums-wrap::-webkit-scrollbar {
@@ -2352,8 +2352,8 @@
 }
 
 .composer-sequencer-body {
-  --sequencer-label-width: 160px;
-  --sequencer-label-gap: 12px;
+  --sequencer-label-width: var(--composer-track-panel-width);
+  --sequencer-label-gap: 0px;
   position: relative;
   min-width: 100%;
   width: max-content;
@@ -2405,8 +2405,8 @@
 
 .composer-drum-row {
   display: grid;
-  grid-template-columns: 160px max-content;
-  gap: 12px;
+  grid-template-columns: var(--composer-track-panel-width) max-content;
+  gap: 0;
   align-items: center;
   width: max-content;
   min-width: 100%;
@@ -2885,13 +2885,13 @@
 
   .composer-sequencer-header,
   .composer-drum-row {
-    grid-template-columns: 132px max-content;
-    gap: 10px;
+    grid-template-columns: var(--composer-track-panel-width) max-content;
+    gap: 0;
   }
 
   .composer-sequencer-body {
-    --sequencer-label-width: 132px;
-    --sequencer-label-gap: 10px;
+    --sequencer-label-width: var(--composer-track-panel-width);
+    --sequencer-label-gap: 0px;
   }
 
   .composer-drum-track {
@@ -4854,6 +4854,10 @@ body:has(.composer-page) .site-header .topbar-account-menu {
   box-shadow: inset 3px 0 0 var(--track-color);
 }
 
+.composer-track-row.is-fixed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .composer-track-row.is-mint { --track-color: #39d2aa; }
 .composer-track-row.is-blue { --track-color: #5c93ff; }
 .composer-track-row.is-violet { --track-color: #9c7ae8; }
@@ -5306,10 +5310,10 @@ body:has(.composer-page) .site-header .topbar-account-menu {
 .composer-clip-pitch-line {
   position: absolute;
   z-index: 2;
-  right: 2%;
+  right: 8px;
   bottom: 9px;
-  left: 2%;
-  width: 96%;
+  left: 8px;
+  width: calc(100% - 16px);
   height: 28px;
   overflow: visible;
   pointer-events: none;
@@ -5530,6 +5534,41 @@ body:has(.composer-page) .site-header .topbar-account-menu {
   overflow: clip;
   overscroll-behavior: none;
   padding-top: 0;
+}
+
+.composer-arrangement-stage > :is(
+  .composer-main--melody,
+  .composer-main--violin,
+  .composer-main--saxophone,
+  .composer-main--guitar,
+  .composer-main--bass,
+  .composer-main--glockenspiel,
+  .composer-main--piccolo,
+  .composer-main--supportingPiano,
+  .composer-main--chicagoStreet,
+  .composer-main--studioAltoSax,
+  .composer-main--drums
+) {
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.composer-arrangement-stage > :is(
+  .composer-main--melody,
+  .composer-main--violin,
+  .composer-main--saxophone,
+  .composer-main--guitar,
+  .composer-main--bass,
+  .composer-main--glockenspiel,
+  .composer-main--piccolo,
+  .composer-main--supportingPiano,
+  .composer-main--chicagoStreet,
+  .composer-main--studioAltoSax
+) .composer-roll-shell--melody,
+.composer-arrangement-stage > .composer-main--drums .composer-drum-panel {
+  border: 0;
+  border-radius: 0;
 }
 
 .composer-arrangement-stage > .composer-main--lyrics {

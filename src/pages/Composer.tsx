@@ -63,6 +63,7 @@ import {
 } from '../store/collabStore.ts';
 import {
   DRUM_ROWS,
+  LYRICS_MELODY_TRACK_ID,
   buildSongProjectSnapshot,
   type ExtraInstrumentTrack,
   type InstrumentKey,
@@ -187,7 +188,7 @@ function readComposerNotepadDraft() {
 }
 
 const tabLabels: Record<ComposerTab, string> = {
-  melody: '멜로디',
+  melody: '피아노',
   lyrics: '작사',
   violin: '바이올린',
   saxophone: '색소폰',
@@ -202,7 +203,7 @@ const tabLabels: Record<ComposerTab, string> = {
 };
 
 const tabPickerLabels: Record<ComposerTab, string> = {
-  melody: '멜로디',
+  melody: '피아노',
   lyrics: '작사',
   violin: '바이올린',
   saxophone: '색소폰',
@@ -217,7 +218,7 @@ const tabPickerLabels: Record<ComposerTab, string> = {
 };
 
 const composerInstrumentLabels: Record<ComposerTab, string> = {
-  melody: '멜로디',
+  melody: '피아노',
   lyrics: '작사',
   violin: '바이올린',
   saxophone: '색소폰',
@@ -270,7 +271,7 @@ const tabOrder: ComposerTab[] = [
   'drums',
   'bass',
 ];
-const DEFAULT_OPEN_TABS: ComposerTab[] = ['melody', 'drums', 'bass'];
+const DEFAULT_OPEN_TABS: ComposerTab[] = ['melody', 'drums'];
 
 function includeDefaultComposerTabs(tabs: ComposerTab[]) {
   return [...new Set([...DEFAULT_OPEN_TABS, ...tabs])];
@@ -409,7 +410,9 @@ function hasOnlyMelodyTrackData(state: ReturnType<typeof useSongStore.getState>)
     !hasAnyGridNotes(state.guitar) &&
     !hasAnyGridNotes(state.drums) &&
     !hasAnyGridNotes(state.bass) &&
-    !state.extraTracks.some((track) => hasAnyGridNotes(track.grid))
+    !state.extraTracks.some(
+      (track) => track.id !== LYRICS_MELODY_TRACK_ID && hasAnyGridNotes(track.grid)
+    )
   );
 }
 
@@ -477,6 +480,7 @@ type MelodySequencerOptions = {
   scrollKey?: string;
   noteColorTrackId?: string;
   melodyLengths?: number[][];
+  showLyrics?: boolean;
   noteLengthSteps?: MelodyNoteLengthSteps;
   onNoteLengthChange?: (steps: MelodyNoteLengthSteps) => void;
   showNoteLengthControls?: boolean;
@@ -492,6 +496,8 @@ type ArrangementTrackDefinition = {
   icon: string;
   tab: InstrumentComposerTab;
   tone: 'mint' | 'blue' | 'violet' | 'coral' | 'gold';
+  fixed?: boolean;
+  silent?: boolean;
 };
 
 const arrangementTrackIcons: Record<InstrumentComposerTab, string> = {
@@ -725,6 +731,7 @@ export function Composer() {
     volumes,
     setInstrumentVolume,
     addInstrumentTrack,
+    ensureLyricsMelodyTrack,
     duplicateInstrumentTrack,
     removeInstrumentTrack,
     clearInstrument,
@@ -783,6 +790,11 @@ export function Composer() {
   const serverCollabNoteColors = collabProject?.noteColors ?? EMPTY_COLLAB_NOTE_COLORS;
   const [optimisticCollabNoteColors, setOptimisticCollabNoteColors] =
     useState<OptimisticCollabNoteColors>({});
+
+  useEffect(() => {
+    ensureLyricsMelodyTrack();
+  }, [ensureLyricsMelodyTrack]);
+
   const collabNoteColors = useMemo(() => {
     const merged = { ...serverCollabNoteColors };
     Object.entries(optimisticCollabNoteColors).forEach(([key, color]) => {
@@ -1093,7 +1105,12 @@ export function Composer() {
   }, [openTabsState, tutorialRequested]);
   const getExtraTrackDisplayLabel = useCallback(
     (track: ExtraInstrumentTrack) => {
-      const sameInstrumentTracks = extraTracks.filter((item) => item.instrument === track.instrument);
+      if (track.id === LYRICS_MELODY_TRACK_ID) return '멜로디';
+
+      const sameInstrumentTracks = extraTracks.filter(
+        (item) =>
+          item.id !== LYRICS_MELODY_TRACK_ID && item.instrument === track.instrument
+      );
       const trackIndex = sameInstrumentTracks.findIndex((item) => item.id === track.id);
       const hasPrimaryTrack = ['melody', 'violin', 'saxophone', 'guitar', 'drums', 'bass'].includes(
         track.instrument
@@ -1150,30 +1167,38 @@ export function Composer() {
     ];
     const orderIndex = new Map(arrangementTrackOrder.map((id, index) => [id, index]));
     return items.sort((left, right) => {
+      if (left.trackId === LYRICS_MELODY_TRACK_ID) return -1;
+      if (right.trackId === LYRICS_MELODY_TRACK_ID) return 1;
+
       const leftIndex = orderIndex.get(left.id) ?? Number.MAX_SAFE_INTEGER;
       const rightIndex = orderIndex.get(right.id) ?? Number.MAX_SAFE_INTEGER;
       return leftIndex - rightIndex;
     });
   }, [arrangementTrackOrder, extraTracks, getExtraTrackDisplayLabel, openExtraTrackIds, openTabs]);
   const arrangementVisibleTracks = useMemo<ArrangementTrackDefinition[]>(() => {
-    return openTabItems.flatMap((item) => {
+    const tracks = openTabItems.flatMap((item) => {
       if (item.tab === 'lyrics') return [];
+      const isLyricsMelodyTrack = item.trackId === LYRICS_MELODY_TRACK_ID;
       const baseTrack = !item.trackId
         ? arrangementTrackDefinitions.find((track) => track.tab === item.tab)
         : undefined;
-      const id = baseTrack?.id ?? `added-${item.id}`;
+      const id = isLyricsMelodyTrack ? LYRICS_MELODY_TRACK_ID : baseTrack?.id ?? `added-${item.id}`;
       if (hiddenArrangementTrackIds.has(id)) return [];
 
       return [{
         id,
         key: item.id,
         trackId: item.trackId,
-        label: item.label,
-        icon: baseTrack?.icon ?? arrangementTrackIcons[item.tab as InstrumentComposerTab],
+        label: isLyricsMelodyTrack ? '멜로디' : item.label,
+        icon: isLyricsMelodyTrack ? '🎤' : baseTrack?.icon ?? arrangementTrackIcons[item.tab as InstrumentComposerTab],
         tab: item.tab as InstrumentComposerTab,
         tone: baseTrack?.tone ?? getArrangementTrackTone(item.tab as InstrumentComposerTab),
+        fixed: isLyricsMelodyTrack,
+        silent: isLyricsMelodyTrack,
       }];
     });
+
+    return tracks.sort((left, right) => Number(right.fixed) - Number(left.fixed));
   }, [hiddenArrangementTrackIds, openTabItems]);
   const activeExtraTrack = useMemo(
     () => extraTracks.find((track) => track.id === activeTrackId) ?? null,
@@ -1225,8 +1250,13 @@ export function Composer() {
 
   const melodyLyricNotes = useMemo(() => {
     const items: MelodyLyricNote[] = [];
+    const lyricsMelodyTrack = extraTracks.find(
+      (track) => track.id === LYRICS_MELODY_TRACK_ID
+    );
+    const lyricsMelodyGrid = lyricsMelodyTrack?.grid ?? [];
+    const lyricsMelodyLengths = lyricsMelodyTrack?.melodyLengths ?? [];
 
-    melody.forEach((rowValues, row) => {
+    lyricsMelodyGrid.forEach((rowValues, row) => {
       rowValues.forEach((active, col) => {
         if (!active) {
           return;
@@ -1236,14 +1266,14 @@ export function Composer() {
           row,
           col,
           note: MELODY_NOTES[row] ?? '',
-          length: melodyLengths[row]?.[col] ?? 1,
+          length: lyricsMelodyLengths[row]?.[col] ?? 1,
           lyric: noteLyrics[`${row}-${col}`] ?? '',
         });
       });
     });
 
     return items.sort((left, right) => left.col - right.col || left.row - right.row);
-  }, [melody, melodyLengths, noteLyrics]);
+  }, [extraTracks, noteLyrics]);
   const lyricsBarLines = barLyrics;
   const lyricsText = useMemo(() => lyricsBarLines.join('\n'), [lyricsBarLines]);
 
@@ -1255,7 +1285,7 @@ export function Composer() {
 
   useEffect(() => {
     syncBarLyricsToMelody();
-  }, [melody, barLyrics, lyricsStartBar, syncBarLyricsToMelody]);
+  }, [barLyrics, extraTracks, lyricsStartBar, syncBarLyricsToMelody]);
 
   useEffect(() => {
     if (
@@ -2864,6 +2894,8 @@ export function Composer() {
 
   const handleDuplicateArrangementTrack = useCallback(
     (track: ArrangementTrackDefinition) => {
+      if (track.fixed) return;
+
       const trackId = duplicateInstrumentTrack(track.tab, track.trackId);
       setOpenExtraTrackIds((current) => [...current, trackId]);
       setArrangementTrackOrder((current) => [...current, `extra-${trackId}`]);
@@ -2916,6 +2948,8 @@ export function Composer() {
 
   const handleArrangementTrackDelete = useCallback(
     (track: ArrangementTrackDefinition) => {
+      if (track.fixed) return;
+
       const isAddedTrack = track.id.startsWith('added-');
 
       if (isAddedTrack) {
@@ -3053,6 +3087,8 @@ export function Composer() {
       trackKey: string
     ) => {
       event.preventDefault();
+      if (trackKey === LYRICS_MELODY_TRACK_ID) return;
+
       const rawPayload = event.dataTransfer.getData('application/x-composer-clip');
       if (!rawPayload) return;
 
@@ -3082,6 +3118,8 @@ export function Composer() {
 
   const handleArrangementVolumeChange = useCallback(
     (track: ArrangementTrackDefinition, nextVolume: number) => {
+      if (track.silent) return;
+
       const instrument = track.tab as InstrumentKey;
 
       if (nextVolume === 0) {
@@ -3111,6 +3149,8 @@ export function Composer() {
 
   const handleCloseTab = useCallback(
     (item: ComposerTabItem) => {
+      if (item.trackId === LYRICS_MELODY_TRACK_ID) return;
+
       if (item.trackId) {
         const nextItems = openTabItems.filter((candidate) => candidate.id !== item.id);
         removeInstrumentTrack(item.trackId);
@@ -4200,7 +4240,7 @@ export function Composer() {
         : shouldAddTimedNote(liveTrack?.grid ?? track.grid, liveTrack?.melodyLengths ?? [], row, col);
     toggleExtraTrackCell(track.id, row, col, track.instrument === 'drums' ? undefined : lengthSteps ?? 4);
 
-    if (nextValue) {
+    if (nextValue && track.id !== LYRICS_MELODY_TRACK_ID) {
       playExtraTrackPreview(track.instrument, row, lengthSteps ?? 4);
     }
 
@@ -4249,7 +4289,9 @@ export function Composer() {
   };
 
   const getTabVolume = (item: ComposerTabItem) =>
-    item.tab === 'lyrics'
+    item.trackId === LYRICS_MELODY_TRACK_ID
+      ? 0
+      : item.tab === 'lyrics'
       ? 100
       : item.trackId
       ? extraTracks.find((track) => track.id === item.trackId)?.volume ?? 80
@@ -4350,7 +4392,9 @@ export function Composer() {
         key={`${scrollKey}-melody-like`}
       >
         <div
-          className={`piano-roll piano-roll--melody piano-roll--melody-detached piano-roll--${instrument}`}
+          className={`piano-roll piano-roll--melody piano-roll--melody-detached piano-roll--${instrument}${
+            options.showLyrics ? ' piano-roll--lyrics-guide' : ''
+          }`}
           data-scroll-key={scrollKey}
           style={rollStyle}
         >
@@ -4539,6 +4583,8 @@ export function Composer() {
                       const isNoteStart = Boolean(noteInfo && noteInfo.start === col);
                       const isNoteTail = Boolean(noteInfo && noteInfo.start !== col);
                       const active = noteInfo ? isNoteStart : grid[row]?.[col];
+                      const lyricLabel =
+                        options.showLyrics && isNoteStart ? noteLyrics[`${row}-${col}`] ?? '' : '';
                       const collabNoteColor = active
                         ? collabNoteColors[
                             getCollabNoteColorKey(instrument, row, col, options.noteColorTrackId)
@@ -4547,6 +4593,7 @@ export function Composer() {
                       const isCurrent = col === currentStep;
                       const lock = currentTabLockMap[Math.floor(col / COLLAB_BAR_LENGTH)];
                       const isLocked = Boolean(lock && !lock.mine);
+                      const isDisabled = isLocked || Boolean(collabId && !canSyncCollab);
                       const cellStyle = {
                         '--cell-accent': colors[row % colors.length],
                         '--note-span-steps': `${noteInfo?.length ?? 1}`,
@@ -4559,9 +4606,10 @@ export function Composer() {
                       } as CSSProperties;
 
                       return (
-                        <button
+                        <div
                           key={`${scrollKey}-${note}-${col}`}
-                          type="button"
+                          role="button"
+                          tabIndex={isDisabled ? -1 : 0}
                           data-playhead-step={col}
                           className={`piano-roll-cell is-melody${active ? ' is-active is-note-start' : ''}${
                             isCurrent ? ' is-current' : ''
@@ -4571,8 +4619,15 @@ export function Composer() {
                             isLocked ? ' is-locked' : ''
                           }${collabNoteColor ? ' is-collab-authored' : ''}${collabId && !canSyncCollab ? ' is-readonly' : ''}`}
                           style={cellStyle}
-                          disabled={isLocked || Boolean(collabId && !canSyncCollab)}
+                          aria-disabled={isDisabled}
                           onMouseDown={() => {
+                            if (isDisabled) return;
+                            void onToggle(row, noteInfo?.start ?? col, noteLengthSteps);
+                          }}
+                          onKeyDown={(event) => {
+                            if (isDisabled || event.target !== event.currentTarget) return;
+                            if (event.key !== 'Enter' && event.key !== ' ') return;
+                            event.preventDefault();
                             void onToggle(row, noteInfo?.start ?? col, noteLengthSteps);
                           }}
                           onDragOver={onChordDrop ? (event) => event.preventDefault() : undefined}
@@ -4588,8 +4643,27 @@ export function Composer() {
                               : undefined
                           }
                         >
-                          {active ? <span className="piano-roll-note-block" aria-hidden="true" /> : null}
-                        </button>
+                          {active ? (
+                            <span className="piano-roll-note-block" aria-hidden="true">
+                              {lyricLabel ? (
+                                <span className="piano-roll-lyric-label">{lyricLabel}</span>
+                              ) : null}
+                            </span>
+                          ) : null}
+                          {active && options.showLyrics ? (
+                            <input
+                              className="piano-roll-lyric-input"
+                              value={lyricLabel}
+                              onChange={(event) => setMelodyLyric(row, col, event.target.value)}
+                              onMouseDown={(event) => event.stopPropagation()}
+                              onClick={(event) => event.stopPropagation()}
+                              placeholder="가사"
+                              aria-label={`${note} ${col + 1}번 가사`}
+                              disabled={isDisabled}
+                              maxLength={18}
+                            />
+                          ) : null}
+                        </div>
                       );
                     })
                     );
@@ -4801,7 +4875,9 @@ export function Composer() {
                   >
                     <span className="composer-tab-button-inner">
                       <span className="composer-tab-label">{item.label}</span>
-                      {!tutorialRequested && !DEFAULT_OPEN_TABS.includes(tab) ? (
+                      {!tutorialRequested &&
+                      !DEFAULT_OPEN_TABS.includes(tab) &&
+                      item.trackId !== LYRICS_MELODY_TRACK_ID ? (
                         <span
                           role="button"
                           tabIndex={0}
@@ -4825,7 +4901,7 @@ export function Composer() {
                     </span>
                   </button>
 
-                  {tab !== 'lyrics' ? (
+                  {tab !== 'lyrics' && item.trackId !== LYRICS_MELODY_TRACK_ID ? (
                     <label className="composer-tab-volume">
                       <span className="sr-only">{`${item.label} volume`}</span>
                       <input
@@ -5333,7 +5409,7 @@ export function Composer() {
                   key={track.key ?? track.id}
                   className={`composer-track-row is-${track.tone}${isActive ? ' is-active' : ''}${
                     isMuted ? ' is-muted' : ''
-                  }`}
+                  }${track.fixed ? ' is-fixed' : ''}`}
                 >
                   <div className="composer-track-main">
                     <button
@@ -5362,45 +5438,51 @@ export function Composer() {
                         >
                           <span className="composer-track-name">{track.label}</span>
                         </button>
-                        <span
-                          className="composer-track-sound-icon"
-                          aria-hidden="true"
-                          title={isMuted || trackVolume === 0 ? '음소거됨' : '소리 켜짐'}
-                        >
-                          {isMuted || trackVolume === 0 ? '🔇' : '🔊'}
-                        </span>
+                        {!track.silent ? (
+                          <span
+                            className="composer-track-sound-icon"
+                            aria-hidden="true"
+                            title={isMuted || trackVolume === 0 ? '음소거됨' : '소리 켜짐'}
+                          >
+                            {isMuted || trackVolume === 0 ? '🔇' : '🔊'}
+                          </span>
+                        ) : null}
                       </div>
-                    <label
-                      className="composer-track-inline-volume"
-                      style={{ ['--track-volume' as string]: `${trackVolume}%` }}
-                    >
-                      <span className="sr-only">{`${track.label} 볼륨`}</span>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={trackVolume}
-                        onChange={(event) =>
-                          handleArrangementVolumeChange(track, Number(event.target.value))
-                        }
-                      />
-                    </label>
+                    {!track.silent ? (
+                      <label
+                        className="composer-track-inline-volume"
+                        style={{ ['--track-volume' as string]: `${trackVolume}%` }}
+                      >
+                        <span className="sr-only">{`${track.label} 볼륨`}</span>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={trackVolume}
+                          onChange={(event) =>
+                            handleArrangementVolumeChange(track, Number(event.target.value))
+                          }
+                        />
+                      </label>
+                    ) : null}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="composer-track-more"
-                    aria-label={`${track.label} 메뉴`}
-                    aria-expanded={openTrackMenuId === (track.key ?? track.id)}
-                    onClick={() =>
-                      setOpenTrackMenuId((current) =>
-                        current === (track.key ?? track.id) ? null : (track.key ?? track.id)
-                      )
-                    }
-                  >
-                    ⋮
-                  </button>
-                  {openTrackMenuId === (track.key ?? track.id) ? (
+                  {!track.fixed ? (
+                    <button
+                      type="button"
+                      className="composer-track-more"
+                      aria-label={`${track.label} 메뉴`}
+                      aria-expanded={openTrackMenuId === (track.key ?? track.id)}
+                      onClick={() =>
+                        setOpenTrackMenuId((current) =>
+                          current === (track.key ?? track.id) ? null : (track.key ?? track.id)
+                        )
+                      }
+                    >
+                      ⋮
+                    </button>
+                  ) : null}
+                  {!track.fixed && openTrackMenuId === (track.key ?? track.id) ? (
                     <div className="composer-track-context-menu" role="menu" aria-label={`${track.label} 작업`}>
                       <button
                         type="button"
@@ -5509,7 +5591,7 @@ export function Composer() {
                     <button
                       key={clipKey}
                       type="button"
-                      draggable
+                      draggable={!track.fixed}
                       className={`composer-clip${preview.hasAudio ? ' has-audio' : ' is-empty'}${
                         isSelected ? ' is-selected' : ''
                       }${isDragging ? ' is-dragging' : ''}${isActiveTrack ? ' is-active-track' : ''}`}
@@ -5527,6 +5609,10 @@ export function Composer() {
                         showPianoToolFeedback(`${track.label} · ${bar}마디`);
                       }}
                       onDragStart={(event) => {
+                        if (track.fixed) {
+                          event.preventDefault();
+                          return;
+                        }
                         const lane = event.currentTarget.closest<HTMLElement>('.composer-arrangement-lane');
                         if (!lane) return;
                         const clipBounds = event.currentTarget.getBoundingClientRect();
@@ -5624,13 +5710,9 @@ export function Composer() {
             ) : null}
             <div className="composer-detail-tabs">
               <button type="button" className="is-active">
-                {!activeExtraTrack && activeTab === 'lyrics'
-                  ? '작사'
-                  : (activeExtraTrack
-                  ? activeExtraTrack.instrument === 'drums'
-                  : activeTab === 'drums')
-                  ? '드럼 패드'
-                  : '피아노롤'}
+                {activeExtraTrack
+                  ? getExtraTrackDisplayLabel(activeExtraTrack)
+                  : tabLabels[activeTab]}
               </button>
             </div>
             {(activeExtraTrack
@@ -5685,11 +5767,14 @@ export function Composer() {
               getExtraTrackColors(activeExtraTrack.instrument),
               (row, col, lengthSteps) =>
                 handleExtraTrackCellToggle(activeExtraTrack, row, col, lengthSteps),
-              (chord, col) => handleExtraTrackChordDrop(activeExtraTrack, chord, col),
+              activeExtraTrack.id === LYRICS_MELODY_TRACK_ID
+                ? undefined
+                : (chord, col) => handleExtraTrackChordDrop(activeExtraTrack, chord, col),
               {
                 scrollKey: activeExtraTrack.id,
                 noteColorTrackId: activeExtraTrack.id,
                 melodyLengths: activeExtraTrack.melodyLengths,
+                showLyrics: activeExtraTrack.id === LYRICS_MELODY_TRACK_ID,
                 noteLengthSteps: extraTrackNoteLengths[activeExtraTrack.id] ?? 4,
                 onNoteLengthChange: (lengthSteps) =>
                   setExtraTrackNoteLengths((current) => ({
@@ -5697,7 +5782,7 @@ export function Composer() {
                     [activeExtraTrack.id]: lengthSteps,
                   })),
                 showNoteLengthControls: true,
-                showChordControls: true,
+                showChordControls: activeExtraTrack.id !== LYRICS_MELODY_TRACK_ID,
                 chordChipClassName: '',
               }
             )

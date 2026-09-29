@@ -12,7 +12,7 @@ import type { SongProject } from '../store/songStore.ts';
 import { useSongStore, buildSongProjectSnapshot } from '../store/songStore.ts';
 import { useAuthStore } from '../store/authStore.ts';
 import { useComposerLibraryStore } from '../store/composerLibraryStore.ts';
-import { fetchAiMusic } from '../utils/ai';
+import { fetchAiMusic } from '../utils/musicGenerator';
 import { COLLAB_MEMBER_COLOR_OPTIONS } from '../utils/collabMemberColor.ts';
 import { uploadMusicShareCoverOnServer } from '../utils/libraryApi.ts';
 import './TransportBar.css';

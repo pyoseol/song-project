@@ -43,6 +43,7 @@ import {
 const BAR_LENGTH = 16;
 export const FIXED_BAR_COUNT = 40;
 export const FIXED_COMPOSER_STEPS = BAR_LENGTH * FIXED_BAR_COUNT;
+export const LYRICS_MELODY_TRACK_ID = 'lyrics-melody-guide';
 const DEFAULT_STEPS = FIXED_COMPOSER_STEPS;
 const MAX_HISTORY_LENGTH = 40;
 const MELODY_LENGTH_PRESETS = [1, 2, 4, 8, 16] as const;
@@ -183,6 +184,7 @@ export type SongState = {
   toggleBass: (row: number, col: number, length?: number) => void;
   clearInstrument: (instrument: InstrumentKey) => void;
   addInstrumentTrack: (instrument: InstrumentKey) => string;
+  ensureLyricsMelodyTrack: () => void;
   duplicateInstrumentTrack: (instrument: InstrumentKey, sourceTrackId?: string) => string;
   removeInstrumentTrack: (trackId: string) => void;
   toggleExtraTrackCell: (trackId: string, row: number, col: number, length?: number) => void;
@@ -453,7 +455,7 @@ function createExtraTrackId(instrument: InstrumentKey) {
 
 function createExtraTrackLabel(instrument: InstrumentKey, existingTracks: ExtraInstrumentTrack[]) {
   const baseLabels: Record<InstrumentKey, string> = {
-    melody: '멜로디',
+    melody: '피아노',
     violin: '바이올린',
     saxophone: '색소폰',
     guitar: '통기타',
@@ -468,7 +470,9 @@ function createExtraTrackLabel(instrument: InstrumentKey, existingTracks: ExtraI
   const hasPrimaryTrack = ['melody', 'violin', 'saxophone', 'guitar', 'drums', 'bass'].includes(
     instrument
   );
-  const existingCount = existingTracks.filter((track) => track.instrument === instrument).length;
+  const existingCount = existingTracks.filter(
+    (track) => track.id !== LYRICS_MELODY_TRACK_ID && track.instrument === instrument
+  ).length;
   const labelNumber = existingCount + (hasPrimaryTrack ? 2 : 1);
 
   return labelNumber === 1 ? baseLabels[instrument] : `${baseLabels[instrument]} ${labelNumber}`;
@@ -492,6 +496,24 @@ function createEmptyExtraTrack(
     grid: createEmptyMatrix(rows, steps),
     melodyLengths: supportsNoteLengths(instrument) ? createEmptyLengthMatrix(rows, steps) : undefined,
   };
+}
+
+function withLyricsMelodyTrack(tracks: ExtraInstrumentTrack[], steps: number) {
+  const guideTrack = tracks.find((track) => track.id === LYRICS_MELODY_TRACK_ID);
+  const normalizedGuide = guideTrack
+    ? {
+        ...guideTrack,
+        instrument: 'melody' as const,
+        label: '멜로디',
+        volume: 0,
+      }
+    : createEmptyExtraTrack('melody', steps, tracks, LYRICS_MELODY_TRACK_ID, '멜로디', 0);
+
+  return [normalizedGuide, ...tracks.filter((track) => track.id !== LYRICS_MELODY_TRACK_ID)];
+}
+
+function getLyricsMelodyGrid(extraTracks: ExtraInstrumentTrack[], fallback: boolean[][]) {
+  return extraTracks.find((track) => track.id === LYRICS_MELODY_TRACK_ID)?.grid ?? fallback;
 }
 
 function resizeExtraTrack(track: ExtraInstrumentTrack, steps: number): ExtraInstrumentTrack {
@@ -547,6 +569,21 @@ function getMelodyNotesInBar(melody: boolean[][], barIndex: number) {
   });
 
   return notes.sort((left, right) => left.col - right.col || left.row - right.row);
+}
+
+function getLastMelodyBarIndex(melody: boolean[][]) {
+  let lastBarIndex = -1;
+
+  melody.forEach((rowValues) => {
+    for (let col = rowValues.length - 1; col >= 0; col -= 1) {
+      if (rowValues[col]) {
+        lastBarIndex = Math.max(lastBarIndex, Math.floor(col / BAR_LENGTH));
+        break;
+      }
+    }
+  });
+
+  return lastBarIndex;
 }
 
 function mapBarLyricsToMelodyNotes(
@@ -1327,7 +1364,7 @@ function parseV2TracksToGrids(project: SongProject, steps: number) {
     drums,
     bass,
     bassLengths,
-    extraTracks,
+    extraTracks: withLyricsMelodyTrack(extraTracks, steps),
   };
 }
 
@@ -1368,7 +1405,7 @@ export const useSongStore = create<SongState>()(
   drums: createEmptyMatrix(DRUM_ROWS, DEFAULT_STEPS),
   bass: createEmptyMatrix(BASS_ROWS, DEFAULT_STEPS),
   bassLengths: createEmptyLengthMatrix(BASS_ROWS, DEFAULT_STEPS),
-  extraTracks: [],
+  extraTracks: withLyricsMelodyTrack([], DEFAULT_STEPS),
   loopRange: null,
   barClipboard: null,
   historyPast: [],
@@ -1530,6 +1567,21 @@ export const useSongStore = create<SongState>()(
     return track.id;
   },
 
+  ensureLyricsMelodyTrack: () =>
+    set((state) => {
+      const guideTrack = state.extraTracks.find((track) => track.id === LYRICS_MELODY_TRACK_ID);
+      if (
+        guideTrack &&
+        guideTrack.instrument === 'melody' &&
+        guideTrack.label === '멜로디' &&
+        guideTrack.volume === 0
+      ) {
+        return {};
+      }
+
+      return { extraTracks: withLyricsMelodyTrack(state.extraTracks, state.steps) };
+    }),
+
   duplicateInstrumentTrack: (instrument, sourceTrackId) => {
     const state = get();
     const sourceExtraTrack = sourceTrackId
@@ -1599,6 +1651,10 @@ export const useSongStore = create<SongState>()(
 
   removeInstrumentTrack: (trackId) =>
     set((state) => {
+      if (trackId === LYRICS_MELODY_TRACK_ID) {
+        return {};
+      }
+
       if (!state.extraTracks.some((track) => track.id === trackId)) {
         return {};
       }
@@ -1671,7 +1727,9 @@ export const useSongStore = create<SongState>()(
   setExtraTrackVolume: (trackId, volume) =>
     set((state) => {
       const extraTracks = state.extraTracks.map((track) =>
-        track.id === trackId ? { ...track, volume: clampVolume(volume) } : track
+        track.id === trackId
+          ? { ...track, volume: track.id === LYRICS_MELODY_TRACK_ID ? 0 : clampVolume(volume) }
+          : track
       );
 
       return { extraTracks };
@@ -2203,7 +2261,8 @@ export const useSongStore = create<SongState>()(
       }
 
       const barLyrics = [...state.barLyrics];
-      barLyrics[lineIndex] = getMelodyNotesInBar(state.melody, barIndex)
+      const lyricsMelody = getLyricsMelodyGrid(state.extraTracks, state.melody);
+      barLyrics[lineIndex] = getMelodyNotesInBar(lyricsMelody, barIndex)
         .map((note) => nextLyrics[`${note.row}-${note.col}`] ?? '')
         .filter(Boolean)
         .join(' ');
@@ -2217,7 +2276,7 @@ export const useSongStore = create<SongState>()(
         barLyrics,
         noteLyrics: mapBarLyricsToMelodyNotes(
           state.noteLyrics,
-          state.melody,
+          getLyricsMelodyGrid(state.extraTracks, state.melody),
           barLyrics,
           state.lyricsStartBar
         ),
@@ -2229,7 +2288,7 @@ export const useSongStore = create<SongState>()(
       const lyricsStartBar = normalizeLyricsStartBar(bar);
       const lyricsWithoutPreviousBars = mapBarLyricsToMelodyNotes(
         state.noteLyrics,
-        state.melody,
+        getLyricsMelodyGrid(state.extraTracks, state.melody),
         state.barLyrics.map(() => ''),
         state.lyricsStartBar
       );
@@ -2237,7 +2296,7 @@ export const useSongStore = create<SongState>()(
         lyricsStartBar,
         noteLyrics: mapBarLyricsToMelodyNotes(
           lyricsWithoutPreviousBars,
-          state.melody,
+          getLyricsMelodyGrid(state.extraTracks, state.melody),
           state.barLyrics,
           lyricsStartBar
         ),
@@ -2246,13 +2305,27 @@ export const useSongStore = create<SongState>()(
 
   syncBarLyricsToMelody: () =>
     set((state) => {
+      const lyricsMelody = getLyricsMelodyGrid(state.extraTracks, state.melody);
+      const firstBarIndex = state.lyricsStartBar - 1;
+      const lastMelodyBarIndex = getLastMelodyBarIndex(lyricsMelody);
+      const requiredLineCount = Math.max(1, lastMelodyBarIndex - firstBarIndex + 1);
+      const barLyrics =
+        state.barLyrics.length >= requiredLineCount
+          ? state.barLyrics
+          : [
+              ...state.barLyrics,
+              ...Array.from({ length: requiredLineCount - state.barLyrics.length }, () => ''),
+            ];
       const noteLyrics = mapBarLyricsToMelodyNotes(
         state.noteLyrics,
-        state.melody,
-        state.barLyrics,
+        lyricsMelody,
+        barLyrics,
         state.lyricsStartBar
       );
-      return areLyricMapsEqual(noteLyrics, state.noteLyrics) ? {} : { noteLyrics };
+      const didExtendBars = barLyrics !== state.barLyrics;
+      return !didExtendBars && areLyricMapsEqual(noteLyrics, state.noteLyrics)
+        ? {}
+        : { barLyrics, noteLyrics };
     }),
 
   clear: () =>
@@ -2276,14 +2349,17 @@ export const useSongStore = create<SongState>()(
         drums: createEmptyMatrix(DRUM_ROWS, state.steps),
         bass: createEmptyMatrix(BASS_ROWS, state.steps),
         bassLengths: createEmptyLengthMatrix(BASS_ROWS, state.steps),
-        extraTracks: state.extraTracks.map((track) => createEmptyExtraTrack(
-          track.instrument,
-          state.steps,
-          [],
-          track.id,
-          track.label,
-          track.volume
-        )),
+        extraTracks: withLyricsMelodyTrack(
+          state.extraTracks.map((track) => createEmptyExtraTrack(
+            track.instrument,
+            state.steps,
+            [],
+            track.id,
+            track.label,
+            track.volume
+          )),
+          state.steps
+        ),
       })
     ),
 
@@ -2297,7 +2373,11 @@ export const useSongStore = create<SongState>()(
     const lyricsStartBar = normalizeLyricsStartBar(project.lyricsStartBar);
     const barLyrics = project.barLyrics
       ? normalizeBarLyrics(project.barLyrics)
-      : deriveBarLyricsFromMelodyNotes(grids.melody, project.noteLyrics ?? {}, lyricsStartBar);
+      : deriveBarLyricsFromMelodyNotes(
+          getLyricsMelodyGrid(grids.extraTracks, grids.melody),
+          project.noteLyrics ?? {},
+          lyricsStartBar
+        );
 
     set((state) =>
       buildHistoryUpdate(state, {
@@ -2351,7 +2431,11 @@ export const useSongStore = create<SongState>()(
     const lyricsStartBar = normalizeLyricsStartBar(project.lyricsStartBar);
     const barLyrics = project.barLyrics
       ? normalizeBarLyrics(project.barLyrics)
-      : deriveBarLyricsFromMelodyNotes(grids.melody, project.noteLyrics ?? {}, lyricsStartBar);
+      : deriveBarLyricsFromMelodyNotes(
+          getLyricsMelodyGrid(grids.extraTracks, grids.melody),
+          project.noteLyrics ?? {},
+          lyricsStartBar
+        );
 
     set((state) => ({
       compositionMode: project.compositionMode ?? 'standard',

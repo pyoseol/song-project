@@ -3,8 +3,13 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { getStoredSessionToken } from '../../utils/authSession';
 import { restoreSessionFromServer } from '../../utils/authApi';
+import { isLocalDevelopmentHost } from '../../utils/localEnvironment';
 
-export default function ProtectedRoute() {
+type ProtectedRouteProps = {
+  allowLocalGuest?: boolean;
+};
+
+export default function ProtectedRoute({ allowLocalGuest = false }: ProtectedRouteProps) {
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const login = useAuthStore((state) => state.login);
@@ -56,7 +61,7 @@ export default function ProtectedRoute() {
     return <div style={{ minHeight: '100vh', background: '#15161a' }} />;
   }
 
-  if (!user) {
+  if (!user && !(allowLocalGuest && isLocalDevelopmentHost())) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 

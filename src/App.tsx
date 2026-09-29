@@ -52,9 +52,11 @@ function App() {
             <Route path="/community/sessions/:postId" element={<SessionRecruitDetailPage />} />
             <Route path="/community/write" element={<PostWrite />} />
             <Route path="/community/:id" element={<PostDetail />} />
-            <Route element={<ProtectedRoute />}>
+            <Route element={<ProtectedRoute allowLocalGuest />}>
               <Route path="/collab" element={<CollabPage />} />
               <Route path="/collab/:projectId" element={<CollabRoomPage />} />
+            </Route>
+            <Route element={<ProtectedRoute />}>
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/messages" element={<MessagesPage />} />
               <Route path="/settings" element={<SettingsPage />} />

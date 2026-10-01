@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SiteHeader from '../components/layout/SiteHeader';
@@ -267,25 +267,22 @@ export default function MessagesPage() {
   const activeMessages = activeThread ? messagesByThread[activeThread.id] ?? [] : [];
   const latestActiveMessageId = activeMessages.at(-1)?.id ?? '';
 
-  useEffect(() => {
-    if (activeSection !== 'messages' || !activeThread) return undefined;
+  useLayoutEffect(() => {
+    if (activeSection !== 'messages' || !activeThreadId) return undefined;
 
     const behavior =
-      lastAutoScrolledThreadIdRef.current === activeThread.id ? 'smooth' : 'auto';
-    lastAutoScrolledThreadIdRef.current = activeThread.id;
+      lastAutoScrolledThreadIdRef.current === activeThreadId ? 'smooth' : 'auto';
+    lastAutoScrolledThreadIdRef.current = activeThreadId;
 
     const frame = window.requestAnimationFrame(() => {
       const messageList = messageListRef.current;
       if (messageList) {
-        messageList.scrollTo({
-          top: messageList.scrollHeight,
-          behavior,
-        });
+        messageList.scrollTo({ top: messageList.scrollHeight, behavior });
       }
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [activeSection, activeThread?.id, latestActiveMessageId]);
+  }, [activeSection, activeThreadId, latestActiveMessageId]);
 
   const unreadCountByThread = useMemo(() => {
     if (!user) {

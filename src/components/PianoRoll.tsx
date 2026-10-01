@@ -407,6 +407,22 @@ export const PianoRoll = ({
     });
   }, [isBass, melody, melodyLengths, steps]);
 
+  const lyricOwnerRowByCol = useMemo(() => {
+    const owners = new Map<number, number>();
+    if (isBass) {
+      return owners;
+    }
+
+    melody.forEach((rowValues, row) => {
+      rowValues.forEach((active, col) => {
+        if (active && !owners.has(col)) {
+          owners.set(col, row);
+        }
+      });
+    });
+    return owners;
+  }, [isBass, melody]);
+
   const releaseActiveLock = () => {
     if (!activeLockRef.current) {
       return;
@@ -561,6 +577,7 @@ export const PianoRoll = ({
       colsToRender.map((col) => {
       const melodyNoteInfo = !isBass ? melodyNoteInfoMap[row]?.[col] ?? null : null;
       const isNoteStart = Boolean(melodyNoteInfo && melodyNoteInfo.start === col);
+      const isLyricOwner = isNoteStart && lyricOwnerRowByCol.get(col) === row;
       const isNoteTail = Boolean(melodyNoteInfo && melodyNoteInfo.start !== col);
       const active = isBass ? bass[row]?.[col] : isNoteStart;
       const collabNoteColor = active
@@ -578,7 +595,7 @@ export const PianoRoll = ({
       const isLocked = Boolean(barLock && !barLock.mine);
       const tutorialGhostNote = !isBass ? tutorialGhostNoteMap[`${row}-${col}`] : null;
       const lyricKey = `${row}-${col}`;
-      const lyricLabel = !isBass && isNoteStart ? noteLyrics[lyricKey] ?? '' : '';
+      const lyricLabel = !isBass && isLyricOwner ? noteLyrics[lyricKey] ?? '' : '';
       const cellStyle = {
         '--cell-accent': getAccentColor(row, isBass, isGuitar),
         '--collab-member-color': barLock?.color,
@@ -789,7 +806,7 @@ export const PianoRoll = ({
               {lyricLabel ? <span className="piano-roll-lyric-label">{lyricLabel}</span> : null}
             </span>
           ) : null}
-          {!isBass && isNoteStart && !isLocked && canEditCollab ? (
+          {!isBass && isLyricOwner && !isLocked && canEditCollab ? (
             <input
               className="piano-roll-lyric-input"
               value={lyricLabel}
@@ -836,6 +853,7 @@ export const PianoRoll = ({
     isBass,
     isDrawing,
     isGuitar,
+    lyricOwnerRowByCol,
     melodyNoteInfoMap,
     melodyNoteLengthSteps,
     modeClass,

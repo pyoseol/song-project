@@ -498,15 +498,43 @@ function createEmptyExtraTrack(
   };
 }
 
+function normalizeLyricsMelodyTrack(track: ExtraInstrumentTrack, steps: number) {
+  const grid = cloneMatrix(track.grid);
+  const melodyLengths = cloneLengthMatrix(
+    track.melodyLengths ?? createEmptyLengthMatrix(grid.length, steps)
+  );
+  let occupiedUntil = 0;
+
+  for (let col = 0; col < steps; col += 1) {
+    const activeRows = grid.flatMap((rowValues, row) =>
+      rowValues?.[col] ? [row] : []
+    );
+    if (!activeRows.length) continue;
+
+    if (col < occupiedUntil) {
+      activeRows.forEach((row) => clearMelodyNote(grid[row], melodyLengths[row], undefined, col));
+      continue;
+    }
+
+    const ownerRow = activeRows[0];
+    activeRows.slice(1).forEach((row) =>
+      clearMelodyNote(grid[row], melodyLengths[row], undefined, col)
+    );
+    occupiedUntil = col + Math.max(1, melodyLengths[ownerRow]?.[col] ?? 1);
+  }
+
+  return { ...track, grid, melodyLengths };
+}
+
 function withLyricsMelodyTrack(tracks: ExtraInstrumentTrack[], steps: number) {
   const guideTrack = tracks.find((track) => track.id === LYRICS_MELODY_TRACK_ID);
   const normalizedGuide = guideTrack
-    ? {
+    ? normalizeLyricsMelodyTrack({
         ...guideTrack,
         instrument: 'melody' as const,
         label: '멜로디',
         volume: 0,
-      }
+      }, steps)
     : createEmptyExtraTrack('melody', steps, tracks, LYRICS_MELODY_TRACK_ID, '멜로디', 0);
 
   return [normalizedGuide, ...tracks.filter((track) => track.id !== LYRICS_MELODY_TRACK_ID)];
@@ -568,7 +596,10 @@ function getMelodyNotesInBar(melody: boolean[][], barIndex: number) {
     }
   });
 
-  return notes.sort((left, right) => left.col - right.col || left.row - right.row);
+  const sortedNotes = notes.sort((left, right) => left.col - right.col || left.row - right.row);
+  return sortedNotes.filter(
+    (note, index) => index === 0 || sortedNotes[index - 1].col !== note.col
+  );
 }
 
 function getLastMelodyBarIndex(melody: boolean[][]) {
@@ -1572,16 +1603,6 @@ export const useSongStore = create<SongState>()(
 
   ensureLyricsMelodyTrack: () =>
     set((state) => {
-      const guideTrack = state.extraTracks.find((track) => track.id === LYRICS_MELODY_TRACK_ID);
-      if (
-        guideTrack &&
-        guideTrack.instrument === 'melody' &&
-        guideTrack.label === '멜로디' &&
-        guideTrack.volume === 0
-      ) {
-        return {};
-      }
-
       return { extraTracks: withLyricsMelodyTrack(state.extraTracks, state.steps) };
     }),
 
@@ -1683,6 +1704,25 @@ export const useSongStore = create<SongState>()(
       if (supportsNoteLengths(track.instrument)) {
         const melodyLengths =
           track.melodyLengths ?? createEmptyLengthMatrix(getInstrumentRows(track.instrument), state.steps);
+        const existingNote = findMelodyNoteAt(
+          track.grid[row] ?? [],
+          melodyLengths[row] ?? [],
+          col
+        );
+
+        if (track.id === LYRICS_MELODY_TRACK_ID && !existingNote && length > 0) {
+          const nextLength = snapMelodyLength(Math.floor(length), state.steps - col);
+          track.grid.forEach((rowValues, targetRow) => {
+            clearOverlappingNotes(
+              rowValues,
+              melodyLengths[targetRow],
+              col,
+              nextLength,
+              state.steps
+            );
+          });
+        }
+
         const changed = toggleTimedNote(track.grid, melodyLengths, row, col, state.steps, length);
 
         track.melodyLengths = melodyLengths;

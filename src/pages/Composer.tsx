@@ -302,15 +302,17 @@ function distributeLyricsIntoMelodyBars(
 
   const tokens = (explicitLines[0] ?? '').split(/\s+/).filter(Boolean);
   const firstBarIndex = lyricsStartBar - 1;
-  const noteCountByLine = new Map<number, number>();
+  const noteColumnsByLine = new Map<number, Set<number>>();
 
   melodyNotes.forEach(({ col }) => {
     const lineIndex = Math.floor(col / COLLAB_BAR_LENGTH) - firstBarIndex;
     if (lineIndex < 0) return;
-    noteCountByLine.set(lineIndex, (noteCountByLine.get(lineIndex) ?? 0) + 1);
+    const columns = noteColumnsByLine.get(lineIndex) ?? new Set<number>();
+    columns.add(col);
+    noteColumnsByLine.set(lineIndex, columns);
   });
 
-  const lastLineIndex = Math.max(-1, ...noteCountByLine.keys());
+  const lastLineIndex = Math.max(-1, ...noteColumnsByLine.keys());
   if (lastLineIndex < 0) {
     return getLyricsBarLines(value);
   }
@@ -319,7 +321,7 @@ function distributeLyricsIntoMelodyBars(
   let tokenIndex = 0;
 
   for (let lineIndex = 0; lineIndex <= lastLineIndex; lineIndex += 1) {
-    const noteCount = noteCountByLine.get(lineIndex) ?? 0;
+    const noteCount = noteColumnsByLine.get(lineIndex)?.size ?? 0;
     if (!noteCount) continue;
 
     const tokenEnd =
@@ -1309,6 +1311,19 @@ export function Composer() {
   }, [extraTracks, noteLyrics]);
   const lyricsBarLines = barLyrics;
   const lyricsText = useMemo(() => lyricsBarLines.join('\n'), [lyricsBarLines]);
+  const melodyLyricsBarCount = melodyLyricNotes.reduce(
+    (count, note) =>
+      Math.max(
+        count,
+        Math.floor(note.col / COLLAB_BAR_LENGTH) - lyricsStartBar + 1
+      ),
+    0
+  );
+  const lyricsMemoBarCount = Math.max(
+    1,
+    lyricsBarLines.length,
+    melodyLyricsBarCount
+  );
 
   useEffect(() => {
     setNotepadDraft((current) =>
@@ -6196,7 +6211,7 @@ export function Composer() {
             </div>
           </header>
           <div className="composer-lyrics-memo-bars">
-            {lyricsBarLines.map((line, index) => (
+            {Array.from({ length: lyricsMemoBarCount }, (_, index) => (
               <label
                 key={`${lyricsStartBar}-${index}`}
                 className={`composer-lyrics-memo-bar${
@@ -6206,10 +6221,13 @@ export function Composer() {
                 <strong>{lyricsStartBar + index}마디</strong>
                 <textarea
                   rows={2}
-                  value={line}
+                  value={lyricsBarLines[index] ?? ''}
                   onFocus={() => handleSelectLyricsBar(index)}
                   onChange={(event) => {
-                    const nextLines = [...lyricsBarLines];
+                    const nextLines = Array.from(
+                      { length: lyricsMemoBarCount },
+                      (_, lineIndex) => lyricsBarLines[lineIndex] ?? ''
+                    );
                     nextLines[index] = event.target.value.replace(/[\r\n]+/g, ' ');
                     setBarLyrics(nextLines);
                   }}
@@ -6220,13 +6238,7 @@ export function Composer() {
             ))}
           </div>
           <div className="composer-lyrics-memo-footer">
-            <span>{lyricsBarLines.filter((line) => line.trim()).length}개 마디</span>
-            <button
-              type="button"
-              onClick={() => setBarLyrics([...lyricsBarLines, ''])}
-            >
-              + 마디 추가
-            </button>
+            <span>{lyricsMemoBarCount}개 마디</span>
           </div>
         </section>
       ) : null}

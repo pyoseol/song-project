@@ -1,5 +1,9 @@
 .messages-page {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
   min-height: 100vh;
+  overflow: hidden;
   background: #f5f8fb;
   color: #101d36;
 }
@@ -13,8 +17,13 @@
 
 .messages-shell {
   width: min(1208px, calc(100% - 40px));
+  min-height: 0;
   margin: 0 auto;
-  padding: 28px 0 54px !important;
+  padding: 28px 0 !important;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .messages-shell.is-friends { width: min(1350px, calc(100% - 40px)); }
 
@@ -130,7 +139,9 @@
   display: grid;
   grid-template-columns: 422px minmax(0, 1fr);
   gap: 14px;
-  min-height: 668px;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
 }
 .messages-layout.is-friends {
   grid-template-columns: 420px minmax(0, 1fr);
@@ -147,7 +158,14 @@
   box-shadow: 0 14px 34px rgba(32, 55, 82, .06);
 }
 
-.messages-sidebar { min-width: 0; padding: 14px 0 0; overflow: hidden; }
+.messages-sidebar {
+  min-width: 0;
+  min-height: 0;
+  padding: 14px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 .messages-sidebar.is-friends {
   padding: 0;
   display: flex;
@@ -186,8 +204,10 @@
 .messages-composer textarea::placeholder { color: #8b9ab0; }
 
 .messages-thread-list {
-  max-height: 610px;
+  min-height: 0;
+  flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: #cbd7e3 transparent;
 }
@@ -236,7 +256,7 @@
 .messages-list-empty { padding: 46px 20px; color: #7d8da3; font-size: 13px; text-align: center; }
 
 .messages-panel {
-  min-width: 0; min-height: 668px; display: flex;
+  min-width: 0; min-height: 0; display: flex;
   flex-direction: column; overflow: hidden;
 }
 .messages-panel.is-friends { min-height: 0; }
@@ -270,7 +290,7 @@
 
 .messages-bubble-list {
   min-height: 0; padding: 24px 24px 18px; flex: 1;
-  overflow-y: auto; background: #fff;
+  overflow-y: auto; overscroll-behavior: contain; background: #fff;
 }
 .messages-date-divider { margin: -2px 0 22px; display: flex; justify-content: center; }
 .messages-date-divider span {
@@ -308,7 +328,8 @@ html[data-theme="light"] .messages-page .messages-bubble.is-mine {
 .messages-composer {
   padding: 13px 16px; display: grid;
   grid-template-columns: 42px minmax(0, 1fr) 36px 46px;
-  align-items: end; gap: 10px; border-top: 1px solid #e3e9f0; background: #fff;
+  align-items: end; gap: 10px; flex: 0 0 auto;
+  border-top: 1px solid #e3e9f0; background: #fff;
 }
 .messages-composer textarea {
   width: 100%; height: 46px; min-height: 46px; max-height: 120px;
@@ -518,9 +539,15 @@ html[data-theme="light"] .messages-page .messages-panel.is-friends .messages-fri
 .messages-empty-card { padding: 36px; }
 
 @media (max-width: 900px) {
-  .messages-shell { width: min(100% - 24px, 720px); padding-top: 18px; }
+  .messages-page { height: auto; overflow: visible; }
+  .messages-shell {
+    width: min(100% - 24px, 720px);
+    padding-top: 18px;
+    display: block;
+    overflow: visible;
+  }
   .messages-hero { min-height: 0; padding: 24px; align-items: flex-start; }
-  .messages-layout { grid-template-columns: 1fr; }
+  .messages-layout { grid-template-columns: 1fr; overflow: visible; }
   .messages-layout.is-friends { grid-template-columns: 1fr; }
   .messages-sidebar,
   .messages-panel { min-height: auto; }

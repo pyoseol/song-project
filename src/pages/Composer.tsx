@@ -766,6 +766,7 @@ export function Composer() {
     volumes,
     setInstrumentVolume,
     addInstrumentTrack,
+    addAiVocalTrack,
     ensureLyricsMelodyTrack,
     duplicateInstrumentTrack,
     removeInstrumentTrack,
@@ -1141,6 +1142,7 @@ export function Composer() {
   const getExtraTrackDisplayLabel = useCallback(
     (track: ExtraInstrumentTrack) => {
       if (track.id === LYRICS_MELODY_TRACK_ID) return '멜로디';
+      if (track.label.startsWith('AI 보컬')) return track.label;
 
       const sameInstrumentTracks = extraTracks.filter(
         (item) =>
@@ -1225,7 +1227,9 @@ export function Composer() {
         key: item.id,
         trackId: item.trackId,
         label: isLyricsMelodyTrack ? '멜로디' : item.label,
-        icon: isLyricsMelodyTrack ? '🎤' : baseTrack?.icon ?? arrangementTrackIcons[item.tab as InstrumentComposerTab],
+        icon: isLyricsMelodyTrack || item.label.startsWith('AI 보컬')
+          ? '🎤'
+          : baseTrack?.icon ?? arrangementTrackIcons[item.tab as InstrumentComposerTab],
         tab: item.tab as InstrumentComposerTab,
         tone: baseTrack?.tone ?? getArrangementTrackTone(item.tab as InstrumentComposerTab),
         fixed: isLyricsMelodyTrack,
@@ -2885,6 +2889,16 @@ export function Composer() {
       setIsTabPickerOpen(false);
     },
     [activateTab, addInstrumentTrack, navigate, openTabsState]
+  );
+
+  const handleAddAiVocalTrack = useCallback(
+    (voice: 'female' | 'male') => {
+      const trackId = addAiVocalTrack(voice);
+      setOpenExtraTrackIds((current) => [...current, trackId]);
+      setArrangementTrackOrder((current) => [...current, `extra-${trackId}`]);
+      activateTab('melody', trackId);
+    },
+    [activateTab, addAiVocalTrack]
   );
 
   const handleTrackPickerOpen = useCallback(
@@ -4870,6 +4884,7 @@ export function Composer() {
           onPlayStarted={() => setPlayedTutorialOnce(true)}
           onLyricsClick={handleLyricsToggle}
           lyricsActive={activeTab === 'lyrics' && !activeExtraTrack}
+          onAddAiVocalTrack={handleAddAiVocalTrack}
         />
       </footer>
 
@@ -5822,14 +5837,16 @@ export function Composer() {
               getExtraTrackColors(activeExtraTrack.instrument),
               (row, col, lengthSteps) =>
                 handleExtraTrackCellToggle(activeExtraTrack, row, col, lengthSteps),
-              activeExtraTrack.id === LYRICS_MELODY_TRACK_ID
+              activeExtraTrack.id === LYRICS_MELODY_TRACK_ID || activeExtraTrack.label.startsWith('AI 보컬')
                 ? undefined
                 : (chord, col) => handleExtraTrackChordDrop(activeExtraTrack, chord, col),
               {
                 scrollKey: activeExtraTrack.id,
                 noteColorTrackId: activeExtraTrack.id,
                 melodyLengths: activeExtraTrack.melodyLengths,
-                showLyrics: activeExtraTrack.id === LYRICS_MELODY_TRACK_ID,
+                showLyrics:
+                  activeExtraTrack.id === LYRICS_MELODY_TRACK_ID ||
+                  activeExtraTrack.label.startsWith('AI 보컬'),
                 noteLengthSteps: extraTrackNoteLengths[activeExtraTrack.id] ?? 4,
                 onNoteLengthChange: (lengthSteps) =>
                   setExtraTrackNoteLengths((current) => ({
@@ -5837,7 +5854,9 @@ export function Composer() {
                     [activeExtraTrack.id]: lengthSteps,
                   })),
                 showNoteLengthControls: true,
-                showChordControls: activeExtraTrack.id !== LYRICS_MELODY_TRACK_ID,
+                showChordControls:
+                  activeExtraTrack.id !== LYRICS_MELODY_TRACK_ID &&
+                  !activeExtraTrack.label.startsWith('AI 보컬'),
                 chordChipClassName: '',
               }
             )

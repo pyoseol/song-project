@@ -232,6 +232,7 @@ type TransportBarProps = {
   onPlayStarted?: () => void;
   onLyricsClick?: () => void;
   lyricsActive?: boolean;
+  onAddAiVocalTrack?: (voice: 'female' | 'male') => void;
   songTitle?: string;
   onSongTitleChange?: (title: string) => void;
   workMode?: 'personal' | 'collab';
@@ -306,6 +307,25 @@ const LyricsIcon = () => (
   </svg>
 );
 
+const VocalIcon = () => (
+  <svg className="transport-vocal-button-icon" viewBox="0 0 20 20" aria-hidden="true">
+    <rect x="6.5" y="2.5" width="7" height="10" rx="3.5" />
+    <path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5M7 17.5h6" />
+  </svg>
+);
+
+const VocalPlayIcon = ({ playing }: { playing: boolean }) => (
+  <svg viewBox="0 0 20 20" aria-hidden="true">
+    {playing ? (
+      <>
+        <path d="M7 5v10M13 5v10" />
+      </>
+    ) : (
+      <path d="m7 4 9 6-9 6Z" />
+    )}
+  </svg>
+);
+
 type AiModalIconName = 'document' | 'settings' | 'bulb';
 
 const AiModalIcon = ({ name }: { name: AiModalIconName }) => {
@@ -345,6 +365,7 @@ export const TransportBar = ({
   onPlayStarted,
   onLyricsClick,
   lyricsActive = false,
+  onAddAiVocalTrack,
   songTitle = '',
   onSongTitleChange,
   workMode = 'personal',
@@ -369,6 +390,8 @@ export const TransportBar = ({
   const clear = useSongStore((state) => state.clear);
   const canUndo = useSongStore((state) => state.canUndo);
   const canRedo = useSongStore((state) => state.canRedo);
+  const barLyrics = useSongStore((state) => state.barLyrics);
+  const lyricsStartBar = useSongStore((state) => state.lyricsStartBar);
 
   const user = useAuthStore((state) => state.user);
   const saveComposerProject = useComposerLibraryStore((state) => state.saveProject);
@@ -376,13 +399,90 @@ export const TransportBar = ({
 
   const [isExporting, setIsExporting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [aiCompletionToast, setAiCompletionToast] = useState<'compose' | null>(null);
+  const [aiCompletionToast, setAiCompletionToast] = useState<'compose' | 'vocal' | null>(null);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
+  const [isAiVocalPanelOpen, setIsAiVocalPanelOpen] = useState(false);
+  const [aiVocalVoice, setAiVocalVoice] = useState<'female' | 'male'>('female');
+  const [isVocalPreviewing, setIsVocalPreviewing] = useState(false);
+  const [isAddingVocal, setIsAddingVocal] = useState(false);
   const [activeDialog, setActiveDialog] = useState<ComposerDialog>(null);
   const [isCollabMenuOpen, setIsCollabMenuOpen] = useState(false);
 
   const [aiSummary, setAiSummary] = useState('');
   const [aiDetails, setAiDetails] = useState(DEFAULT_AI_TEMPLATE);
+
+  const filledLyricBars = barLyrics.flatMap((line, index) =>
+    line.trim() ? [{ text: line.trim(), bar: lyricsStartBar + index }] : []
+  );
+  const aiVocalLyrics = filledLyricBars.map((line) => line.text).join(' ');
+  const aiVocalCharacterCount = [...aiVocalLyrics.replace(/\s/g, '')].length;
+  const aiVocalBarRange = filledLyricBars.length
+    ? `${filledLyricBars[0].bar}-${filledLyricBars.at(-1)?.bar ?? filledLyricBars[0].bar}마디`
+    : '가사 없음';
+
+  const stopVocalPreview = () => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsVocalPreviewing(false);
+  };
+
+  const closeAiVocalPanel = () => {
+    if (isAddingVocal) return;
+    stopVocalPreview();
+    setIsAiVocalPanelOpen(false);
+  };
+
+  const handleVocalPreview = () => {
+    if (isVocalPreviewing) {
+      stopVocalPreview();
+      return;
+    }
+    if (!aiVocalLyrics) {
+      alert('작사 탭에 가사를 먼저 입력해 주세요.');
+      return;
+    }
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      alert('이 브라우저에서는 보컬 미리 듣기를 지원하지 않습니다.');
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(aiVocalLyrics);
+    const voices = window.speechSynthesis.getVoices();
+    const koreanVoices = voices.filter((voice) => voice.lang.toLowerCase().startsWith('ko'));
+    const voiceHints = aiVocalVoice === 'female'
+      ? /female|yuna|sunhi|heami|여성/i
+      : /male|injun|injoon|남성/i;
+    utterance.voice = koreanVoices.find((voice) => voiceHints.test(voice.name)) ?? koreanVoices[0] ?? null;
+    utterance.lang = 'ko-KR';
+    utterance.pitch = aiVocalVoice === 'female' ? 1.15 : 0.82;
+    utterance.rate = 0.9;
+    utterance.onend = () => setIsVocalPreviewing(false);
+    utterance.onerror = () => setIsVocalPreviewing(false);
+    setIsVocalPreviewing(true);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleAddAiVocal = async () => {
+    if (!aiVocalLyrics) {
+      alert('보컬 트랙에 사용할 가사를 먼저 입력해 주세요.');
+      return;
+    }
+
+    stopVocalPreview();
+    setIsAddingVocal(true);
+    await new Promise((resolve) => window.setTimeout(resolve, 650));
+    onAddAiVocalTrack?.(aiVocalVoice);
+    setIsAddingVocal(false);
+    setIsAiVocalPanelOpen(false);
+    setAiCompletionToast('vocal');
+  };
+
+  useEffect(() => () => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  }, []);
 
   useEffect(() => {
     if (!aiCompletionToast) return undefined;
@@ -1043,9 +1143,31 @@ export const TransportBar = ({
           className={`transport-button transport-button--accent${
             isAiPanelOpen ? ' is-open' : ''
           }`}
-          onClick={() => setIsAiPanelOpen((open) => !open)}
+          onClick={() => {
+            stopVocalPreview();
+            setIsAiVocalPanelOpen(false);
+            setIsAiPanelOpen((open) => !open);
+          }}
         >
           작곡 AI
+        </button>
+        <button
+          type="button"
+          className={`transport-button transport-button--vocal${
+            isAiVocalPanelOpen ? ' is-open' : ''
+          }`}
+          onClick={() => {
+            setIsAiPanelOpen(false);
+            if (isAiVocalPanelOpen) {
+              closeAiVocalPanel();
+            } else {
+              setIsAiVocalPanelOpen(true);
+            }
+          }}
+          aria-expanded={isAiVocalPanelOpen}
+        >
+          <VocalIcon />
+          AI 보컬
         </button>
       </div>
 
@@ -1434,6 +1556,99 @@ export const TransportBar = ({
         </div>
       ) : null}
 
+      {isAiVocalPanelOpen ? (
+        <div
+          className="transport-ai-backdrop transport-vocal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeAiVocalPanel();
+          }}
+        >
+          <section
+            className="transport-vocal-panel"
+            aria-label="AI 보컬"
+            aria-modal="true"
+            role="dialog"
+          >
+            <header className="transport-vocal-header">
+              <div>
+                <span>VOICE STUDIO</span>
+                <h2>AI 보컬</h2>
+                <p>멜로디와 가사를 보컬 가이드로 만들어보세요.</p>
+              </div>
+              <button
+                type="button"
+                className="transport-vocal-close"
+                onClick={closeAiVocalPanel}
+                aria-label="AI 보컬 닫기"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="transport-vocal-lyrics">
+              <div>
+                <strong>가사</strong>
+                <span>{aiVocalCharacterCount}자 · {aiVocalBarRange}</span>
+              </div>
+              <p className={aiVocalLyrics ? '' : 'is-empty'}>
+                {aiVocalLyrics || '작사 탭에 입력된 가사가 여기에 표시됩니다.'}
+              </p>
+            </div>
+
+            <fieldset className="transport-vocal-voice">
+              <legend>목소리</legend>
+              <div>
+                <button
+                  type="button"
+                  className={aiVocalVoice === 'female' ? 'is-selected' : ''}
+                  onClick={() => setAiVocalVoice('female')}
+                  aria-pressed={aiVocalVoice === 'female'}
+                >
+                  <span aria-hidden="true">F</span>
+                  여성
+                </button>
+                <button
+                  type="button"
+                  className={aiVocalVoice === 'male' ? 'is-selected' : ''}
+                  onClick={() => setAiVocalVoice('male')}
+                  aria-pressed={aiVocalVoice === 'male'}
+                >
+                  <span aria-hidden="true">M</span>
+                  남성
+                </button>
+              </div>
+            </fieldset>
+
+            <section className={`transport-vocal-preview${isVocalPreviewing ? ' is-playing' : ''}`}>
+              <button
+                type="button"
+                onClick={handleVocalPreview}
+                aria-label={isVocalPreviewing ? '미리 듣기 중지' : '미리 듣기'}
+              >
+                <VocalPlayIcon playing={isVocalPreviewing} />
+              </button>
+              <div>
+                <strong>{isVocalPreviewing ? '보컬 미리 듣는 중' : '미리 듣기'}</strong>
+                <span>{aiVocalVoice === 'female' ? '여성' : '남성'} · 한국어 보컬 가이드</span>
+                <div className="transport-vocal-progress" aria-hidden="true"><i /></div>
+              </div>
+            </section>
+
+            <footer className="transport-vocal-actions">
+              <span>현재 멜로디 노트를 기준으로 트랙을 만듭니다.</span>
+              <button
+                type="button"
+                onClick={() => void handleAddAiVocal()}
+                disabled={!aiVocalLyrics || isAddingVocal}
+              >
+                <VocalIcon />
+                {isAddingVocal ? '보컬 생성 중...' : '보컬 트랙 추가'}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
+
       {aiCompletionToast ? (
         <div className="transport-ai-complete" role="status" aria-live="polite">
           <div className="transport-ai-complete-burst" aria-hidden="true">
@@ -1446,9 +1661,11 @@ export const TransportBar = ({
             <span />
           </div>
           <div className="transport-ai-complete-copy">
-            <strong>AI 곡이 배치됐습니다</strong>
+            <strong>{aiCompletionToast === 'vocal' ? 'AI 보컬 트랙을 추가했습니다' : 'AI 곡이 배치됐습니다'}</strong>
             <span>
-              프롬프트에 맞춰 피아노롤에 바로 펼쳐놨어요.
+              {aiCompletionToast === 'vocal'
+                ? '멜로디와 가사를 바탕으로 보컬 가이드가 준비됐어요.'
+                : '프롬프트에 맞춰 피아노롤에 바로 펼쳐놨어요.'}
             </span>
           </div>
           <div className="transport-ai-complete-wave" aria-hidden="true">

@@ -314,6 +314,31 @@
   background: #21242a;
 }
 
+.transport-button--vocal {
+  border-color: #87d8c5;
+  background: #eaf8f4;
+  color: #087f68;
+  font-weight: 800;
+}
+
+.transport-button--vocal:hover:not(:disabled),
+.transport-button--vocal.is-open {
+  border-color: #22b892;
+  background: #d9f4ed;
+  color: #066d5a;
+}
+
+.transport-vocal-button-icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
 .transport-status-chip {
   display: inline-flex;
   align-items: center;
@@ -2208,6 +2233,296 @@
 .transport-ai-actions .transport-button:disabled {
   cursor: not-allowed;
   opacity: .58;
+}
+
+.transport-vocal-backdrop {
+  z-index: 1002;
+}
+
+.transport-vocal-panel {
+  width: min(400px, calc(100vw - 36px));
+  overflow: hidden;
+  border: 1px solid #cfdce5;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #122039;
+  box-shadow: 0 20px 54px rgba(15, 31, 54, .2);
+  color-scheme: light;
+}
+
+.transport-vocal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px 17px;
+  border-bottom: 1px solid #e3eaf0;
+  background: #f8fbfc;
+}
+
+.transport-vocal-header span {
+  color: #0d9c79;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.transport-vocal-header h2 {
+  margin: 3px 0 0;
+  color: #101d33;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.transport-vocal-header p {
+  margin: 5px 0 0;
+  color: #68758a;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.transport-vocal-close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #d7e0e9;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #536176;
+  font: inherit;
+  font-size: 21px;
+  cursor: pointer;
+}
+
+.transport-vocal-close:hover {
+  border-color: #8edaca;
+  background: #ecfaf6;
+  color: #087f68;
+}
+
+.transport-vocal-lyrics {
+  margin: 18px 22px 0;
+}
+
+.transport-vocal-lyrics > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.transport-vocal-lyrics strong,
+.transport-vocal-voice legend {
+  color: #17243a;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.transport-vocal-lyrics > div span {
+  color: #718096;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.transport-vocal-lyrics p {
+  min-height: 44px;
+  max-height: 72px;
+  margin: 0;
+  overflow: auto;
+  padding: 11px 12px;
+  border: 1px solid #d7e1e8;
+  border-radius: 7px;
+  background: #fbfdfe;
+  color: #27364e;
+  font-size: 12px;
+  line-height: 1.55;
+  box-sizing: border-box;
+  scrollbar-color: rgba(116, 133, 155, .55) transparent;
+  scrollbar-width: thin;
+}
+
+.transport-vocal-lyrics p.is-empty {
+  color: #8a96a7;
+}
+
+.transport-vocal-voice {
+  margin: 17px 22px 0;
+  padding: 0;
+  border: 0;
+}
+
+.transport-vocal-voice > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.transport-vocal-voice button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  border: 1px solid #d6e0e8;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #2b3a51;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.transport-vocal-voice button > span {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: #eaf0f5;
+  color: #536176;
+  font-size: 10px;
+}
+
+.transport-vocal-voice button.is-selected {
+  border-color: #27b995;
+  background: #e9f9f5;
+  color: #087f68;
+  box-shadow: inset 0 0 0 1px rgba(39, 185, 149, .16);
+}
+
+.transport-vocal-voice button.is-selected > span {
+  background: #27b995;
+  color: #ffffff;
+}
+
+.transport-vocal-preview {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  align-items: center;
+  gap: 12px;
+  margin: 17px 22px 0;
+  padding: 12px;
+  border: 1px solid #dbe4eb;
+  border-radius: 8px;
+  background: #f7fafc;
+}
+
+.transport-vocal-preview > button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #b8d9d0;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #0b8d70;
+  cursor: pointer;
+}
+
+.transport-vocal-preview > button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.transport-vocal-preview > div {
+  min-width: 0;
+}
+
+.transport-vocal-preview strong,
+.transport-vocal-preview span {
+  display: block;
+}
+
+.transport-vocal-preview strong {
+  color: #1a2940;
+  font-size: 12px;
+}
+
+.transport-vocal-preview span {
+  margin-top: 2px;
+  color: #778498;
+  font-size: 10px;
+}
+
+.transport-vocal-progress {
+  height: 4px;
+  margin-top: 9px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #dce5eb;
+}
+
+.transport-vocal-progress i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: #27b995;
+}
+
+.transport-vocal-preview.is-playing .transport-vocal-progress i {
+  animation: transport-vocal-preview-progress 8s linear forwards;
+}
+
+.transport-vocal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 15px 22px 18px;
+  border-top: 1px solid #e3eaf0;
+}
+
+.transport-vocal-actions > span {
+  max-width: 160px;
+  color: #778498;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.transport-vocal-actions > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 142px;
+  min-height: 40px;
+  padding: 0 15px;
+  border: 1px solid #17aa83;
+  border-radius: 7px;
+  background: #1fbd91;
+  color: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  box-shadow: 0 7px 16px rgba(31, 189, 145, .2);
+}
+
+.transport-vocal-actions > button:hover:not(:disabled) {
+  background: #16a97f;
+}
+
+.transport-vocal-actions > button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+@keyframes transport-vocal-preview-progress {
+  from { width: 0; }
+  to { width: 100%; }
 }
 
 .transport-ai-generating {

@@ -184,6 +184,7 @@ export type SongState = {
   toggleBass: (row: number, col: number, length?: number) => void;
   clearInstrument: (instrument: InstrumentKey) => void;
   addInstrumentTrack: (instrument: InstrumentKey) => string;
+  addAiVocalTrack: (voice: 'female' | 'male') => string;
   ensureLyricsMelodyTrack: () => void;
   duplicateInstrumentTrack: (instrument: InstrumentKey, sourceTrackId?: string) => string;
   removeInstrumentTrack: (trackId: string) => void;
@@ -1601,6 +1602,34 @@ export const useSongStore = create<SongState>()(
     return track.id;
   },
 
+  addAiVocalTrack: (voice) => {
+    const state = get();
+    const guideTrack = state.extraTracks.find((track) => track.id === LYRICS_MELODY_TRACK_ID);
+    const track = createEmptyExtraTrack(
+      'melody',
+      state.steps,
+      state.extraTracks,
+      undefined,
+      `AI 보컬 · ${voice === 'female' ? '여성' : '남성'}`,
+      72
+    );
+
+    if (guideTrack) {
+      track.grid = cloneMatrix(guideTrack.grid);
+      track.melodyLengths = cloneLengthMatrix(
+        guideTrack.melodyLengths ?? createEmptyLengthMatrix(track.grid.length, state.steps)
+      );
+    }
+
+    set((current) =>
+      buildHistoryUpdate(current, {
+        extraTracks: [...current.extraTracks, track],
+      })
+    );
+
+    return track.id;
+  },
+
   ensureLyricsMelodyTrack: () =>
     set((state) => {
       return { extraTracks: withLyricsMelodyTrack(state.extraTracks, state.steps) };
@@ -1710,7 +1739,11 @@ export const useSongStore = create<SongState>()(
           col
         );
 
-        if (track.id === LYRICS_MELODY_TRACK_ID && !existingNote && length > 0) {
+        if (
+          (track.id === LYRICS_MELODY_TRACK_ID || track.label.startsWith('AI 보컬')) &&
+          !existingNote &&
+          length > 0
+        ) {
           const nextLength = snapMelodyLength(Math.floor(length), state.steps - col);
           track.grid.forEach((rowValues, targetRow) => {
             clearOverlappingNotes(

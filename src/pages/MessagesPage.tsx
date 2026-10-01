@@ -182,6 +182,7 @@ export default function MessagesPage() {
   const [selectedGroupMemberEmails, setSelectedGroupMemberEmails] = useState<string[]>([]);
   const [formError, setFormError] = useState('');
   const messageListRef = useRef<HTMLDivElement | null>(null);
+  const lastAutoScrolledThreadIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -269,15 +270,22 @@ export default function MessagesPage() {
   useEffect(() => {
     if (activeSection !== 'messages' || !activeThread) return undefined;
 
+    const behavior =
+      lastAutoScrolledThreadIdRef.current === activeThread.id ? 'smooth' : 'auto';
+    lastAutoScrolledThreadIdRef.current = activeThread.id;
+
     const frame = window.requestAnimationFrame(() => {
       const messageList = messageListRef.current;
       if (messageList) {
-        messageList.scrollTop = messageList.scrollHeight;
+        messageList.scrollTo({
+          top: messageList.scrollHeight,
+          behavior,
+        });
       }
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [activeSection, activeThread, latestActiveMessageId]);
+  }, [activeSection, activeThread?.id, latestActiveMessageId]);
 
   const unreadCountByThread = useMemo(() => {
     if (!user) {

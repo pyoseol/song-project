@@ -282,21 +282,54 @@ function getLyricsBarLines(value: string) {
   return lines.length ? lines : [''];
 }
 
-function distributeLyricsIntoBars(value: string) {
-  const explicitLines = getLyricsBarLines(value).map((line) => line.trim()).filter(Boolean);
-  if (explicitLines.length > 1) {
+function distributeLyricsIntoMelodyBars(
+  value: string,
+  melodyNotes: ReadonlyArray<{ col: number }>,
+  lyricsStartBar: number
+) {
+  const explicitLines = getLyricsBarLines(value).map((line) => line.trim());
+  const populatedLineIndexes = explicitLines.flatMap((line, index) =>
+    line ? [index] : []
+  );
+
+  // Multiple populated lines mean the user already assigned lyrics to bars.
+  if (
+    populatedLineIndexes.length > 1 ||
+    (populatedLineIndexes[0] ?? 0) > 0
+  ) {
     return explicitLines;
   }
 
-  const words = value.trim().split(/\s+/).filter(Boolean);
-  if (!words.length) {
-    return [''];
+  const tokens = (explicitLines[0] ?? '').split(/\s+/).filter(Boolean);
+  const firstBarIndex = lyricsStartBar - 1;
+  const noteCountByLine = new Map<number, number>();
+
+  melodyNotes.forEach(({ col }) => {
+    const lineIndex = Math.floor(col / COLLAB_BAR_LENGTH) - firstBarIndex;
+    if (lineIndex < 0) return;
+    noteCountByLine.set(lineIndex, (noteCountByLine.get(lineIndex) ?? 0) + 1);
+  });
+
+  const lastLineIndex = Math.max(-1, ...noteCountByLine.keys());
+  if (lastLineIndex < 0) {
+    return getLyricsBarLines(value);
   }
 
-  const lines: string[] = [];
-  for (let index = 0; index < words.length; index += 8) {
-    lines.push(words.slice(index, index + 8).join(' '));
+  const lines = Array.from({ length: lastLineIndex + 1 }, () => '');
+  let tokenIndex = 0;
+
+  for (let lineIndex = 0; lineIndex <= lastLineIndex; lineIndex += 1) {
+    const noteCount = noteCountByLine.get(lineIndex) ?? 0;
+    if (!noteCount) continue;
+
+    const tokenEnd =
+      lineIndex === lastLineIndex
+        ? tokens.length
+        : Math.min(tokens.length, tokenIndex + noteCount);
+    lines[lineIndex] = tokens.slice(tokenIndex, tokenEnd).join(' ');
+    tokenIndex = tokenEnd;
   }
+
   return lines;
 }
 
@@ -1311,10 +1344,17 @@ export function Composer() {
   );
 
   const handleDistributeLyrics = useCallback(() => {
-    const nextLines = distributeLyricsIntoBars(lyricsText);
+    const nextLines = distributeLyricsIntoMelodyBars(
+      lyricsText,
+      melodyLyricNotes,
+      lyricsStartBar
+    );
     commitLyricsBarLines(nextLines);
-    setSelectedLyricsBar(0);
-  }, [commitLyricsBarLines, lyricsText]);
+    const firstMelodyLine = melodyLyricNotes.length
+      ? Math.max(0, Math.floor(melodyLyricNotes[0].col / COLLAB_BAR_LENGTH) - lyricsStartBar + 1)
+      : 0;
+    setSelectedLyricsBar(firstMelodyLine);
+  }, [commitLyricsBarLines, lyricsStartBar, lyricsText, melodyLyricNotes]);
 
   const handleFillEmptyLyricsBars = useCallback(() => {
     const nextLength = Math.max(lyricsBarLines.length, arrangementBarCount - lyricsStartBar + 1);
@@ -1964,6 +2004,7 @@ export function Composer() {
     [collabId, collabMessages]
   );
   const latestCollabMessageId = projectCollabMessages.at(-1)?.id ?? '';
+  const activeCollabFocus = `composer:${getCollabInstrumentForTab(activeTab)}`;
 
   useEffect(() => {
     if (!isCollabPanelOpen || collabPanelTab !== 'chat') return undefined;
@@ -2034,6 +2075,7 @@ export function Composer() {
         .filter(
           (entry) =>
             entry.sessionId !== COLLAB_SESSION_ID &&
+            entry.focus === activeCollabFocus &&
             entry.cursor &&
             collabPresenceNow - entry.cursor.updatedAt <= COLLAB_CURSOR_VISIBLE_MS
         )
@@ -2054,7 +2096,7 @@ export function Composer() {
                 : fallbackColor,
           };
         }),
-    [activeCollabPresence, collabId, collabPresenceNow, collabProject]
+    [activeCollabFocus, activeCollabPresence, collabId, collabPresenceNow, collabProject]
   );
 
   useEffect(() => {
@@ -3809,13 +3851,11 @@ export function Composer() {
       return;
     }
 
-    const focus = `composer:${getCollabInstrumentForTab(activeTab)}`;
-
     void touchPresence(collabId, {
       email: user.email,
       name: user.name,
       color: collabSessionColor,
-      focus,
+      focus: activeCollabFocus,
     }).catch((error) => {
       console.error(error);
     });
@@ -3825,7 +3865,7 @@ export function Composer() {
         email: user.email,
         name: user.name,
         color: collabSessionColor,
-        focus,
+        focus: activeCollabFocus,
       }).catch((error) => {
         console.error(error);
       });
@@ -3837,7 +3877,7 @@ export function Composer() {
         console.error(error);
       });
     };
-  }, [activeTab, collabId, collabSessionColor, leavePresence, touchPresence, user]);
+  }, [activeCollabFocus, collabId, collabSessionColor, leavePresence, touchPresence, user]);
 
   const handleMixerChange = (tab: ComposerTab, volume: number) => {
     if (tab === 'lyrics') {
@@ -6155,15 +6195,38 @@ export function Composer() {
               <p>떠오르는 가사를 자유롭게 적어두세요.</p>
             </div>
           </header>
-          <textarea
-            className="composer-lyrics-memo-editor"
-            value={lyricsText}
-            onChange={(event) => setBarLyrics(getLyricsBarLines(event.target.value))}
-            placeholder="가사를 메모하세요."
-            aria-label="가사 메모 입력"
-          />
+          <div className="composer-lyrics-memo-bars">
+            {lyricsBarLines.map((line, index) => (
+              <label
+                key={`${lyricsStartBar}-${index}`}
+                className={`composer-lyrics-memo-bar${
+                  selectedLyricsBar === index ? ' is-selected' : ''
+                }`}
+              >
+                <strong>{lyricsStartBar + index}마디</strong>
+                <textarea
+                  rows={2}
+                  value={line}
+                  onFocus={() => handleSelectLyricsBar(index)}
+                  onChange={(event) => {
+                    const nextLines = [...lyricsBarLines];
+                    nextLines[index] = event.target.value.replace(/[\r\n]+/g, ' ');
+                    setBarLyrics(nextLines);
+                  }}
+                  placeholder={`${lyricsStartBar + index}마디 가사`}
+                  aria-label={`${lyricsStartBar + index}마디 가사 메모`}
+                />
+              </label>
+            ))}
+          </div>
           <div className="composer-lyrics-memo-footer">
             <span>{lyricsBarLines.filter((line) => line.trim()).length}개 마디</span>
+            <button
+              type="button"
+              onClick={() => setBarLyrics([...lyricsBarLines, ''])}
+            >
+              + 마디 추가
+            </button>
           </div>
         </section>
       ) : null}

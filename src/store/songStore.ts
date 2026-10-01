@@ -608,7 +608,10 @@ function mapBarLyricsToMelodyNotes(
     const tokens = line.trim().split(/\s+/).filter(Boolean);
     const notes = getMelodyNotesInBar(melody, firstBarIndex + lineIndex);
     notes.forEach((note, noteIndex) => {
-      const token = tokens[noteIndex];
+      const token =
+        noteIndex === notes.length - 1
+          ? tokens.slice(noteIndex).join(' ')
+          : tokens[noteIndex];
       if (token) {
         nextLyrics[`${note.row}-${note.col}`] = token;
       }

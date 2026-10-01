@@ -4235,24 +4235,69 @@ body:has(.composer-page) .site-header .topbar-account-menu {
   font-size: 11px;
 }
 
-.composer-lyrics-memo-editor {
+.composer-lyrics-memo-bars {
   width: 100%;
   height: calc(100% - 92px);
   min-height: 0;
-  resize: none;
-  padding: 13px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
   border: 1px solid #d7e1e8;
   border-radius: 8px;
+  background: #ffffff;
+  box-sizing: border-box;
+  scrollbar-color: rgba(116, 133, 155, .55) transparent;
+  scrollbar-width: thin;
+}
+
+.composer-lyrics-memo-bars::-webkit-scrollbar {
+  width: 8px;
+}
+
+.composer-lyrics-memo-bars::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.composer-lyrics-memo-bars::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: rgba(116, 133, 155, .55);
+  background-clip: padding-box;
+}
+
+.composer-lyrics-memo-bar {
+  display: grid;
+  gap: 5px;
+}
+
+.composer-lyrics-memo-bar > strong {
+  color: #34445e;
+  font-size: 11px;
+}
+
+.composer-lyrics-memo-bar > textarea {
+  width: 100%;
+  min-height: 54px;
+  resize: vertical;
+  padding: 9px 10px;
+  border: 1px solid #d7e1e8;
+  border-radius: 7px;
   outline: none;
   background: #ffffff;
   color: #17233a;
   font: inherit;
   font-size: 13px;
-  line-height: 1.7;
+  line-height: 1.45;
   box-sizing: border-box;
 }
 
-.composer-lyrics-memo-editor:focus {
+.composer-lyrics-memo-bar.is-selected > strong {
+  color: #087f68;
+}
+
+.composer-lyrics-memo-bar > textarea:focus {
   border-color: #43cdae;
   box-shadow: 0 0 0 3px rgba(42, 196, 160, .1);
 }
@@ -4269,6 +4314,19 @@ body:has(.composer-page) .site-header .topbar-account-menu {
   color: #738095;
   font-size: 11px;
   font-weight: 750;
+}
+
+.composer-lyrics-memo-footer button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #b9ddd5;
+  border-radius: 7px;
+  background: #e8f8f4;
+  color: #087f68;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
 }
 
 .composer-lyrics-workspace-close {

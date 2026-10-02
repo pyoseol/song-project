@@ -47,6 +47,20 @@ const instrumentPitches: Record<Exclude<InstrumentKey, 'drums'>, readonly string
   studioAltoSax: STUDIO_ALTO_SAX_NOTES,
 };
 
+const scoreInstrumentNames: Record<InstrumentKey, string> = {
+  melody: '멜로디',
+  violin: '바이올린',
+  saxophone: '색소폰',
+  guitar: '통기타',
+  bass: '베이스',
+  glockenspiel: '글로켄슈필',
+  piccolo: '피콜로',
+  supportingPiano: '서포팅 캐스트 피아노',
+  chicagoStreet: '시카고 스트리트',
+  studioAltoSax: '알토 색소폰',
+  drums: '드럼',
+};
+
 function extraTrackToScoreTrack(
   track: ExtraInstrumentTrack,
   noteLyrics: Record<string, string>
@@ -54,7 +68,9 @@ function extraTrackToScoreTrack(
   if (track.instrument === 'drums') return null;
   return {
     id: track.id,
-    name: track.id === LYRICS_MELODY_TRACK_ID ? '멜로디' : track.label,
+    name: track.id === LYRICS_MELODY_TRACK_ID
+      ? scoreInstrumentNames.melody
+      : scoreInstrumentNames[track.instrument],
     grid: track.grid,
     lengths: track.melodyLengths,
     pitches: instrumentPitches[track.instrument],
@@ -121,10 +137,10 @@ export function ScoreViewer({ open, title, onClose }: ScoreViewerProps) {
   const availableTracks = useMemo(() => {
     const baseTracks: MusicXmlTrack[] = [
       { id: 'piano', name: '피아노', grid: melody, lengths: melodyLengths, pitches: MELODY_NOTES },
-      { id: 'violin', name: '바이올린', grid: violin, lengths: violinLengths, pitches: VIOLIN_NOTES },
-      { id: 'saxophone', name: '색소폰', grid: saxophone, lengths: saxophoneLengths, pitches: SAXOPHONE_NOTES },
-      { id: 'guitar', name: '통기타', grid: guitar, lengths: guitarLengths, pitches: GUITAR_TRACK_LABELS },
-      { id: 'bass', name: '베이스', grid: bass, lengths: bassLengths, pitches: BASS_NOTES },
+      { id: 'violin', name: scoreInstrumentNames.violin, grid: violin, lengths: violinLengths, pitches: VIOLIN_NOTES },
+      { id: 'saxophone', name: scoreInstrumentNames.saxophone, grid: saxophone, lengths: saxophoneLengths, pitches: SAXOPHONE_NOTES },
+      { id: 'guitar', name: scoreInstrumentNames.guitar, grid: guitar, lengths: guitarLengths, pitches: GUITAR_TRACK_LABELS },
+      { id: 'bass', name: scoreInstrumentNames.bass, grid: bass, lengths: bassLengths, pitches: BASS_NOTES },
     ];
     const addedTracks = extraTracks.flatMap((track) => {
       const scoreTrack = extraTrackToScoreTrack(track, noteLyrics);

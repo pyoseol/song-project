@@ -820,9 +820,12 @@ function handleCreateProject(payload) {
             name: payload.ownerName,
             role: 'owner',
             joinedAt: timestamp,
+            color: payload.color,
           },
         ],
         tags: ['new-collab', payload.genre || 'draft'],
+        noteColors: {},
+        noteAuthors: {},
       },
       ...state.projects,
     ],
@@ -1207,13 +1210,109 @@ function handleSetStatus(projectId, status) {
   broadcastSnapshot();
 }
 
+function handleSetMemberColor(projectId, payload) {
+  const normalizedEmail = String(payload.email || '').trim().toLowerCase();
+  const color = String(payload.color || '').trim();
+  const project = state.projects.find((entry) => entry.id === projectId);
+  if (!project) throw createServerError(404, '협업 프로젝트를 찾을 수 없습니다.');
+  if (!normalizedEmail || !/^#[0-9a-f]{6}$/i.test(color)) {
+    throw createServerError(400, '협업 색상 정보가 올바르지 않습니다.');
+  }
+
+  const previousColor = project.members.find(
+    (member) => String(member.email || '').trim().toLowerCase() === normalizedEmail
+  )?.color;
+  const noteColors = { ...(project.noteColors || {}) };
+  const noteAuthors = { ...(project.noteAuthors || {}) };
+  Object.entries(noteColors).forEach(([key, noteColor]) => {
+    const authorEmail = String(noteAuthors[key] || '').trim().toLowerCase();
+    if (authorEmail === normalizedEmail || (!authorEmail && previousColor && noteColor === previousColor)) {
+      noteColors[key] = color;
+      noteAuthors[key] = normalizedEmail;
+    }
+  });
+
+  const timestamp = Date.now();
+  state = {
+    ...state,
+    version: timestamp,
+    projects: state.projects.map((entry) =>
+      entry.id === projectId
+        ? {
+            ...entry,
+            updatedAt: timestamp,
+            members: entry.members.map((member) =>
+              String(member.email || '').trim().toLowerCase() === normalizedEmail
+                ? { ...member, color }
+                : member
+            ),
+            noteColors,
+            noteAuthors,
+          }
+        : entry
+    ),
+  };
+  saveState();
+  broadcastSnapshot();
+}
+
+function handleRenameProject(projectId, payload) {
+  const project = state.projects.find((entry) => entry.id === projectId);
+  if (!project) throw createServerError(404, '작업실을 찾을 수 없습니다.');
+  if (String(project.ownerEmail).trim().toLowerCase() !== String(payload.userEmail).trim().toLowerCase()) {
+    throw createServerError(403, '작업실을 만든 사람만 이름을 변경할 수 있습니다.');
+  }
+  const title = String(payload.title || '').trim();
+  if (!title) throw createServerError(400, '작업실 이름을 입력해주세요.');
+  const timestamp = Date.now();
+  state = {
+    ...state,
+    version: timestamp,
+    projects: state.projects.map((entry) =>
+      entry.id === projectId ? { ...entry, title, updatedAt: timestamp } : entry
+    ),
+  };
+  saveState();
+  broadcastSnapshot();
+}
+
+function handleDeleteCollabProject(projectId, payload) {
+  const project = state.projects.find((entry) => entry.id === projectId);
+  if (!project) throw createServerError(404, '작업실을 찾을 수 없습니다.');
+  if (String(project.ownerEmail).trim().toLowerCase() !== String(payload.userEmail).trim().toLowerCase()) {
+    throw createServerError(403, '작업실을 만든 사람만 삭제할 수 있습니다.');
+  }
+  const timestamp = Date.now();
+  state = {
+    ...state,
+    version: timestamp,
+    projects: state.projects.filter((entry) => entry.id !== projectId),
+    messages: state.messages.filter((entry) => entry.projectId !== projectId),
+    tasks: state.tasks.filter((entry) => entry.projectId !== projectId),
+  };
+  delete presenceByProject[projectId];
+  delete composerLocksByProject[projectId];
+  delete composerHistoryByProject[projectId];
+  saveState();
+  broadcastSnapshot();
+}
+
 function handlePresencePing(payload) {
   const entry = {
     sessionId: payload.sessionId,
     projectId: payload.projectId,
     email: payload.email,
     name: payload.name,
+    color: payload.color,
     focus: payload.focus || undefined,
+    cursor:
+      payload.x === null || payload.y === null || payload.x === undefined || payload.y === undefined
+        ? payload.cursor ?? null
+        : {
+            x: Math.max(0, Math.min(1, Number(payload.x) || 0)),
+            y: Math.max(0, Math.min(1, Number(payload.y) || 0)),
+            updatedAt: Date.now(),
+          },
     lastSeenAt: Date.now(),
   };
 
@@ -1860,6 +1959,30 @@ const server = createServer(async (request, response) => {
     if (request.method === 'POST' && statusMatch) {
       const body = await readBody(request);
       handleSetStatus(statusMatch[1], body.status);
+      writeJson(response, 200, { ok: true, snapshot: createSnapshot() });
+      return;
+    }
+
+    const memberColorMatch = pathname.match(/^\/api\/collab\/projects\/([^/]+)\/member-color$/);
+    if (request.method === 'POST' && memberColorMatch) {
+      const body = await readBody(request);
+      handleSetMemberColor(memberColorMatch[1], body);
+      writeJson(response, 200, { ok: true, snapshot: createSnapshot() });
+      return;
+    }
+
+    const renameCollabMatch = pathname.match(/^\/api\/collab\/projects\/([^/]+)\/rename$/);
+    if (request.method === 'POST' && renameCollabMatch) {
+      const body = await readBody(request);
+      handleRenameProject(renameCollabMatch[1], body);
+      writeJson(response, 200, { ok: true, snapshot: createSnapshot() });
+      return;
+    }
+
+    const deleteCollabMatch = pathname.match(/^\/api\/collab\/projects\/([^/]+)\/delete$/);
+    if (request.method === 'POST' && deleteCollabMatch) {
+      const body = await readBody(request);
+      handleDeleteCollabProject(deleteCollabMatch[1], body);
       writeJson(response, 200, { ok: true, snapshot: createSnapshot() });
       return;
     }

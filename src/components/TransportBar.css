@@ -314,6 +314,12 @@
   background: #21242a;
 }
 
+.transport-button--score.is-open {
+  border-color: rgba(99, 230, 190, .55);
+  background: rgba(99, 230, 190, .13);
+  color: #7cebc9;
+}
+
 .transport-button--vocal {
   border-color: #87d8c5;
   background: #eaf8f4;

@@ -3,6 +3,8 @@ import type { SongProject } from './songStore';
 import { useSongStore, buildSongProjectSnapshot } from './songStore'; 
 import { db } from '../firebase'; 
 import { createRandomCollabMemberColor } from '../utils/collabMemberColor';
+import { isLocalDevelopmentHost } from '../utils/localEnvironment';
+import { APP_SERVER_URL } from '../utils/serverApi';
 import { 
   collection, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, onSnapshot, increment, arrayUnion, query, where, orderBy, limit, writeBatch
 } from 'firebase/firestore';
@@ -12,8 +14,8 @@ import {
 // ============================================================================
 export class CollabRequestError extends Error {
   statusCode: number;
-  payload?: any;
-  constructor(message: string, statusCode: number = 500, payload?: any) {
+  payload?: unknown;
+  constructor(message: string, statusCode: number = 500, payload?: unknown) {
     super(message);
     this.name = 'CollabRequestError';
     this.statusCode = statusCode;
@@ -72,6 +74,17 @@ export type CollabComposerOperation =
 
 type ApplyComposerOperationPayload = { operation: CollabComposerOperation; email: string; name: string; color?: string; sessionId?: string; baseRevision?: number; };
 type ComposerLockPayload = { instrument: CollabComposerInstrument; barIndex: number; email?: string; name?: string; color?: string; sessionId?: string; lock: boolean; };
+
+type CollabSnapshot = Pick<
+  CollabState,
+  | 'version'
+  | 'projects'
+  | 'messages'
+  | 'tasks'
+  | 'presenceByProject'
+  | 'composerLocksByProject'
+  | 'composerHistoryByProject'
+>;
 
 type CollabState = {
   version: number; projects: CollabProject[]; messages: CollabMessage[]; tasks: CollabTask[];
@@ -184,36 +197,38 @@ function getOperationSummary(operation: CollabComposerOperation) {
 // ============================================================================
 // 🔥 2. 파이어베이스 2차원 배열 에러 방지용 "마법의 번역기"
 // ============================================================================
-function sanitizeForFirestore(data: any): any {
+function sanitizeForFirestore(data: unknown): unknown {
   if (Array.isArray(data)) {
     if (data.some(Array.isArray)) return { _isSerializedArray: true, data: JSON.stringify(data) };
     return data.map(sanitizeForFirestore);
   } else if (data !== null && typeof data === 'object') {
-    const res: any = {};
-    for (const key of Object.keys(data)) res[key] = sanitizeForFirestore(data[key]);
+    const source = data as Record<string, unknown>;
+    const res: Record<string, unknown> = {};
+    for (const key of Object.keys(source)) res[key] = sanitizeForFirestore(source[key]);
     return res;
   }
   return data;
 }
 
 // 꺼낼 때: 포장된 문자열을 발견하면 원래의 2차원 배열로 완벽하게 복구합니다.
-function restoreFromFirestore(data: any): any {
+function restoreFromFirestore(data: unknown): unknown {
   // ★ 수정됨: 배열(Array)인지 가장 먼저 확인해야 합니다!
   if (Array.isArray(data)) {
     return data.map(restoreFromFirestore);
   } 
   // 그 다음 일반 객체(Object)인지 확인합니다.
   else if (data !== null && typeof data === 'object') {
-    if (data._isSerializedArray) {
+    const source = data as Record<string, unknown>;
+    if (source._isSerializedArray) {
       try {
-        return JSON.parse(data.data);
-      } catch (e) {
+        return JSON.parse(String(source.data));
+      } catch {
         return [];
       }
     }
-    const res: any = {};
-    for (const key of Object.keys(data)) {
-      res[key] = restoreFromFirestore(data[key]);
+    const res: Record<string, unknown> = {};
+    for (const key of Object.keys(source)) {
+      res[key] = restoreFromFirestore(source[key]);
     }
     return res;
   }
@@ -223,7 +238,35 @@ function restoreFromFirestore(data: any): any {
 // ============================================================================
 // 🔥 3. 파이어베이스 실시간 스토어 구현
 // ============================================================================
-let unsubscribes: (() => void)[] = [];
+const unsubscribes: (() => void)[] = [];
+let localEventSource: EventSource | null = null;
+let localInitPromise: Promise<void> | null = null;
+
+async function fetchLocalCollabJson<T>(path: string, init?: RequestInit) {
+  let response: Response;
+  try {
+    response = await fetch(`${APP_SERVER_URL}${path}`, {
+      ...init,
+      headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    });
+  } catch {
+    throw new Error('로컬 협업 서버에 연결하지 못했습니다. npm.cmd run dev 실행 상태를 확인해주세요.');
+  }
+
+  const payload = await response.json().catch(() => null) as ({ error?: string } & Record<string, unknown>) | null;
+  if (!response.ok) {
+    throw new CollabRequestError(payload?.error || '협업 서버 요청이 실패했습니다.', response.status, payload);
+  }
+  return payload as T;
+}
+
+function applyLocalSnapshot(snapshot: CollabSnapshot) {
+  useCollabStore.setState({
+    ...snapshot,
+    connectionStatus: 'connected',
+    connectionError: null,
+  });
+}
 
 // ✅ Error 4 해결: get 변수를 제거했습니다.
 export const useCollabStore = create<CollabState>((set, get) => ({
@@ -231,12 +274,49 @@ export const useCollabStore = create<CollabState>((set, get) => ({
   connectionStatus: 'idle', connectionError: null,
 
   initializeRealtime: async () => {
-    if (typeof window === 'undefined' || unsubscribes.length > 0) return;
+    if (typeof window === 'undefined') return;
+
+    if (isLocalDevelopmentHost()) {
+      if (localInitPromise) return localInitPromise;
+      if (localEventSource?.readyState === EventSource.OPEN) return;
+
+      set({ connectionStatus: 'connecting', connectionError: null });
+      localInitPromise = (async () => {
+        try {
+          const snapshot = await fetchLocalCollabJson<CollabSnapshot>('/api/collab/bootstrap');
+          applyLocalSnapshot(snapshot);
+
+          localEventSource?.close();
+          localEventSource = new EventSource(`${APP_SERVER_URL}/api/collab/stream`);
+          localEventSource.addEventListener('snapshot', (event) => {
+            applyLocalSnapshot(JSON.parse((event as MessageEvent<string>).data) as CollabSnapshot);
+          });
+          localEventSource.onopen = () => set({ connectionStatus: 'connected', connectionError: null });
+          localEventSource.onerror = () => set({
+            connectionStatus: 'error',
+            connectionError: '로컬 협업 서버 연결이 끊겼습니다.',
+          });
+        } catch (error) {
+          set({
+            connectionStatus: 'error',
+            connectionError: error instanceof Error ? error.message : '로컬 협업 서버 연결에 실패했습니다.',
+          });
+          throw error;
+        } finally {
+          localInitPromise = null;
+        }
+      })();
+      return localInitPromise;
+    }
+
+    if (unsubscribes.length > 0) return;
     set({ connectionStatus: 'connecting', connectionError: null });
 
     try {
       unsubscribes.push(onSnapshot(query(collection(db, 'collab_projects'), orderBy('updatedAt', 'desc'), limit(80)), (snap) => {
-        const projects = snap.docs.map(d => restoreFromFirestore({ id: d.id, ...d.data() }));
+        const projects = snap.docs.map(
+          d => restoreFromFirestore({ id: d.id, ...d.data() }) as CollabProject
+        );
         set({ projects, connectionStatus: 'connected' });
       }));
 
@@ -283,12 +363,28 @@ export const useCollabStore = create<CollabState>((set, get) => ({
         set({ composerHistoryByProject });
       }));
 
-    } catch (error) {
+    } catch {
       set({ connectionStatus: 'error', connectionError: '파이어베이스 실시간 연결에 실패했습니다.' });
     }
   },
 
   createFromComposerProject: async (payload) => {
+    if (isLocalDevelopmentHost()) {
+      const response = await fetchLocalCollabJson<{ projectId: string; snapshot: CollabSnapshot }>(
+        '/api/collab/projects/from-composer',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            ...payload,
+            color: COLLAB_SESSION_COLOR.accent,
+            sessionId: payload.sessionId || COLLAB_SESSION_ID,
+          }),
+        }
+      );
+      applyLocalSnapshot(response.snapshot);
+      return response.projectId;
+    }
+
     const projectId = doc(collection(db, 'collab_projects')).id;
     const newProject = {
       id: projectId, title: payload.title, summary: payload.summary, genre: payload.genre, bpm: payload.bpm, steps: payload.steps,
@@ -302,12 +398,28 @@ export const useCollabStore = create<CollabState>((set, get) => ({
   },
 
   joinProject: async (projectId, payload) => {
+    if (isLocalDevelopmentHost()) {
+      const response = await fetchLocalCollabJson<{ snapshot: CollabSnapshot }>(
+        `/api/collab/projects/${projectId}/join`,
+        { method: 'POST', body: JSON.stringify({ ...payload, color: createRandomCollabMemberColor().accent }) }
+      );
+      applyLocalSnapshot(response.snapshot);
+      return;
+    }
     await updateDoc(doc(db, 'collab_projects', projectId), {
       members: arrayUnion({ email: payload.email, name: payload.name, role: 'editor', joinedAt: Date.now(), color: createRandomCollabMemberColor().accent })
     });
   },
 
   setMemberColor: async (projectId, email, color) => {
+    if (isLocalDevelopmentHost()) {
+      const response = await fetchLocalCollabJson<{ snapshot: CollabSnapshot }>(
+        `/api/collab/projects/${projectId}/member-color`,
+        { method: 'POST', body: JSON.stringify({ email, color }) }
+      );
+      applyLocalSnapshot(response.snapshot);
+      return;
+    }
     const project = get().projects.find((item) => item.id === projectId);
     if (!project) return;
 
@@ -345,6 +457,14 @@ export const useCollabStore = create<CollabState>((set, get) => ({
   },
 
   addMessage: async (projectId, payload) => {
+    if (isLocalDevelopmentHost()) {
+      const response = await fetchLocalCollabJson<{ snapshot: CollabSnapshot }>(
+        `/api/collab/projects/${projectId}/messages`,
+        { method: 'POST', body: JSON.stringify(payload) }
+      );
+      applyLocalSnapshot(response.snapshot);
+      return;
+    }
     const msgRef = doc(collection(db, 'collab_messages'));
     const now = Date.now();
     const batch = writeBatch(db);
@@ -354,6 +474,14 @@ export const useCollabStore = create<CollabState>((set, get) => ({
   },
 
   addTask: async (projectId, payload) => {
+    if (isLocalDevelopmentHost()) {
+      const response = await fetchLocalCollabJson<{ snapshot: CollabSnapshot }>(
+        `/api/collab/projects/${projectId}/tasks`,
+        { method: 'POST', body: JSON.stringify(payload) }
+      );
+      applyLocalSnapshot(response.snapshot);
+      return;
+    }
     const taskRef = doc(collection(db, 'collab_tasks'));
     const now = Date.now();
     const batch = writeBatch(db);
@@ -364,16 +492,48 @@ export const useCollabStore = create<CollabState>((set, get) => ({
 
   // ✅ Error 5 해결: 사용하지 않는 projectId에 밑줄(_)을 추가해 경고를 무시합니다.
   toggleTask: async (_projectId, taskId) => {
+    if (isLocalDevelopmentHost()) {
+      const response = await fetchLocalCollabJson<{ snapshot: CollabSnapshot }>(
+        `/api/collab/projects/${_projectId}/tasks/${taskId}/toggle`,
+        { method: 'POST' }
+      );
+      applyLocalSnapshot(response.snapshot);
+      return;
+    }
     const taskRef = doc(db, 'collab_tasks', taskId);
     const task = get().tasks.find((item) => item.id === taskId);
     if (task) await updateDoc(taskRef, { completed: !task.completed });
   },
 
   setStatus: async (projectId, status) => {
+    if (isLocalDevelopmentHost()) {
+      const response = await fetchLocalCollabJson<{ snapshot: CollabSnapshot }>(
+        `/api/collab/projects/${projectId}/status`,
+        { method: 'POST', body: JSON.stringify({ status }) }
+      );
+      applyLocalSnapshot(response.snapshot);
+      return;
+    }
     await updateDoc(doc(db, 'collab_projects', projectId), { status, updatedAt: Date.now() });
   },
 
   updateComposerSnapshot: async (projectId, payload) => {
+    if (isLocalDevelopmentHost()) {
+      try {
+        const response = await fetchLocalCollabJson<{ revision: number; snapshot: CollabSnapshot }>(
+          `/api/collab/projects/${projectId}/composer-snapshot`,
+          { method: 'POST', body: JSON.stringify({ ...payload, sessionId: payload.sessionId || COLLAB_SESSION_ID }) }
+        );
+        applyLocalSnapshot(response.snapshot);
+        return response.revision;
+      } catch (error) {
+        if (error instanceof CollabRequestError) {
+          const snapshot = (error.payload as { snapshot?: CollabSnapshot } | undefined)?.snapshot;
+          if (snapshot) applyLocalSnapshot(snapshot);
+        }
+        throw error;
+      }
+    }
     const revision = (payload.baseRevision ?? 0) + 1;
     const updatedAt = Date.now();
     const projectRef = doc(db, 'collab_projects', projectId);
@@ -403,6 +563,22 @@ export const useCollabStore = create<CollabState>((set, get) => ({
   },
 
   applyComposerOperation: async (projectId, payload) => {
+    if (isLocalDevelopmentHost()) {
+      try {
+        const response = await fetchLocalCollabJson<{ revision: number; snapshot: CollabSnapshot }>(
+          `/api/collab/projects/${projectId}/composer-operation`,
+          { method: 'POST', body: JSON.stringify({ ...payload, sessionId: payload.sessionId || COLLAB_SESSION_ID }) }
+        );
+        applyLocalSnapshot(response.snapshot);
+        return response.revision;
+      } catch (error) {
+        if (error instanceof CollabRequestError) {
+          const snapshot = (error.payload as { snapshot?: CollabSnapshot } | undefined)?.snapshot;
+          if (snapshot) applyLocalSnapshot(snapshot);
+        }
+        throw error;
+      }
+    }
     const currentSongState = useSongStore.getState();
     const currentSnapshot = buildSongProjectSnapshot(currentSongState);
     const revision = (payload.baseRevision ?? 0) + 1;
@@ -472,6 +648,17 @@ export const useCollabStore = create<CollabState>((set, get) => ({
   },
 
   setComposerLock: async (projectId, payload) => {
+    if (isLocalDevelopmentHost()) {
+      const response = await fetchLocalCollabJson<{ snapshot: CollabSnapshot }>(
+        `/api/collab/projects/${projectId}/composer-lock`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ ...payload, projectId, sessionId: payload.sessionId || COLLAB_SESSION_ID }),
+        }
+      );
+      applyLocalSnapshot(response.snapshot);
+      return;
+    }
     const lockId = `${projectId}_${payload.instrument}_${payload.sessionId || COLLAB_SESSION_ID}`;
     const lockRef = doc(db, 'collab_locks', lockId);
     if (payload.lock) {
@@ -485,6 +672,13 @@ export const useCollabStore = create<CollabState>((set, get) => ({
   },
 
   touchPresence: async (projectId, payload) => {
+    if (isLocalDevelopmentHost()) {
+      await fetchLocalCollabJson('/api/collab/presence/ping', {
+        method: 'POST',
+        body: JSON.stringify({ ...payload, projectId, sessionId: COLLAB_SESSION_ID }),
+      });
+      return;
+    }
     const presenceId = `${projectId}_${COLLAB_SESSION_ID}`;
     await setDoc(doc(db, 'collab_presence', presenceId), {
       projectId, sessionId: COLLAB_SESSION_ID, email: payload.email, name: payload.name, color: payload.color || COLLAB_SESSION_COLOR.accent, focus: payload.focus || '', lastSeenAt: Date.now()
@@ -492,6 +686,13 @@ export const useCollabStore = create<CollabState>((set, get) => ({
   },
 
   updateCursor: async (projectId, payload) => {
+    if (isLocalDevelopmentHost()) {
+      await fetchLocalCollabJson('/api/collab/presence/ping', {
+        method: 'POST',
+        body: JSON.stringify({ ...payload, projectId, sessionId: COLLAB_SESSION_ID }),
+      });
+      return;
+    }
     const presenceId = `${projectId}_${COLLAB_SESSION_ID}`;
     const now = Date.now();
     const hasPosition = payload.x !== null && payload.y !== null;
@@ -513,11 +714,26 @@ export const useCollabStore = create<CollabState>((set, get) => ({
   },
 
   leavePresence: async (projectId) => {
+    if (isLocalDevelopmentHost()) {
+      await fetchLocalCollabJson('/api/collab/presence/leave', {
+        method: 'POST',
+        body: JSON.stringify({ projectId, sessionId: COLLAB_SESSION_ID }),
+      });
+      return;
+    }
     const presenceId = `${projectId}_${COLLAB_SESSION_ID}`;
     await deleteDoc(doc(db, 'collab_presence', presenceId));
   },
 
   renameProject: async (projectId, userEmail, title) => {
+    if (isLocalDevelopmentHost()) {
+      const response = await fetchLocalCollabJson<{ snapshot: CollabSnapshot }>(
+        `/api/collab/projects/${projectId}/rename`,
+        { method: 'POST', body: JSON.stringify({ userEmail, title }) }
+      );
+      applyLocalSnapshot(response.snapshot);
+      return;
+    }
     const nextTitle = title.trim();
     if (!nextTitle) {
       throw new CollabRequestError('작업실 이름을 입력해주세요.', 400);
@@ -538,6 +754,14 @@ export const useCollabStore = create<CollabState>((set, get) => ({
   },
 
   deleteProject: async (projectId, userEmail) => {
+    if (isLocalDevelopmentHost()) {
+      const response = await fetchLocalCollabJson<{ snapshot: CollabSnapshot }>(
+        `/api/collab/projects/${projectId}/delete`,
+        { method: 'POST', body: JSON.stringify({ userEmail }) }
+      );
+      applyLocalSnapshot(response.snapshot);
+      return;
+    }
     const projectRef = doc(db, 'collab_projects', projectId);
     const projectSnapshot = await getDoc(projectRef);
     if (!projectSnapshot.exists()) {

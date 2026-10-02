@@ -3,6 +3,7 @@ import type { DragEvent as ReactDragEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import SiteHeader from '../components/layout/SiteHeader';
 import { PianoRoll } from '../components/PianoRoll.tsx';
+import { ScoreViewer } from '../components/ScoreViewer.tsx';
 import { TransportBar } from '../components/TransportBar.tsx';
 import {
   initTransport,
@@ -1078,6 +1079,8 @@ export function Composer() {
   const [notepadMode, setNotepadMode] = useState<ComposerNotepadMode>('lyrics');
   const [notepadDraft, setNotepadDraft] = useState(readComposerNotepadDraft);
   const [isLyricsWorkspaceOpen, setIsLyricsWorkspaceOpen] = useState(false);
+  const [isScoreViewerOpen, setIsScoreViewerOpen] = useState(false);
+  const closeScoreViewer = useCallback(() => setIsScoreViewerOpen(false), []);
   const [isCollabPanelOpen, setIsCollabPanelOpen] = useState(false);
   const [collabPanelTab, setCollabPanelTab] = useState<CollabPanelTab>('activity');
   const [collabMessageDraft, setCollabMessageDraft] = useState('');
@@ -4884,6 +4887,8 @@ export function Composer() {
           onPlayStarted={() => setPlayedTutorialOnce(true)}
           onLyricsClick={handleLyricsToggle}
           lyricsActive={activeTab === 'lyrics' && !activeExtraTrack}
+          onScoreClick={() => setIsScoreViewerOpen((open) => !open)}
+          scoreActive={isScoreViewerOpen}
           onAddAiVocalTrack={handleAddAiVocalTrack}
         />
       </footer>
@@ -6312,6 +6317,12 @@ export function Composer() {
           ))}
         </div>
       ) : null}
+
+      <ScoreViewer
+        open={isScoreViewerOpen}
+        title={loadedLibraryProject?.title ?? collabProject?.title ?? notepadDraft.title}
+        onClose={closeScoreViewer}
+      />
 
     </div>
   );

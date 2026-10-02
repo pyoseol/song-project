@@ -232,6 +232,8 @@ type TransportBarProps = {
   onPlayStarted?: () => void;
   onLyricsClick?: () => void;
   lyricsActive?: boolean;
+  onScoreClick?: () => void;
+  scoreActive?: boolean;
   onAddAiVocalTrack?: (voice: 'female' | 'male') => void;
   songTitle?: string;
   onSongTitleChange?: (title: string) => void;
@@ -307,6 +309,18 @@ const LyricsIcon = () => (
   </svg>
 );
 
+const ScoreIcon = () => (
+  <svg
+    className="transport-button-icon-svg"
+    viewBox="0 0 20 20"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path d="M5 2.5h8l3 3V17.5H5z" />
+    <path d="M13 2.5v3h3M8 9h5M8 12h5M8 15h3" />
+  </svg>
+);
+
 const VocalIcon = () => (
   <svg className="transport-vocal-button-icon" viewBox="0 0 20 20" aria-hidden="true">
     <rect x="6.5" y="2.5" width="7" height="10" rx="3.5" />
@@ -365,6 +379,8 @@ export const TransportBar = ({
   onPlayStarted,
   onLyricsClick,
   lyricsActive = false,
+  onScoreClick,
+  scoreActive = false,
   onAddAiVocalTrack,
   songTitle = '',
   onSongTitleChange,
@@ -1130,6 +1146,18 @@ export const TransportBar = ({
         </button>
         <button type="button" className="transport-button" onClick={handleLoadProjectClick}>
           불러오기
+        </button>
+        <button
+          type="button"
+          className={`transport-button transport-button--with-icon transport-button--score${
+            scoreActive ? ' is-open' : ''
+          }`}
+          onClick={onScoreClick}
+          aria-pressed={scoreActive}
+          title={scoreActive ? '악보 닫기' : '악보 열기'}
+        >
+          <ScoreIcon />
+          <span>악보</span>
         </button>
         <input
           ref={fileInputRef}

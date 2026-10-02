@@ -74,6 +74,7 @@ function getConnectionLabel(status: ReturnType<typeof useCollabStore.getState>['
 export default function CollabPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
+  const isLocalHost = isLocalDevelopmentHost();
   const projects = useCollabStore((state) => state.projects);
   const messages = useCollabStore((state) => state.messages);
   const tasks = useCollabStore((state) => state.tasks);
@@ -92,6 +93,8 @@ export default function CollabPage() {
   const [renameTitle, setRenameTitle] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<CollabProject | null>(null);
   const [isManagingProject, setIsManagingProject] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [creatingProjectId, setCreatingProjectId] = useState<string | null>(null);
 
   useEffect(() => {
     void initializeRealtime().catch(console.error);
@@ -110,25 +113,24 @@ export default function CollabPage() {
     () =>
       user
         ? composerProjects
-            .filter((project) => project.creatorEmail === user.email)
+            .filter(
+              (project) =>
+                project.creatorEmail.trim().toLowerCase() === user.email.trim().toLowerCase()
+            )
             .sort((left, right) => right.updatedAt - left.updatedAt)
-        : [],
-    [composerProjects, user]
+        : isLocalHost
+          ? [...composerProjects].sort((left, right) => right.updatedAt - left.updatedAt)
+          : [],
+    [composerProjects, isLocalHost, user]
   );
 
-  const linkedProjectIds = useMemo(
-    () =>
-      new Set(
-        projects
-          .map((project) => project.sourceProjectId)
-          .filter((value): value is string => Boolean(value))
-      ),
+  const linkedProjectsBySource = useMemo(
+    () => new Map(
+      projects
+        .filter((project) => Boolean(project.sourceProjectId))
+        .map((project) => [project.sourceProjectId as string, project])
+    ),
     [projects]
-  );
-
-  const readyProjects = useMemo(
-    () => myComposerProjects.filter((project) => !linkedProjectIds.has(project.id)),
-    [linkedProjectIds, myComposerProjects]
   );
 
   const totalMembers = useMemo(() => {
@@ -160,7 +162,7 @@ export default function CollabPage() {
   }, [projects]);
 
   const handleCreateCollab = async (projectId: string) => {
-    if (!user) {
+    if (!user && !isLocalHost) {
       navigate('/login');
       return;
     }
@@ -169,6 +171,7 @@ export default function CollabPage() {
     if (!sourceProject) return;
 
     try {
+      setCreatingProjectId(projectId);
       setActionError('');
       const collabId = await createFromComposerProject({
         sourceProjectId: sourceProject.id,
@@ -177,15 +180,18 @@ export default function CollabPage() {
         genre: sourceProject.genre,
         bpm: sourceProject.bpm,
         steps: sourceProject.steps,
-        ownerEmail: user.email,
-        ownerName: user.name,
+        ownerEmail: user?.email ?? sourceProject.creatorEmail,
+        ownerName: user?.name ?? sourceProject.creatorName,
         snapshot: sourceProject.project,
       });
 
+      setIsCreateDialogOpen(false);
       navigate(`/collab/${collabId}`);
     } catch (error) {
       console.error(error);
       setActionError(error instanceof Error ? error.message : '협업 프로젝트를 만들지 못했습니다.');
+    } finally {
+      setCreatingProjectId(null);
     }
   };
 
@@ -215,12 +221,18 @@ export default function CollabPage() {
   };
 
   const handleCreateFromFirstProject = () => {
-    const sourceProject = readyProjects[0];
-    if (sourceProject) {
-      void handleCreateCollab(sourceProject.id);
+    if (!user && !isLocalHost) {
+      navigate('/login');
       return;
     }
-    navigate(user ? '/library' : '/login');
+
+    if (!myComposerProjects.length) {
+      navigate('/composer');
+      return;
+    }
+
+    setActionError('');
+    setIsCreateDialogOpen(true);
   };
 
   const openRenameDialog = (project: CollabProject) => {
@@ -449,6 +461,56 @@ export default function CollabPage() {
           </aside>
         </div>
       </main>
+
+      {isCreateDialogOpen ? (
+        <div className="collab-manage-overlay" role="presentation" onMouseDown={() => setIsCreateDialogOpen(false)}>
+          <section
+            className="collab-manage-dialog collab-create-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="collab-create-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div>
+              <strong id="collab-create-title">새 협업 만들기</strong>
+              <p>협업 작업실로 가져올 내 곡을 선택하세요.</p>
+            </div>
+            <div className="collab-create-project-list">
+              {myComposerProjects.map((project) => {
+                const linkedProject = linkedProjectsBySource.get(project.id);
+                const isCreating = creatingProjectId === project.id;
+                return (
+                  <article key={project.id}>
+                    <span>
+                      <strong>{project.title || '제목 없는 곡'}</strong>
+                      <small>{project.genre || '장르 미정'} · {project.bpm} BPM</small>
+                    </span>
+                    <button
+                      type="button"
+                      className={linkedProject ? '' : 'is-primary'}
+                      disabled={Boolean(creatingProjectId)}
+                      onClick={() => {
+                        if (linkedProject) {
+                          setIsCreateDialogOpen(false);
+                          void handleOpenProject(linkedProject);
+                          return;
+                        }
+                        void handleCreateCollab(project.id);
+                      }}
+                    >
+                      {linkedProject ? '기존 작업실 열기' : isCreating ? '만드는 중...' : '협업 만들기'}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+            {actionError ? <p className="collab-create-error" role="alert">{actionError}</p> : null}
+            <div className="collab-manage-actions">
+              <button type="button" onClick={() => setIsCreateDialogOpen(false)} disabled={Boolean(creatingProjectId)}>닫기</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {renameTarget ? (
         <div className="collab-manage-overlay" role="presentation" onMouseDown={() => setRenameTarget(null)}>

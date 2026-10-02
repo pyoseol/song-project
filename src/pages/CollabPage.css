@@ -430,6 +430,50 @@
   font: inherit;
 }
 .collab-manage-dialog input:focus { border-color: #21b68c; box-shadow: 0 0 0 3px rgba(33, 182, 140, 0.12); }
+.collab-create-dialog { width: min(560px, 100%); }
+.collab-create-project-list {
+  display: grid;
+  max-height: min(420px, 55vh);
+  gap: 8px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-color: #9eacbc transparent;
+  scrollbar-width: thin;
+}
+.collab-create-project-list::-webkit-scrollbar { width: 8px; }
+.collab-create-project-list::-webkit-scrollbar-track { background: transparent; }
+.collab-create-project-list::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: #9eacbc; background-clip: padding-box; }
+.collab-create-project-list article {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 14px;
+  border: 1px solid #dce5ed;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+.collab-create-project-list article > span { display: grid; min-width: 0; gap: 4px; }
+.collab-create-project-list article strong { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.collab-create-project-list article small { color: #718198; font-size: 11px; }
+.collab-create-project-list button {
+  flex: 0 0 auto;
+  min-width: 104px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #d5dfe8;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #304159;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.collab-create-project-list button.is-primary { border-color: #1eb78a; background: #1eb78a; color: #ffffff; }
+.collab-create-project-list button:disabled { cursor: default; opacity: 0.55; }
+.collab-create-error { padding: 10px 12px; border-radius: 6px; background: #fff0f2; color: #c83e4e !important; }
 .collab-manage-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .collab-manage-actions button {
   min-width: 78px;
@@ -492,6 +536,9 @@ html[data-theme='dark'] .collab-project-menu button:hover { background: #263241;
 html[data-theme='dark'] .collab-project-menu button.is-danger { color: #ff8691; }
 html[data-theme='dark'] .collab-manage-dialog p { color: #a4b1c1; }
 html[data-theme='dark'] .collab-manage-dialog input { border-color: #3b4858; background: #141b24; color: #f1f5fa; }
+html[data-theme='dark'] .collab-create-project-list article { border-color: #344152; background: #141b24; }
+html[data-theme='dark'] .collab-create-project-list article small { color: #9ba9bb; }
+html[data-theme='dark'] .collab-create-project-list button:not(.is-primary) { border-color: #3b4858; background: #202a36; color: #d7e0eb; }
 html[data-theme='dark'] .collab-manage-actions button:not(.is-primary):not(.is-danger) { border-color: #3b4858; background: #202a36; color: #d7e0eb; }
 
 @media (max-width: 1180px) {

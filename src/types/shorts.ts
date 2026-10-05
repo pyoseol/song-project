@@ -32,6 +32,8 @@ export type ShortItem = {
   audioStorageKey?: string;
   audioFileName?: string;
   audioSizeBytes?: number;
+  musicProjectId?: string;
+  musicProjectTitle?: string;
 };
 
 export const SHORT_TONE_BACKGROUNDS: Record<ShortTone, string> = {

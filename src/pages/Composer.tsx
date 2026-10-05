@@ -1242,6 +1242,17 @@ export function Composer() {
 
     return tracks.sort((left, right) => Number(right.fixed) - Number(left.fixed));
   }, [hiddenArrangementTrackIds, openTabItems]);
+  const scoreViewerParts = useMemo(
+    () => arrangementVisibleTracks
+      .filter((track) => track.trackId !== LYRICS_MELODY_TRACK_ID)
+      .map((track) => ({
+        id: track.key ?? track.id,
+        trackId: track.trackId,
+        instrument: track.tab,
+        name: track.tab === 'supportingPiano' ? '서포팅 캐스트 피아노' : track.label,
+      })),
+    [arrangementVisibleTracks]
+  );
   const activeExtraTrack = useMemo(
     () => extraTracks.find((track) => track.id === activeTrackId) ?? null,
     [activeTrackId, extraTracks]
@@ -6322,6 +6333,7 @@ export function Composer() {
         open={isScoreViewerOpen}
         title={loadedLibraryProject?.title ?? collabProject?.title ?? notepadDraft.title}
         onClose={closeScoreViewer}
+        parts={scoreViewerParts}
       />
 
     </div>

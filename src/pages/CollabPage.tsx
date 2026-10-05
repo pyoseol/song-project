@@ -133,10 +133,15 @@ export default function CollabPage() {
     [projects]
   );
 
-  const totalMembers = useMemo(() => {
-    const uniqueEmails = new Set(projects.flatMap((project) => project.members.map((member) => member.email)));
-    return uniqueEmails.size;
-  }, [projects]);
+  const nearCompletionCount = useMemo(
+    () => projects.filter((project) => {
+      const projectTasks = tasks.filter((task) => task.projectId === project.id);
+      if (!projectTasks.length) return false;
+      const completedTasks = projectTasks.filter((task) => task.completed).length;
+      return completedTasks / projectTasks.length >= 0.8;
+    }).length,
+    [projects, tasks]
+  );
 
   const openTaskCount = useMemo(() => tasks.filter((task) => !task.completed).length, [tasks]);
 
@@ -326,10 +331,10 @@ export default function CollabPage() {
               <div><span>협업 프로젝트</span><strong>{formatCount(projects.length)}</strong></div>
               <a href="#collab-projects">전체 보기 ›</a>
             </article>
-            <article className="collab-stat-card is-members">
-              <span className="collab-stat-icon"><CollabIcon name="users" /></span>
-              <div><span>참여 멤버</span><strong>{formatCount(totalMembers)}</strong></div>
-              <a href="#collab-projects">멤버 관리 ›</a>
+            <article className="collab-stat-card is-near-completion">
+              <span className="collab-stat-icon"><CollabIcon name="activity" /></span>
+              <div><span>완료 임박</span><strong>{formatCount(nearCompletionCount)}</strong></div>
+              <a href="#collab-projects">프로젝트 확인 ›</a>
             </article>
             <article className="collab-stat-card is-tasks">
               <span className="collab-stat-icon"><CollabIcon name="check" /></span>
@@ -360,8 +365,9 @@ export default function CollabPage() {
                   : false;
                 const projectTasks = tasks.filter((task) => task.projectId === project.id);
                 const completedTasks = projectTasks.filter((task) => task.completed).length;
-                const fallbackProgress = project.status === 'feedback' ? 80 : project.status === 'working' ? 60 : 20;
-                const progress = projectTasks.length ? Math.round((completedTasks / projectTasks.length) * 100) : fallbackProgress;
+                const progress = projectTasks.length
+                  ? Math.round((completedTasks / projectTasks.length) * 100)
+                  : 0;
 
                 return (
                   <article className="collab-project-card" key={project.id}>

@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SiteHeader from '../../components/layout/SiteHeader';
+import { exportSongProjectAsMp3 } from '../../audio/engine';
 import { useAuthStore } from '../../store/authStore';
+import { useComposerLibraryStore, type ComposerProjectRecord } from '../../store/composerLibraryStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { useShortsStore } from '../../store/shortsStore';
 import {
@@ -32,6 +34,8 @@ type ShortsFormState = {
   audioUrl: string;
   audioStorageKey: string;
   audioFileName: string;
+  musicProjectId: string;
+  musicProjectTitle: string;
 };
 
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
@@ -86,6 +90,8 @@ const EMPTY_FORM: ShortsFormState = {
   audioUrl: '',
   audioStorageKey: '',
   audioFileName: '',
+  musicProjectId: '',
+  musicProjectTitle: '',
 };
 
 function formatCount(value: number) {
@@ -141,6 +147,18 @@ function formatFileSize(bytes: number) {
   return `${Math.max(1, Math.round(bytes / 1024))}KB`;
 }
 
+function getProjectDurationLabel(project: ComposerProjectRecord) {
+  const durationSeconds = Math.max(1, Math.ceil((project.steps * 60) / (project.bpm * 4)));
+  const minutes = Math.floor(durationSeconds / 60);
+  const seconds = String(durationSeconds % 60).padStart(2, '0');
+  return `${minutes}:${seconds}`;
+}
+
+function getProjectAudioFileName(title: string) {
+  const safeTitle = title.trim().replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ') || '내 음악';
+  return `${safeTitle}.mp3`;
+}
+
 function createFormState(short?: ShortItem, resolvedVideoUrl?: string): ShortsFormState {
   if (!short) {
     return EMPTY_FORM;
@@ -165,12 +183,17 @@ function createFormState(short?: ShortItem, resolvedVideoUrl?: string): ShortsFo
     audioFileName:
       short.audioFileName ??
       (hasExistingAudio ? '현재 업로드된 MP3' : ''),
+    musicProjectId: short.musicProjectId ?? '',
+    musicProjectTitle: short.musicProjectTitle ?? '',
   };
 }
 
 export default function ShortsPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
+  const libraryProjects = useComposerLibraryStore((state) => state.projects);
+  const libraryStatus = useComposerLibraryStore((state) => state.bootstrapStatus);
+  const seedLibrary = useComposerLibraryStore((state) => state.seedLibrary);
   const shorts = useShortsStore((state) => state.shorts);
   const comments = useShortsStore((state) => state.comments);
   const createShort = useShortsStore((state) => state.createShort);
@@ -196,6 +219,7 @@ export default function ShortsPage() {
   );
   const [formError, setFormError] = useState('');
   const [isSubmittingShort, setIsSubmittingShort] = useState(false);
+  const [preparingMusicProjectId, setPreparingMusicProjectId] = useState<string | null>(null);
   const [animatedLikeShortId, setAnimatedLikeShortId] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement | null>(null);
   const reelRefs = useRef<Array<HTMLElement | null>>([]);
@@ -213,6 +237,20 @@ export default function ShortsPage() {
       console.error(error);
     });
   }, [seedShorts]);
+
+  useEffect(() => {
+    if (!user) return;
+    void seedLibrary().catch((error) => {
+      console.error(error);
+    });
+  }, [seedLibrary, user]);
+
+  const myMusicProjects = useMemo(
+    () => libraryProjects
+      .filter((project) => project.creatorEmail === user?.email)
+      .sort((left, right) => right.updatedAt - left.updatedAt),
+    [libraryProjects, user?.email]
+  );
 
   const filteredShorts = useMemo(() => {
     const orderedShorts = [...shorts].sort((left, right) => right.createdAt - left.createdAt);
@@ -261,20 +299,28 @@ export default function ShortsPage() {
   const activeShortComments = activeShort ? commentsByShortId[activeShort.id] ?? [] : [];
   const isDesktopCommentOpen = Boolean(activeShort && activeCommentShortId === activeShort.id);
 
-  const resetPreviewVideo = useCallback(() => {
+  const clearPreviewVideo = useCallback(() => {
     if (previewVideoUrlRef.current) {
       URL.revokeObjectURL(previewVideoUrlRef.current);
       previewVideoUrlRef.current = null;
     }
 
+    setUploadedVideoFile(null);
+  }, []);
+
+  const clearPreviewAudio = useCallback(() => {
     if (previewAudioUrlRef.current) {
       URL.revokeObjectURL(previewAudioUrlRef.current);
       previewAudioUrlRef.current = null;
     }
 
-    setUploadedVideoFile(null);
     setUploadedAudioFile(null);
   }, []);
+
+  const resetPreviews = useCallback(() => {
+    clearPreviewVideo();
+    clearPreviewAudio();
+  }, [clearPreviewAudio, clearPreviewVideo]);
 
   useEffect(() => {
     let cancelled = false;
@@ -484,9 +530,9 @@ export default function ShortsPage() {
         window.clearTimeout(likeResetTimerRef.current);
       }
 
-      resetPreviewVideo();
+      resetPreviews();
     };
-  }, [resetPreviewVideo]);
+  }, [resetPreviews]);
 
   const openCreateModal = () => {
     if (!user) {
@@ -494,7 +540,7 @@ export default function ShortsPage() {
       return;
     }
 
-    resetPreviewVideo();
+    resetPreviews();
     setEditingShortId(null);
     setFormState(EMPTY_FORM);
     setFormError('');
@@ -506,7 +552,7 @@ export default function ShortsPage() {
       return;
     }
 
-    resetPreviewVideo();
+    resetPreviews();
 
     let resolvedVideoUrl = resolvedVideoUrlByShortId[short.id] ?? short.videoUrl ?? '';
 
@@ -533,7 +579,7 @@ export default function ShortsPage() {
   };
 
   const closeModal = () => {
-    resetPreviewVideo();
+    resetPreviews();
     setIsModalOpen(false);
     setEditingShortId(null);
     setFormError('');
@@ -565,7 +611,7 @@ export default function ShortsPage() {
     }
 
     try {
-      resetPreviewVideo();
+      clearPreviewVideo();
       const videoUrl = URL.createObjectURL(file);
       previewVideoUrlRef.current = videoUrl;
       setUploadedVideoFile(file);
@@ -615,11 +661,54 @@ export default function ShortsPage() {
         audioUrl,
         audioStorageKey: current.audioStorageKey || '',
         audioFileName: file.name,
+        musicProjectId: '',
+        musicProjectTitle: '',
       }));
       setFormError('');
     } catch (error) {
       console.error(error);
       setFormError('MP3를 불러오지 못했습니다.');
+    }
+  };
+
+  const handleSelectLibraryMusic = async (project: ComposerProjectRecord) => {
+    if (preparingMusicProjectId) return;
+
+    setPreparingMusicProjectId(project.id);
+    setFormError('');
+
+    try {
+      const audioBlob = await exportSongProjectAsMp3(project.project);
+      const fileName = getProjectAudioFileName(project.title);
+      const audioFile = new File([audioBlob], fileName, { type: 'audio/mpeg' });
+
+      if (audioFile.size > MAX_AUDIO_SIZE) {
+        throw new Error(`${formatFileSize(MAX_AUDIO_SIZE)} 이하의 곡만 숏폼에 사용할 수 있어요.`);
+      }
+
+      clearPreviewAudio();
+      const audioUrl = URL.createObjectURL(audioFile);
+      previewAudioUrlRef.current = audioUrl;
+      setUploadedAudioFile(audioFile);
+      setFormState((current) => ({
+        ...current,
+        title: current.title || project.title,
+        durationLabel: getProjectDurationLabel(project),
+        audioUrl,
+        audioStorageKey: '',
+        audioFileName: fileName,
+        musicProjectId: project.id,
+        musicProjectTitle: project.title,
+      }));
+    } catch (error) {
+      console.error(error);
+      setFormError(
+        error instanceof Error
+          ? `내 음악을 준비하지 못했습니다: ${error.message}`
+          : '내 음악을 숏폼 오디오로 준비하지 못했습니다.'
+      );
+    } finally {
+      setPreparingMusicProjectId(null);
     }
   };
 
@@ -716,6 +805,8 @@ export default function ShortsPage() {
           audioStorageKey,
           audioFileName,
           audioSizeBytes,
+          musicProjectId: formState.musicProjectId || undefined,
+          musicProjectTitle: formState.musicProjectTitle || undefined,
         });
 
         pushNotification({
@@ -743,6 +834,8 @@ export default function ShortsPage() {
           audioStorageKey,
           audioFileName,
           audioSizeBytes,
+          musicProjectId: formState.musicProjectId || undefined,
+          musicProjectTitle: formState.musicProjectTitle || undefined,
         });
 
         pushNotification({
@@ -1032,7 +1125,7 @@ export default function ShortsPage() {
                           <span className="shorts-reel-chip">{short.durationLabel}</span>
                           {resolvedAudioUrl ? (
                             <span className="shorts-reel-chip shorts-reel-audio-chip">
-                              MP3
+                              {short.musicProjectTitle || 'MP3'}
                             </span>
                           ) : null}
 
@@ -1370,11 +1463,49 @@ export default function ShortsPage() {
                 </div>
               ) : null}
 
+              <section className="shorts-music-library" aria-label="내 음악 선택">
+                <div className="shorts-music-library-head">
+                  <div>
+                    <strong>내 음악</strong>
+                    <span>저장한 곡을 선택하면 숏폼 오디오로 바로 설정됩니다.</span>
+                  </div>
+                  <span>{myMusicProjects.length}곡</span>
+                </div>
+
+                <div className="shorts-music-list">
+                  {libraryStatus === 'loading' ? (
+                    <div className="shorts-music-status">내 음악을 불러오는 중...</div>
+                  ) : myMusicProjects.length ? (
+                    myMusicProjects.map((project) => {
+                      const isSelected = formState.musicProjectId === project.id;
+                      const isPreparing = preparingMusicProjectId === project.id;
+                      return (
+                        <button
+                          key={project.id}
+                          type="button"
+                          className={`shorts-music-option${isSelected ? ' is-selected' : ''}`}
+                          onClick={() => void handleSelectLibraryMusic(project)}
+                          disabled={Boolean(preparingMusicProjectId)}
+                        >
+                          <span>
+                            <strong>{project.title}</strong>
+                            <small>{project.bpm} BPM / {getProjectDurationLabel(project)}</small>
+                          </span>
+                          <em>{isPreparing ? '음원 만드는 중...' : isSelected ? '설정됨' : '노래 설정'}</em>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="shorts-music-status">내 음악에 저장된 곡이 없습니다.</div>
+                  )}
+                </div>
+              </section>
+
               <div className="shorts-upload-box shorts-upload-box--audio">
                 <div className="shorts-upload-copy">
-                  <strong>MP3 추가</strong>
+                  <strong>다른 MP3 추가</strong>
                   <span>
-                    선택 사항입니다. {formatFileSize(MAX_AUDIO_SIZE)} 이하 MP3를 배경음악으로 붙일 수 있어요.
+                    내 음악 대신 {formatFileSize(MAX_AUDIO_SIZE)} 이하 MP3를 사용할 수 있어요.
                   </span>
                 </div>
                 <label className="shorts-upload-button">
@@ -1393,7 +1524,9 @@ export default function ShortsPage() {
                   <div className="shorts-preview-meta">
                     <strong>{formState.audioFileName || '업로드한 MP3'}</strong>
                     <span>
-                      숏폼 재생 시 함께 사용할 오디오입니다.
+                      {formState.musicProjectTitle
+                        ? `내 음악 "${formState.musicProjectTitle}"이 설정되었습니다.`
+                        : '숏폼 재생 시 함께 사용할 오디오입니다.'}
                       {uploadedAudioFile ? ` (${formatFileSize(uploadedAudioFile.size)})` : ''}
                     </span>
                     <audio src={formState.audioUrl} controls />
@@ -1437,9 +1570,11 @@ export default function ShortsPage() {
                 <button
                   type="submit"
                   className="shorts-modal-button is-primary"
-                  disabled={isSubmittingShort}
+                  disabled={isSubmittingShort || Boolean(preparingMusicProjectId)}
                 >
-                  {isSubmittingShort
+                  {preparingMusicProjectId
+                    ? '음원 준비 중...'
+                    : isSubmittingShort
                     ? '업로드 중...'
                     : editingShortId
                       ? '수정 저장'

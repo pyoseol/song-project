@@ -211,16 +211,20 @@ function renderMeasure(
   segments: NoteSegment[],
   includeAttributes: boolean,
   bpm: number,
-  clef: 'G' | 'F'
+  clef: 'G' | 'F',
+  instrumentName: string,
+  showInstrumentLabel: boolean
 ) {
   const groups = groupSegments(segments);
   const voices = assignVoices(groups);
   const attributes = includeAttributes
     ? `<attributes><divisions>${DIVISIONS}</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>${clef}</sign><line>${clef === 'F' ? 4 : 2}</line></clef></attributes><direction placement="above"><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>${bpm}</per-minute></metronome></direction-type><sound tempo="${bpm}"/></direction>`
     : '';
-
+  const instrumentLabel = includeAttributes && showInstrumentLabel
+    ? `<direction placement="above"><direction-type><words default-x="0" default-y="14" justify="left" halign="left" valign="bottom" font-family="NanumGothic" font-size="3.2" font-style="normal" font-weight="normal" color="#000000">${escapeXml(instrumentName)}</words></direction-type></direction>`
+    : '';
   if (!voices.length) {
-    return `<measure number="${measureNumber}">${attributes}<note><rest measure="yes"/><duration>${STEPS_PER_BAR}</duration><voice>1</voice><type>whole</type></note></measure>`;
+    return `<measure number="${measureNumber}">${attributes}${instrumentLabel}<note><rest measure="yes"/><duration>${STEPS_PER_BAR}</duration><voice>1</voice><type>whole</type></note></measure>`;
   }
 
   const voiceXml = voices.map((voice, voiceIndex) => {
@@ -244,10 +248,16 @@ function renderMeasure(
     return `${notes}${endingRest}${backup}`;
   }).join('');
 
-  return `<measure number="${measureNumber}">${attributes}${voiceXml}</measure>`;
+  return `<measure number="${measureNumber}">${attributes}${instrumentLabel}${voiceXml}</measure>`;
 }
 
-function renderPart(track: MusicXmlTrack, partIndex: number, measureCount: number, bpm: number) {
+function renderPart(
+  track: MusicXmlTrack,
+  partIndex: number,
+  measureCount: number,
+  bpm: number,
+  showInstrumentLabel: boolean
+) {
   const notes = collectRawNotes(track);
   const measureSegments = new Map<number, NoteSegment[]>();
   notes.flatMap(splitNoteIntoMeasures).forEach(({ measure, ...segment }) => {
@@ -258,7 +268,15 @@ function renderPart(track: MusicXmlTrack, partIndex: number, measureCount: numbe
     : 60;
   const clef = averageMidi < 58 ? 'F' : 'G';
   const measures = Array.from({ length: measureCount }, (_, index) =>
-    renderMeasure(index + 1, measureSegments.get(index) ?? [], index === 0, bpm, clef)
+    renderMeasure(
+      index + 1,
+      measureSegments.get(index) ?? [],
+      index === 0,
+      bpm,
+      clef,
+      track.name,
+      showInstrumentLabel
+    )
   ).join('');
   return `<part id="P${partIndex + 1}">${measures}</part>`;
 }
@@ -268,13 +286,14 @@ export function hasTrackNotes(track: MusicXmlTrack) {
 }
 
 export function buildMusicXml({
-  title,
   bpm,
   tracks,
+  showInstrumentLabels = false,
 }: {
   title: string;
   bpm: number;
   tracks: MusicXmlTrack[];
+  showInstrumentLabels?: boolean;
 }) {
   const populatedTracks = tracks.filter(hasTrackNotes);
   const allNotes = populatedTracks.flatMap(collectRawNotes);
@@ -284,13 +303,17 @@ export function buildMusicXml({
   );
   const measureCount = Math.max(1, Math.ceil(lastStep / STEPS_PER_BAR));
   const partList = populatedTracks
-    .map((track, index) => `<score-part id="P${index + 1}"><part-name>${escapeXml(track.name)}</part-name></score-part>`)
+    .map((track, index) => {
+      const name = escapeXml(track.name);
+      const textStyle = 'font-family="NanumGothic" font-size="4.5" font-weight="normal" color="#52657c"';
+      return `<score-part id="P${index + 1}"><part-name print-object="no" ${textStyle}>${name}</part-name><part-abbreviation print-object="no" ${textStyle}>${name}</part-abbreviation></score-part>`;
+    })
     .join('');
   const parts = populatedTracks
-    .map((track, index) => renderPart(track, index, measureCount, bpm))
+    .map((track, index) => renderPart(track, index, measureCount, bpm, showInstrumentLabels))
     .join('');
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
-<score-partwise version="4.0"><work><work-title>${escapeXml(title || '제목 없는 곡')}</work-title></work><identification><encoding><software>작곡밥</software><encoding-date>${new Date().toISOString().slice(0, 10)}</encoding-date></encoding></identification><part-list>${partList}</part-list>${parts}</score-partwise>`;
+<score-partwise version="4.0"><identification><encoding><software>작곡밥</software><encoding-date>${new Date().toISOString().slice(0, 10)}</encoding-date></encoding></identification><part-list>${partList}</part-list>${parts}</score-partwise>`;
 }

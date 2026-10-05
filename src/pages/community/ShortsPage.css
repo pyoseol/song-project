@@ -330,10 +330,14 @@
 }
 
 .shorts-reel-audio-chip {
+  max-width: 180px;
+  overflow: hidden;
   border: 1px solid rgba(99, 230, 190, 0.22);
   background: rgba(99, 230, 190, 0.14);
   color: #d9fff3;
   font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .shorts-tag.is-muted {
@@ -841,6 +845,97 @@
   border-color: rgba(113, 255, 57, 0.24);
   background: rgba(113, 255, 57, 0.12);
   color: #ffffff;
+}
+
+.shorts-music-library {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(99, 230, 190, 0.14);
+  border-radius: 8px;
+  background: rgba(99, 230, 190, 0.04);
+}
+
+.shorts-music-library-head,
+.shorts-music-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.shorts-music-library-head > div,
+.shorts-music-option > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shorts-music-library-head strong,
+.shorts-music-option strong {
+  overflow: hidden;
+  color: #f4f7fb;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shorts-music-library-head span,
+.shorts-music-option small,
+.shorts-music-status {
+  color: #8f97a8;
+  font-size: 11px;
+}
+
+.shorts-music-list {
+  display: flex;
+  max-height: 220px;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  scrollbar-color: rgba(99, 230, 190, 0.38) transparent;
+  scrollbar-width: thin;
+}
+
+.shorts-music-option {
+  width: 100%;
+  min-height: 52px;
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  text-align: left;
+  cursor: pointer;
+}
+
+.shorts-music-option:hover:not(:disabled) {
+  border-color: rgba(99, 230, 190, 0.3);
+  background: rgba(99, 230, 190, 0.08);
+}
+
+.shorts-music-option.is-selected {
+  border-color: rgba(99, 230, 190, 0.42);
+  background: rgba(99, 230, 190, 0.12);
+}
+
+.shorts-music-option:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.shorts-music-option em {
+  flex: 0 0 auto;
+  color: #b8f5e3;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.shorts-music-status {
+  padding: 14px 10px;
+  text-align: center;
 }
 
 .shorts-upload-box,

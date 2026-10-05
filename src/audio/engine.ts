@@ -24,7 +24,15 @@ import {
   VIOLIN_SAMPLE_URLS,
   violinSynth,
 } from "./instruments.ts";
-import { useSongStore, type ExtraInstrumentTrack, type InstrumentKey, type InstrumentVolumes } from "../store/songStore.ts";
+import {
+  buildSongProjectSnapshot,
+  useSongStore,
+  type ExtraInstrumentTrack,
+  type InstrumentKey,
+  type InstrumentVolumes,
+  type SongProject,
+  type SongState,
+} from "../store/songStore.ts";
 import {
   BASS_MIDI,
   CHICAGO_STREET_NOTES,
@@ -917,7 +925,7 @@ export async function playDrumPreview(row: number): Promise<void> {
   triggerLiveDrumSample(row, Tone.now());
 }
 
-async function renderSongBuffer(): Promise<AudioBuffer> {
+async function renderSongBuffer(stateOverride?: SongState): Promise<AudioBuffer> {
   await Tone.start();
   await loadLame();
   const {
@@ -937,7 +945,7 @@ async function renderSongBuffer(): Promise<AudioBuffer> {
     steps,
     bpm,
     volumes,
-  } = useSongStore.getState();
+  } = stateOverride ?? useSongStore.getState();
   const pianoBuffers = await loadPianoBuffers();
 
   const sixteenthSeconds = getSixteenthDurationSeconds(bpm);
@@ -1225,6 +1233,21 @@ async function renderSongBuffer(): Promise<AudioBuffer> {
 
 export async function exportSongAsMp3(): Promise<Blob> {
   const buffer = await renderSongBuffer();
+  return audioBufferToMp3(buffer);
+}
+
+export async function exportSongProjectAsMp3(project: SongProject): Promise<Blob> {
+  const currentProject = buildSongProjectSnapshot(useSongStore.getState());
+  let projectState: SongState;
+
+  try {
+    useSongStore.getState().loadProject(project);
+    projectState = useSongStore.getState();
+  } finally {
+    useSongStore.getState().loadProject(currentProject);
+  }
+
+  const buffer = await renderSongBuffer(projectState);
   return audioBufferToMp3(buffer);
 }
 

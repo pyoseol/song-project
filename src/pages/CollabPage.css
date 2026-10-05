@@ -298,7 +298,7 @@
 .collab-stat-card + .collab-stat-card { margin-top: 10px; }
 .collab-stat-icon { display: grid; width: 46px; height: 46px; place-items: center; border-radius: 14px; background: #e9faf4; color: #18ad85; }
 .collab-stat-icon .collab-ui-icon { width: 24px; height: 24px; }
-.collab-stat-card.is-members .collab-stat-icon { background: #edf7ff; color: #269bd8; }
+.collab-stat-card.is-near-completion .collab-stat-icon { background: #fff5e8; color: #e58b24; }
 .collab-stat-card.is-tasks .collab-stat-icon { background: #ecfaf3; color: #1caf79; }
 .collab-stat-card div { display: grid; gap: 2px; }
 .collab-stat-card div span { color: #50627c; font-size: 12px; font-weight: 750; }

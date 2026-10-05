@@ -25,10 +25,10 @@ const NAV_ITEMS: Array<{
   label: string;
   route: string;
 }> = [
-  { key: 'composer', label: '작곡', route: '/composer?tab=melody' },
-  { key: 'collab', label: '협업', route: '/collab' },
-  { key: 'community', label: '커뮤니티', route: '/community' },
-  { key: 'shorts', label: '숏폼', route: '/community/shorts' },
+  { key: 'composer', label: '스튜디오', route: '/composer?tab=melody' },
+  { key: 'collab', label: '합작', route: '/collab' },
+  { key: 'community', label: '게시판', route: '/community' },
+  { key: 'shorts', label: '클립', route: '/community/shorts' },
 ];
 
 type VisibleHeaderSection = 'composer' | 'collab' | 'community' | 'shorts';

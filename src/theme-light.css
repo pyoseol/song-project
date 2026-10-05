@@ -4599,6 +4599,37 @@ html[data-theme="light"] .shorts-tone-button.is-active {
   color: #0b654f !important;
 }
 
+html[data-theme="light"] .shorts-music-library {
+  border-color: rgba(16, 185, 129, 0.22);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+html[data-theme="light"] .shorts-music-option {
+  border-color: #dce5ea;
+  background: #ffffff;
+}
+
+html[data-theme="light"] .shorts-music-option:hover:not(:disabled),
+html[data-theme="light"] .shorts-music-option.is-selected {
+  border-color: rgba(5, 150, 105, 0.38);
+  background: #effcf7;
+}
+
+html[data-theme="light"] .shorts-music-library-head strong,
+html[data-theme="light"] .shorts-music-option strong {
+  color: #17242d;
+}
+
+html[data-theme="light"] .shorts-music-library-head span,
+html[data-theme="light"] .shorts-music-option small,
+html[data-theme="light"] .shorts-music-status {
+  color: #64727d;
+}
+
+html[data-theme="light"] .shorts-music-option em {
+  color: #087f5b;
+}
+
 html[data-theme="light"] :is(
   .shorts-upload-box,
   .shorts-toggle-row,

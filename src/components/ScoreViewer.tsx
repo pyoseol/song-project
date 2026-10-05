@@ -25,6 +25,12 @@ type ScoreViewerProps = {
   open: boolean;
   title: string;
   onClose: () => void;
+  parts: Array<{
+    id: string;
+    trackId?: string;
+    instrument: InstrumentKey;
+    name: string;
+  }>;
 };
 
 type ScoreRenderer = {
@@ -33,6 +39,27 @@ type ScoreRenderer = {
   load: (content: string) => Promise<unknown>;
   render: () => void;
 };
+
+type ScoreTrackOption = {
+  id: string;
+  name: string;
+  track: MusicXmlTrack | null;
+};
+
+type ScoreRendererModule = typeof import('opensheetmusicdisplay');
+let scoreRendererModulePromise: Promise<ScoreRendererModule> | null = null;
+
+function loadScoreRendererModule() {
+  if (!scoreRendererModulePromise) {
+    scoreRendererModulePromise = import('opensheetmusicdisplay').catch((error) => {
+      scoreRendererModulePromise = null;
+      throw error;
+    });
+  }
+  return scoreRendererModulePromise;
+}
+
+void loadScoreRendererModule();
 
 const instrumentPitches: Record<Exclude<InstrumentKey, 'drums'>, readonly string[]> = {
   melody: MELODY_NOTES,
@@ -47,20 +74,6 @@ const instrumentPitches: Record<Exclude<InstrumentKey, 'drums'>, readonly string
   studioAltoSax: STUDIO_ALTO_SAX_NOTES,
 };
 
-const scoreInstrumentNames: Record<InstrumentKey, string> = {
-  melody: '멜로디',
-  violin: '바이올린',
-  saxophone: '색소폰',
-  guitar: '통기타',
-  bass: '베이스',
-  glockenspiel: '글로켄슈필',
-  piccolo: '피콜로',
-  supportingPiano: '서포팅 캐스트 피아노',
-  chicagoStreet: '시카고 스트리트',
-  studioAltoSax: '알토 색소폰',
-  drums: '드럼',
-};
-
 function extraTrackToScoreTrack(
   track: ExtraInstrumentTrack,
   noteLyrics: Record<string, string>
@@ -68,9 +81,7 @@ function extraTrackToScoreTrack(
   if (track.instrument === 'drums') return null;
   return {
     id: track.id,
-    name: track.id === LYRICS_MELODY_TRACK_ID
-      ? scoreInstrumentNames.melody
-      : scoreInstrumentNames[track.instrument],
+    name: track.label,
     grid: track.grid,
     lengths: track.melodyLengths,
     pitches: instrumentPitches[track.instrument],
@@ -93,6 +104,100 @@ function sanitizeFileName(value: string) {
   return value.trim().replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ') || 'score';
 }
 
+const PDF_KOREAN_FONT_FILE = 'NanumGothic-Regular.ttf';
+const PDF_KOREAN_FONT_NAME = 'NanumGothic';
+const KOREAN_TEXT_PATTERN = /[ㄱ-ㅎㅏ-ㅣ가-힣]/;
+let pdfKoreanFontPromise: Promise<string> | null = null;
+
+function loadPdfKoreanFont() {
+  if (!pdfKoreanFontPromise) {
+    pdfKoreanFontPromise = fetch(`/fonts/${PDF_KOREAN_FONT_FILE}`)
+      .then((response) => {
+        if (!response.ok) throw new Error('PDF 한글 폰트를 불러오지 못했습니다.');
+        return response.arrayBuffer();
+      })
+      .then((buffer) => {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        const chunkSize = 0x8000;
+        for (let index = 0; index < bytes.length; index += chunkSize) {
+          binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+        }
+        return btoa(binary);
+      })
+      .catch((error) => {
+        pdfKoreanFontPromise = null;
+        throw error;
+      });
+  }
+  return pdfKoreanFontPromise;
+}
+
+function applyKoreanFontToSvg(svg: SVGSVGElement) {
+  svg.querySelectorAll<SVGElement>('text, tspan').forEach((element) => {
+    if (!KOREAN_TEXT_PATTERN.test(element.textContent ?? '')) return;
+    element.setAttribute('font-family', PDF_KOREAN_FONT_NAME);
+    element.style.fontFamily = PDF_KOREAN_FONT_NAME;
+  });
+}
+
+function getStaffLabelPosition(element: SVGTextElement) {
+  const staffLine = element.closest('g.staffline');
+  const measure = staffLine?.querySelector('g.vf-measure');
+  if (!measure) return null;
+
+  const staffSegments = [...measure.querySelectorAll<SVGPathElement>(':scope > path')]
+    .flatMap((path) => {
+      const match = path.getAttribute('d')?.match(
+        /^M(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)L(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)$/
+      );
+      if (!match) return [];
+      const [, startX, startY, endX, endY] = match.map(Number);
+      if (Math.abs(startY - endY) > 0.1 || Math.abs(endX - startX) < 20) return [];
+      return [{ left: Math.min(startX, endX), top: startY }];
+    });
+  if (!staffSegments.length) return null;
+
+  const x = Math.min(...staffSegments.map((segment) => segment.left)) + 2;
+  const staffTop = Math.min(...staffSegments.map((segment) => segment.top));
+  const labelRight = x + element.getComputedTextLength();
+  const overlappingGlyphTop = [
+    ...measure.querySelectorAll<SVGGraphicsElement>('.vf-clef, .vf-timesignature, .vf-stavenote'),
+  ].flatMap((glyph) => {
+      const bounds = glyph.getBBox();
+      const overlapsLabel = bounds.x < labelRight + 4 && bounds.x + bounds.width > x - 2;
+      return overlapsLabel ? [bounds.y] : [];
+    });
+
+  return {
+    x,
+    y: Math.min(
+      staffTop - 8,
+      overlappingGlyphTop.length ? Math.min(...overlappingGlyphTop) - 3 : Number.POSITIVE_INFINITY
+    ),
+  };
+}
+
+function styleInstrumentLabels(container: ParentNode, instrumentNames: string[]) {
+  const names = new Set(instrumentNames);
+  container.querySelectorAll<SVGSVGElement>('svg').forEach((svg) => {
+    svg.querySelectorAll<SVGTextElement>('text').forEach((element) => {
+      if (!names.has(element.textContent?.trim() ?? '')) return;
+      element.setAttribute('text-anchor', 'start');
+      element.setAttribute('font-family', PDF_KOREAN_FONT_NAME);
+      element.setAttribute('font-size', '7px');
+      element.setAttribute('font-weight', '400');
+      element.setAttribute('fill', '#000000');
+      element.style.fontFamily = PDF_KOREAN_FONT_NAME;
+      const position = getStaffLabelPosition(element);
+      if (position) {
+        element.setAttribute('x', String(position.x));
+        element.setAttribute('y', String(position.y));
+      }
+    });
+  });
+}
+
 function addPdfSystemBreaks(xml: string, measuresPerSystem = 4) {
   const documentNode = new DOMParser().parseFromString(xml, 'application/xml');
   if (documentNode.querySelector('parsererror')) return xml;
@@ -111,7 +216,7 @@ function addPdfSystemBreaks(xml: string, measuresPerSystem = 4) {
   return new XMLSerializer().serializeToString(documentNode);
 }
 
-export function ScoreViewer({ open, title, onClose }: ScoreViewerProps) {
+export function ScoreViewer({ open, title, onClose, parts }: ScoreViewerProps) {
   const bpm = useSongStore((state) => state.bpm);
   const melody = useSongStore((state) => state.melody);
   const melodyLengths = useSongStore((state) => state.melodyLengths);
@@ -128,25 +233,61 @@ export function ScoreViewer({ open, title, onClose }: ScoreViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<ScoreRenderer | null>(null);
   const zoomRef = useRef(0.9);
-  const [selectedTrackId, setSelectedTrackId] = useState('piano');
+  const [selectedTrackId, setSelectedTrackId] = useState('all');
   const [zoom, setZoom] = useState(0.9);
   const [isLoading, setIsLoading] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [renderError, setRenderError] = useState('');
 
-  const availableTracks = useMemo(() => {
-    const baseTracks: MusicXmlTrack[] = [
-      { id: 'piano', name: '피아노', grid: melody, lengths: melodyLengths, pitches: MELODY_NOTES },
-      { id: 'violin', name: scoreInstrumentNames.violin, grid: violin, lengths: violinLengths, pitches: VIOLIN_NOTES },
-      { id: 'saxophone', name: scoreInstrumentNames.saxophone, grid: saxophone, lengths: saxophoneLengths, pitches: SAXOPHONE_NOTES },
-      { id: 'guitar', name: scoreInstrumentNames.guitar, grid: guitar, lengths: guitarLengths, pitches: GUITAR_TRACK_LABELS },
-      { id: 'bass', name: scoreInstrumentNames.bass, grid: bass, lengths: bassLengths, pitches: BASS_NOTES },
-    ];
-    const addedTracks = extraTracks.flatMap((track) => {
-      const scoreTrack = extraTrackToScoreTrack(track, noteLyrics);
-      return scoreTrack ? [scoreTrack] : [];
+  const trackOptions = useMemo(() => {
+    return parts.map((part): ScoreTrackOption => {
+      const displayName = part.instrument === 'supportingPiano'
+        ? '서포팅 캐스트 피아노'
+        : part.name;
+      const usesImplicitExtraTrack = [
+        'glockenspiel',
+        'piccolo',
+        'supportingPiano',
+        'chicagoStreet',
+        'studioAltoSax',
+      ].includes(part.instrument);
+      const extraTrack = part.trackId
+        ? extraTracks.find((track) => track.id === part.trackId)
+        : usesImplicitExtraTrack
+          ? extraTracks.find((track) => track.instrument === part.instrument)
+          : undefined;
+      const extraScoreTrack = extraTrack ? extraTrackToScoreTrack(extraTrack, noteLyrics) : null;
+      if (extraScoreTrack) {
+        return {
+          id: part.id,
+          name: displayName,
+          track: { ...extraScoreTrack, id: part.id, name: displayName },
+        };
+      }
+
+      let track: MusicXmlTrack | null = null;
+      switch (part.instrument) {
+        case 'melody':
+          track = { id: part.id, name: displayName, grid: melody, lengths: melodyLengths, pitches: MELODY_NOTES };
+          break;
+        case 'violin':
+          track = { id: part.id, name: displayName, grid: violin, lengths: violinLengths, pitches: VIOLIN_NOTES };
+          break;
+        case 'saxophone':
+          track = { id: part.id, name: displayName, grid: saxophone, lengths: saxophoneLengths, pitches: SAXOPHONE_NOTES };
+          break;
+        case 'guitar':
+          track = { id: part.id, name: displayName, grid: guitar, lengths: guitarLengths, pitches: GUITAR_TRACK_LABELS };
+          break;
+        case 'bass':
+          track = { id: part.id, name: displayName, grid: bass, lengths: bassLengths, pitches: BASS_NOTES };
+          break;
+        default:
+          break;
+      }
+
+      return { id: part.id, name: displayName, track };
     });
-    return [...baseTracks, ...addedTracks].filter(hasTrackNotes);
   }, [
     bass,
     bassLengths,
@@ -156,11 +297,17 @@ export function ScoreViewer({ open, title, onClose }: ScoreViewerProps) {
     melody,
     melodyLengths,
     noteLyrics,
+    parts,
     saxophone,
     saxophoneLengths,
     violin,
     violinLengths,
   ]);
+
+  const availableTracks = useMemo(
+    () => trackOptions.flatMap((option) => option.track && hasTrackNotes(option.track) ? [option.track] : []),
+    [trackOptions]
+  );
 
   const selectedTracks = useMemo(
     () => selectedTrackId === 'all'
@@ -169,15 +316,20 @@ export function ScoreViewer({ open, title, onClose }: ScoreViewerProps) {
     [availableTracks, selectedTrackId]
   );
   const musicXml = useMemo(
-    () => buildMusicXml({ title, bpm, tracks: selectedTracks }),
-    [bpm, selectedTracks, title]
+    () => buildMusicXml({
+      title,
+      bpm,
+      tracks: selectedTracks,
+      showInstrumentLabels: selectedTrackId === 'all',
+    }),
+    [bpm, selectedTrackId, selectedTracks, title]
   );
 
   useEffect(() => {
-    if (selectedTrackId !== 'all' && !availableTracks.some((track) => track.id === selectedTrackId)) {
-      setSelectedTrackId(availableTracks[0]?.id ?? 'all');
+    if (selectedTrackId !== 'all' && !trackOptions.some((option) => option.id === selectedTrackId)) {
+      setSelectedTrackId('all');
     }
-  }, [availableTracks, selectedTrackId]);
+  }, [selectedTrackId, trackOptions]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -200,27 +352,33 @@ export function ScoreViewer({ open, title, onClose }: ScoreViewerProps) {
     setIsLoading(true);
     setRenderError('');
 
-    void import('opensheetmusicdisplay')
-      .then(async ({ OpenSheetMusicDisplay }) => {
+    const renderScore = async () => {
+      try {
+        const { OpenSheetMusicDisplay } = await loadScoreRendererModule();
+        if (cancelled) return;
         container.replaceChildren();
         const renderer = new OpenSheetMusicDisplay(container, {
           autoResize: true,
           backend: 'svg',
           drawingParameters: 'compacttight',
+          drawPartNames: false,
+          drawPartAbbreviations: false,
         });
         await renderer.load(musicXml);
         if (cancelled) return;
         renderer.Zoom = zoomRef.current;
         renderer.render();
+        styleInstrumentLabels(container, selectedTracks.map((track) => track.name));
         rendererRef.current = renderer;
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error('Score rendering failed:', error);
         if (!cancelled) setRenderError('악보를 표시하지 못했습니다.');
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setIsLoading(false);
-      });
+      }
+    };
+
+    void renderScore();
 
     return () => {
       cancelled = true;
@@ -228,7 +386,7 @@ export function ScoreViewer({ open, title, onClose }: ScoreViewerProps) {
       rendererRef.current = null;
       container.replaceChildren();
     };
-  }, [musicXml, open, selectedTracks.length]);
+  }, [musicXml, open, selectedTracks]);
 
   useEffect(() => {
     zoomRef.current = zoom;
@@ -236,7 +394,10 @@ export function ScoreViewer({ open, title, onClose }: ScoreViewerProps) {
     if (!renderer) return;
     renderer.Zoom = zoom;
     renderer.render();
-  }, [zoom]);
+    if (containerRef.current) {
+      styleInstrumentLabels(containerRef.current, selectedTracks.map((track) => track.name));
+    }
+  }, [selectedTracks, zoom]);
 
   if (!open) return null;
 
@@ -277,6 +438,8 @@ export function ScoreViewer({ open, title, onClose }: ScoreViewerProps) {
         autoResize: false,
         backend: 'svg',
         drawingParameters: 'default',
+        drawPartNames: false,
+        drawPartAbbreviations: false,
         pageFormat: 'A4_P',
         newSystemFromXML: true,
         pageBackgroundColor: '#FFFFFF',
@@ -284,11 +447,16 @@ export function ScoreViewer({ open, title, onClose }: ScoreViewerProps) {
       await exportRenderer.load(addPdfSystemBreaks(musicXml));
       exportRenderer.Zoom = 1;
       exportRenderer.render();
+      styleInstrumentLabels(exportContainer, selectedTracks.map((track) => track.name));
 
       const scoreSvgs = [...exportContainer.querySelectorAll('svg')];
       if (!scoreSvgs.length) throw new Error('PDF로 변환할 악보가 없습니다.');
 
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const koreanFont = await loadPdfKoreanFont();
+      pdf.addFileToVFS(PDF_KOREAN_FONT_FILE, koreanFont);
+      pdf.addFont(PDF_KOREAN_FONT_FILE, PDF_KOREAN_FONT_NAME, 'normal');
+      pdf.addFont(PDF_KOREAN_FONT_FILE, PDF_KOREAN_FONT_NAME, 'bold');
       const pageWidth = 210;
       const pageHeight = 297;
       const margin = 10;
@@ -314,6 +482,7 @@ export function ScoreViewer({ open, title, onClose }: ScoreViewerProps) {
           );
           pageSvg.setAttribute('width', String(sourceWidth));
           pageSvg.setAttribute('height', String(visibleHeight));
+          applyKoreanFontToSvg(pageSvg);
           await pdf.svg(pageSvg, {
             x: margin,
             y: margin,
@@ -361,7 +530,11 @@ export function ScoreViewer({ open, title, onClose }: ScoreViewerProps) {
             <span>파트</span>
             <select value={selectedTrackId} onChange={(event) => setSelectedTrackId(event.target.value)}>
               <option value="all">전체 악기</option>
-              {availableTracks.map((track) => <option key={track.id} value={track.id}>{track.name}</option>)}
+              {trackOptions.map((option) => (
+                <option key={option.id} value={option.id} disabled={!option.track}>
+                  {option.name}
+                </option>
+              ))}
             </select>
           </label>
           <div className="score-viewer-zoom" aria-label="악보 확대 축소">
@@ -387,8 +560,8 @@ export function ScoreViewer({ open, title, onClose }: ScoreViewerProps) {
         </div>
 
         <div className="score-viewer-paper-shell">
-          {!availableTracks.length ? (
-            <div className="score-viewer-empty"><strong>표시할 노트가 없습니다.</strong><span>피아노롤에 노트를 입력한 뒤 다시 열어주세요.</span></div>
+          {!selectedTracks.length ? (
+            <div className="score-viewer-empty"><strong>선택한 파트에 표시할 노트가 없습니다.</strong><span>피아노롤에 노트를 입력한 뒤 다시 열어주세요.</span></div>
           ) : null}
           {isLoading ? <div className="score-viewer-loading">악보를 만드는 중...</div> : null}
           {renderError ? <div className="score-viewer-empty"><strong>{renderError}</strong></div> : null}

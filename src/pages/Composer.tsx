@@ -6,6 +6,10 @@ import { PianoRoll } from '../components/PianoRoll.tsx';
 import { ScoreViewer } from '../components/ScoreViewer.tsx';
 import { TransportBar } from '../components/TransportBar.tsx';
 import {
+  notesFromComposer,
+  renderAquaPlanetVocal,
+} from '../utils/vocalSynth';
+import {
   initTransport,
   preloadPlaybackEngine,
   playBassPreview,
@@ -1001,6 +1005,8 @@ export function Composer() {
   const [hiddenArrangementTrackIds, setHiddenArrangementTrackIds] = useState<Set<string>>(
     () => new Set()
   );
+  const [pendingAiVocalTrackId, setPendingAiVocalTrackId] =
+  useState<string | null>(null);
   const [isArrangementCollapsed, setIsArrangementCollapsed] = useState(false);
   const pianoEditTool: PianoEditTool = 'pencil';
   const [pianoZoom, setPianoZoom] = useState(1);
@@ -2905,15 +2911,27 @@ export function Composer() {
     [activateTab, addInstrumentTrack, navigate, openTabsState]
   );
 
-  const handleAddAiVocalTrack = useCallback(
-    (voice: 'female' | 'male') => {
-      const trackId = addAiVocalTrack(voice);
-      setOpenExtraTrackIds((current) => [...current, trackId]);
-      setArrangementTrackOrder((current) => [...current, `extra-${trackId}`]);
-      activateTab('melody', trackId);
-    },
-    [activateTab, addAiVocalTrack]
-  );
+ const handleAddAiVocalTrack = useCallback(
+  (voice: 'female' | 'male') => {
+    const trackId = addAiVocalTrack(voice);
+
+    setOpenExtraTrackIds((current) => [...current, trackId]);
+    setArrangementTrackOrder((current) => [
+      ...current,
+      `extra-${trackId}`,
+    ]);
+
+    activateTab('melody', trackId);
+
+    // 새 AI 보컬 트랙이 실제로 선택된 뒤 보컬 생성을 시작하도록 예약
+    setPendingAiVocalTrackId(trackId);
+  },
+  [activateTab, addAiVocalTrack]
+);
+
+
+
+
 
   const handleTrackPickerOpen = useCallback(
     (tab: TabPickerOption) => {
@@ -4239,6 +4257,147 @@ export function Composer() {
         return MELODY_NOTES;
     }
   };
+
+  const generateAiVocalFromTrack = useCallback(
+  async (track: typeof activeExtraTrack) => {
+    if (!track) return;
+
+    const trackNotes = track.grid.flatMap((rowValues, row) =>
+      rowValues
+        .map((active, col) => {
+          if (!active) return null;
+
+          return {
+            row,
+            col,
+            note: getExtraTrackNotes(track.instrument)[row] ?? '',
+            length:
+              track.melodyLengths?.[row]?.[col] ?? 1,
+            lyric:
+              noteLyrics[`${row}-${col}`] ?? '',
+          };
+        })
+        .filter(
+          (
+            item
+          ): item is {
+            row: number;
+            col: number;
+            note: string;
+            length: number;
+            lyric: string;
+          } => item !== null
+        )
+    );
+
+    const lyricNotes = trackNotes.filter(
+      (note) => note.lyric.trim().length > 0
+    );
+
+    if (lyricNotes.length === 0) {
+      window.alert(
+        'AI 보컬 트랙에 가사가 있는 음표가 없습니다.\n' +
+        '먼저 음표와 가사를 입력해주세요.'
+      );
+      return;
+    }
+
+    try {
+      console.info('[Aqua Planet] 보컬 생성 시작', {
+        trackId: track.id,
+        trackLabel: track.label,
+        notes: lyricNotes,
+      });
+
+      const vocalNotes = notesFromComposer(
+        lyricNotes,
+        getExtraTrackNotes(track.instrument)
+      );
+
+      const result = await renderAquaPlanetVocal(
+        vocalNotes,
+        {
+          bpm,
+          stepsPerBeat: 4,
+          sampleRate: 44100,
+        },
+        (progress) => {
+          console.info(
+            `[Aqua Planet] ${Math.round(
+              progress.progress * 100
+            )}%`,
+            progress.message
+          );
+        }
+      );
+
+      const url = URL.createObjectURL(result.blob);
+
+      const audio = new Audio(url);
+
+      const safeLabel = track.label.replace(/[\\/:*?"<>|]/g, '_');
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${safeLabel}.wav`;
+      anchor.click();
+
+      // 재생과 다운로드가 끝날 시간을 주고 해제
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+
+      console.info('[Aqua Planet] 보컬 생성 완료', {
+        seconds: result.audioBuffer.duration,
+      });
+
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+      };
+
+      await audio.play();
+
+      console.info('[Aqua Planet] 보컬 재생 완료');
+    } catch (error) {
+      console.error(
+        '[Aqua Planet] vocal generation failed:',
+        error
+      );
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(error);
+
+      window.alert(
+        `보컬 생성에 실패했습니다.\n\n${message}`
+      );
+    }
+  },
+  [
+    bpm,
+    getExtraTrackNotes,
+    noteLyrics,
+  ]
+);
+
+useEffect(() => {
+  if (!pendingAiVocalTrackId) return;
+  if (!activeExtraTrack) return;
+
+  if (activeExtraTrack.id !== pendingAiVocalTrackId) {
+    return;
+  }
+
+  if (!activeExtraTrack.label.startsWith('AI 보컬')) {
+    return;
+  }
+
+  setPendingAiVocalTrackId(null);
+
+  void generateAiVocalFromTrack(activeExtraTrack);
+}, [
+  pendingAiVocalTrackId,
+  activeExtraTrack,
+  generateAiVocalFromTrack,
+]);
 
   const getExtraTrackColors = (instrument: InstrumentKey): readonly string[] => {
     switch (instrument) {

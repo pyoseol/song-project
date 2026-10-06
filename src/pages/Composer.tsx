@@ -522,6 +522,18 @@ type MelodySequencerOptions = {
   showNoteLengthControls?: boolean;
   showChordControls?: boolean;
   chordChipClassName?: string;
+  onResizeNote?: (row: number, col: number, length: number) => void | Promise<void>;
+};
+
+type PitchedNoteDrag = {
+  id: number;
+  scrollKey: string;
+  row: number;
+  col: number;
+  initialLength: number;
+  currentLength: number;
+  startPromise: Promise<void>;
+  onResize: (row: number, col: number, length: number) => void | Promise<void>;
 };
 
 type ArrangementTrackDefinition = {
@@ -780,6 +792,7 @@ export function Composer() {
     toggleGuitar,
     toggleDrum,
     toggleBass,
+    setPitchedNoteLength,
     applyChord,
     currentStep,
     setCurrentStep,
@@ -1005,6 +1018,9 @@ export function Composer() {
   const pianoEditTool: PianoEditTool = 'pencil';
   const [pianoZoom, setPianoZoom] = useState(1);
   const [pianoToolFeedback, setPianoToolFeedback] = useState('');
+  const [pitchedNoteDragPreview, setPitchedNoteDragPreview] = useState<PitchedNoteDrag | null>(null);
+  const pitchedNoteDragRef = useRef<PitchedNoteDrag | null>(null);
+  const pitchedNoteDragIdRef = useRef(0);
   const [arrangementClipLayouts, setArrangementClipLayouts] = useState<
     Record<string, ArrangementClipLayout>
   >({});
@@ -1043,6 +1059,31 @@ export function Composer() {
       pianoToolFeedbackTimerRef.current = null;
     }, 1600);
   }, []);
+
+  const finalizePitchedNoteDrag = useCallback(() => {
+    const drag = pitchedNoteDragRef.current;
+    if (!drag) return;
+
+    pitchedNoteDragRef.current = null;
+    void drag.startPromise
+      .then(() => {
+        if (drag.currentLength !== drag.initialLength) {
+          return drag.onResize(drag.row, drag.col, drag.currentLength);
+        }
+      })
+      .finally(() => {
+        setPitchedNoteDragPreview((current) => (current?.id === drag.id ? null : current));
+      });
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('mouseup', finalizePitchedNoteDrag);
+    window.addEventListener('blur', finalizePitchedNoteDrag);
+    return () => {
+      window.removeEventListener('mouseup', finalizePitchedNoteDrag);
+      window.removeEventListener('blur', finalizePitchedNoteDrag);
+    };
+  }, [finalizePitchedNoteDrag]);
 
   useEffect(
     () => () => {
@@ -4093,6 +4134,32 @@ export function Composer() {
     releaseComposerBarLock('guitar', barIndex);
   };
 
+  const handlePrimaryPitchedNoteResize = async (
+    instrument: 'violin' | 'saxophone' | 'guitar' | 'bass',
+    row: number,
+    col: number,
+    length: number
+  ) => {
+    const barIndex = Math.floor(col / COLLAB_BAR_LENGTH);
+    if (!(await requestComposerBarLock(instrument, barIndex))) {
+      return;
+    }
+
+    setPitchedNoteLength(instrument, row, col, length, undefined, false);
+
+    if (instrument === 'violin') {
+      queueComposerOperation({ type: 'toggle-violin-step', row, col, nextValue: true, barIndex });
+    } else if (instrument === 'saxophone') {
+      queueComposerOperation({ type: 'toggle-saxophone-step', row, col, nextValue: true, barIndex });
+    } else if (instrument === 'guitar') {
+      queueComposerOperation({ type: 'toggle-guitar-step', row, col, nextValue: true, barIndex });
+    } else {
+      queueComposerOperation({ type: 'toggle-bass-step', row, col, nextValue: true, barIndex });
+    }
+
+    releaseComposerBarLock(instrument, barIndex);
+  };
+
   const handleBassChordDrop = async (
     chord: string,
     col: number,
@@ -4334,6 +4401,31 @@ export function Composer() {
       row,
       col,
       nextValue,
+      barIndex,
+    });
+
+    releaseComposerBarLock(track.instrument, barIndex);
+  };
+
+  const handleExtraTrackNoteResize = async (
+    track: ExtraInstrumentTrack,
+    row: number,
+    col: number,
+    length: number
+  ) => {
+    const barIndex = Math.floor(col / COLLAB_BAR_LENGTH);
+    if (!(await requestComposerBarLock(track.instrument, barIndex))) {
+      return;
+    }
+
+    setPitchedNoteLength(track.instrument, row, col, length, track.id, false);
+    queueComposerOperation({
+      type: 'set-track-note',
+      instrument: track.instrument,
+      trackId: track.id,
+      row,
+      col,
+      nextValue: true,
       barIndex,
     });
 
@@ -4677,9 +4769,15 @@ export function Composer() {
                       const lock = currentTabLockMap[Math.floor(col / COLLAB_BAR_LENGTH)];
                       const isLocked = Boolean(lock && !lock.mine);
                       const isDisabled = isLocked || Boolean(collabId && !canSyncCollab);
+                      const previewLength =
+                        pitchedNoteDragPreview?.scrollKey === scrollKey &&
+                        pitchedNoteDragPreview.row === row &&
+                        pitchedNoteDragPreview.col === noteInfo?.start
+                          ? pitchedNoteDragPreview.currentLength
+                          : noteInfo?.length ?? 1;
                       const cellStyle = {
                         '--cell-accent': colors[row % colors.length],
-                        '--note-span-steps': `${noteInfo?.length ?? 1}`,
+                        '--note-span-steps': `${previewLength}`,
                         '--collab-member-color': lock?.color,
                         '--collab-note-color': collabNoteColor,
                         left: `${col * stepSpan}px`,
@@ -4705,7 +4803,46 @@ export function Composer() {
                           aria-disabled={isDisabled}
                           onMouseDown={() => {
                             if (isDisabled) return;
-                            void onToggle(row, noteInfo?.start ?? col, noteLengthSteps);
+                            const targetCol = noteInfo?.start ?? col;
+                            if (noteInfo || !options.onResizeNote || !options.melodyLengths) {
+                              void onToggle(row, targetCol, noteLengthSteps);
+                              return;
+                            }
+
+                            const id = ++pitchedNoteDragIdRef.current;
+                            const drag: PitchedNoteDrag = {
+                              id,
+                              scrollKey,
+                              row,
+                              col,
+                              initialLength: noteLengthSteps,
+                              currentLength: noteLengthSteps,
+                              startPromise: Promise.resolve(onToggle(row, col, noteLengthSteps)).then(
+                                () => undefined
+                              ),
+                              onResize: options.onResizeNote,
+                            };
+                            pitchedNoteDragRef.current = drag;
+                            setPitchedNoteDragPreview(drag);
+                          }}
+                          onMouseMove={() => {
+                            const drag = pitchedNoteDragRef.current;
+                            if (
+                              !drag ||
+                              drag.scrollKey !== scrollKey ||
+                              drag.row !== row ||
+                              col < drag.col ||
+                              Math.floor(col / COLLAB_BAR_LENGTH) !==
+                                Math.floor(drag.col / COLLAB_BAR_LENGTH)
+                            ) {
+                              return;
+                            }
+
+                            const nextLength = col - drag.col + 1;
+                            if (nextLength === drag.currentLength) return;
+
+                            drag.currentLength = nextLength;
+                            setPitchedNoteDragPreview({ ...drag });
                           }}
                           onKeyDown={(event) => {
                             if (isDisabled || event.target !== event.currentTarget) return;
@@ -5874,6 +6011,8 @@ export function Composer() {
                   activeExtraTrack.id !== LYRICS_MELODY_TRACK_ID &&
                   !activeExtraTrack.label.startsWith('AI 보컬'),
                 chordChipClassName: '',
+                onResizeNote: (row, col, length) =>
+                  handleExtraTrackNoteResize(activeExtraTrack, row, col, length),
               }
             )
           )
@@ -6056,6 +6195,8 @@ export function Composer() {
                 setPrimaryTrackNoteLengths((current) => ({ ...current, violin: lengthSteps })),
               showNoteLengthControls: true,
               showChordControls: true,
+              onResizeNote: (row, col, length) =>
+                handlePrimaryPitchedNoteResize('violin', row, col, length),
             }
           )}
 
@@ -6074,6 +6215,8 @@ export function Composer() {
                 setPrimaryTrackNoteLengths((current) => ({ ...current, saxophone: lengthSteps })),
               showNoteLengthControls: true,
               showChordControls: true,
+              onResizeNote: (row, col, length) =>
+                handlePrimaryPitchedNoteResize('saxophone', row, col, length),
             }
           )}
 
@@ -6093,6 +6236,8 @@ export function Composer() {
               showNoteLengthControls: true,
               showChordControls: true,
               chordChipClassName: '',
+              onResizeNote: (row, col, length) =>
+                handlePrimaryPitchedNoteResize('guitar', row, col, length),
             }
           )}
 
@@ -6112,6 +6257,8 @@ export function Composer() {
                   onNoteLengthChange: (lengthSteps) =>
                     setPrimaryTrackNoteLengths((current) => ({ ...current, bass: lengthSteps })),
                   showNoteLengthControls: false,
+                  onResizeNote: (row, col, length) =>
+                    handlePrimaryPitchedNoteResize('bass', row, col, length),
                 }
               )}
             </section>

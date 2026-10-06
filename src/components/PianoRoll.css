@@ -581,6 +581,7 @@
     inset 0 -1px 0 rgba(0, 0, 0, 0.24),
     0 0 0 1px rgba(0, 0, 0, 0.08);
   pointer-events: none;
+  will-change: width;
 }
 
 .piano-roll-cell.is-collab-authored .piano-roll-note-block {

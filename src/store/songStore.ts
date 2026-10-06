@@ -46,7 +46,6 @@ export const FIXED_COMPOSER_STEPS = BAR_LENGTH * FIXED_BAR_COUNT;
 export const LYRICS_MELODY_TRACK_ID = 'lyrics-melody-guide';
 const DEFAULT_STEPS = FIXED_COMPOSER_STEPS;
 const MAX_HISTORY_LENGTH = 40;
-const MELODY_LENGTH_PRESETS = [1, 2, 4, 8, 16] as const;
 
 export { BASS_ROWS, DRUM_ROWS, GUITAR_ROWS, MELODY_ROWS };
 
@@ -176,12 +175,20 @@ export type SongState = {
   canUndo: boolean;
   canRedo: boolean;
   projectLoadRevision: number;
-  toggleMelody: (row: number, col: number, length?: number) => void;
+  toggleMelody: (row: number, col: number, length?: number, recordHistory?: boolean) => void;
   toggleViolin: (row: number, col: number, length?: number) => void;
   toggleSaxophone: (row: number, col: number, length?: number) => void;
   toggleGuitar: (row: number, col: number, length?: number) => void;
   toggleDrum: (row: number, col: number) => void;
   toggleBass: (row: number, col: number, length?: number) => void;
+  setPitchedNoteLength: (
+    instrument: InstrumentKey,
+    row: number,
+    col: number,
+    length: number,
+    trackId?: string,
+    recordHistory?: boolean
+  ) => void;
   clearInstrument: (instrument: InstrumentKey) => void;
   addInstrumentTrack: (instrument: InstrumentKey) => string;
   addAiVocalTrack: (voice: 'female' | 'male') => string;
@@ -684,23 +691,7 @@ function clampVolume(volume: number) {
 function snapMelodyLength(length: number, maxLength: number) {
   const safeMaxLength = Math.max(1, Math.floor(maxLength));
   const safeLength = Math.max(1, Math.floor(length));
-  const allowedPresets = MELODY_LENGTH_PRESETS.filter((preset) => preset <= safeMaxLength);
-  const fallbackPreset = allowedPresets[allowedPresets.length - 1] ?? 1;
-
-  return allowedPresets.reduce((closest, preset) => {
-    const presetDistance = Math.abs(preset - safeLength);
-    const closestDistance = Math.abs(closest - safeLength);
-
-    if (presetDistance < closestDistance) {
-      return preset;
-    }
-
-    if (presetDistance === closestDistance && preset > closest) {
-      return preset;
-    }
-
-    return closest;
-  }, fallbackPreset);
+  return Math.min(safeLength, safeMaxLength);
 }
 
 function normalizeLoopRange(loopRange: LoopRange | null, steps: number): LoopRange | null {
@@ -1449,7 +1440,7 @@ export const useSongStore = create<SongState>()(
   canRedo: false,
   projectLoadRevision: 0,
 
-  toggleMelody: (row, col, length = 1) =>
+  toggleMelody: (row, col, length = 1, recordHistory = true) =>
     set((state) => {
       const melody = cloneMatrix(state.melody);
       const melodyLengths = cloneLengthMatrix(state.melodyLengths);
@@ -1463,7 +1454,8 @@ export const useSongStore = create<SongState>()(
         }
 
         clearMelodyNote(melody[row], melodyLengths[row], melodyVelocities[row], existingNote.start);
-        return buildHistoryUpdate(state, { melody, melodyLengths, melodyVelocities });
+        const nextState = { melody, melodyLengths, melodyVelocities };
+        return recordHistory ? buildHistoryUpdate(state, nextState) : nextState;
       }
 
       const nextLength = snapMelodyLength(requestedLength, state.steps - col);
@@ -1491,7 +1483,8 @@ export const useSongStore = create<SongState>()(
       melodyLengths[row][col] = nextLength;
       melodyVelocities[row][col] = 0.78;
 
-      return buildHistoryUpdate(state, { melody, melodyLengths, melodyVelocities });
+      const nextState = { melody, melodyLengths, melodyVelocities };
+      return recordHistory ? buildHistoryUpdate(state, nextState) : nextState;
     }),
 
   toggleViolin: (row, col, length = 1) =>
@@ -1548,6 +1541,80 @@ export const useSongStore = create<SongState>()(
       }
 
       return buildHistoryUpdate(state, { bass, bassLengths });
+    }),
+
+  setPitchedNoteLength: (instrument, row, col, length, trackId, recordHistory = true) =>
+    set((state) => {
+      if (trackId) {
+        const trackIndex = state.extraTracks.findIndex((track) => track.id === trackId);
+        if (trackIndex === -1) {
+          return {};
+        }
+
+        const extraTracks = cloneExtraTracks(state.extraTracks);
+        const track = extraTracks[trackIndex];
+        if (!supportsNoteLengths(track.instrument)) {
+          return {};
+        }
+
+        const melodyLengths =
+          track.melodyLengths ?? createEmptyLengthMatrix(getInstrumentRows(track.instrument), state.steps);
+        const nextLength = snapMelodyLength(Math.floor(length), state.steps - col);
+
+        if (track.id === LYRICS_MELODY_TRACK_ID || track.label.startsWith('AI 보컬')) {
+          track.grid.forEach((rowValues, targetRow) => {
+            clearOverlappingNotes(
+              rowValues,
+              melodyLengths[targetRow],
+              col,
+              nextLength,
+              state.steps
+            );
+          });
+        }
+
+        if (!setTimedNote(track.grid, melodyLengths, row, col, state.steps, nextLength)) {
+          return {};
+        }
+
+        track.melodyLengths = melodyLengths;
+        const nextState = { extraTracks };
+        return recordHistory ? buildHistoryUpdate(state, nextState) : nextState;
+      }
+
+      const updatePrimaryTrack = (grid: boolean[][], lengths: number[][]) => {
+        const nextGrid = cloneMatrix(grid);
+        const nextLengths = cloneLengthMatrix(lengths);
+        return setTimedNote(nextGrid, nextLengths, row, col, state.steps, length)
+          ? { grid: nextGrid, lengths: nextLengths }
+          : null;
+      };
+
+      const updated =
+        instrument === 'violin'
+          ? updatePrimaryTrack(state.violin, state.violinLengths)
+          : instrument === 'saxophone'
+            ? updatePrimaryTrack(state.saxophone, state.saxophoneLengths)
+            : instrument === 'guitar'
+              ? updatePrimaryTrack(state.guitar, state.guitarLengths)
+              : instrument === 'bass'
+                ? updatePrimaryTrack(state.bass, state.bassLengths)
+                : null;
+
+      if (!updated) {
+        return {};
+      }
+
+      const nextState =
+        instrument === 'violin'
+          ? { violin: updated.grid, violinLengths: updated.lengths }
+          : instrument === 'saxophone'
+            ? { saxophone: updated.grid, saxophoneLengths: updated.lengths }
+            : instrument === 'guitar'
+              ? { guitar: updated.grid, guitarLengths: updated.lengths }
+              : { bass: updated.grid, bassLengths: updated.lengths };
+
+      return recordHistory ? buildHistoryUpdate(state, nextState) : nextState;
     }),
 
   clearInstrument: (instrument) =>

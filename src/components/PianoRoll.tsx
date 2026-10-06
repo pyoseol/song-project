@@ -200,17 +200,16 @@ export const PianoRoll = ({
   const melodyLengths = useSongStore((state) => state.melodyLengths);
   const bass = useSongStore((state) => state.bass);
   const steps = useSongStore((state) => state.steps);
-  const noteLyrics = useSongStore((state) => state.noteLyrics);
   const toggleMelody = useSongStore((state) => state.toggleMelody);
   const toggleBass = useSongStore((state) => state.toggleBass);
   const applyChord = useSongStore((state) => state.applyChord);
-  const setMelodyLyric = useSongStore((state) => state.setMelodyLyric);
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawValue, setDrawValue] = useState<boolean | null>(null);
   const [dragMelodyOrigin, setDragMelodyOrigin] = useState<{ row: number; col: number } | null>(
     null
   );
+  const [dragMelodyPreviewLength, setDragMelodyPreviewLength] = useState<number | null>(null);
   const [internalNoteLengthSteps, setInternalNoteLengthSteps] =
     useState<MelodyNoteLengthSteps>(4);
   const melodyNoteLengthSteps = controlledNoteLengthSteps ?? internalNoteLengthSteps;
@@ -407,22 +406,6 @@ export const PianoRoll = ({
     });
   }, [isBass, melody, melodyLengths, steps]);
 
-  const lyricOwnerRowByCol = useMemo(() => {
-    const owners = new Map<number, number>();
-    if (isBass) {
-      return owners;
-    }
-
-    melody.forEach((rowValues, row) => {
-      rowValues.forEach((active, col) => {
-        if (active && !owners.has(col)) {
-          owners.set(col, row);
-        }
-      });
-    });
-    return owners;
-  }, [isBass, melody]);
-
   const releaseActiveLock = () => {
     if (!activeLockRef.current) {
       return;
@@ -437,6 +420,7 @@ export const PianoRoll = ({
       setIsDrawing(false);
       setDrawValue(null);
       setDragMelodyOrigin(null);
+      setDragMelodyPreviewLength(null);
       lastDrawCellRef.current = null;
       lastMelodyDragLengthRef.current = null;
       hasMelodyDragMovedRef.current = false;
@@ -445,6 +429,13 @@ export const PianoRoll = ({
     }
 
     const { row, col, barIndex } = pendingMelodyCommitRef.current;
+    if (dragMelodyPreviewLength !== null) {
+      const currentLength = useSongStore.getState().melodyLengths[row]?.[col] ?? 1;
+      if (currentLength !== dragMelodyPreviewLength) {
+        toggleMelody(row, col, dragMelodyPreviewLength, false);
+      }
+    }
+
     const liveMelody = useSongStore.getState().melody;
     const liveMelodyLengths = useSongStore.getState().melodyLengths;
     const noteInfo = findMelodyNoteInfo(liveMelody[row] ?? [], liveMelodyLengths[row] ?? [], col);
@@ -460,6 +451,7 @@ export const PianoRoll = ({
     setIsDrawing(false);
     setDrawValue(null);
     setDragMelodyOrigin(null);
+    setDragMelodyPreviewLength(null);
     lastDrawCellRef.current = null;
     lastMelodyDragLengthRef.current = null;
     hasMelodyDragMovedRef.current = false;
@@ -577,7 +569,6 @@ export const PianoRoll = ({
       colsToRender.map((col) => {
       const melodyNoteInfo = !isBass ? melodyNoteInfoMap[row]?.[col] ?? null : null;
       const isNoteStart = Boolean(melodyNoteInfo && melodyNoteInfo.start === col);
-      const isLyricOwner = isNoteStart && lyricOwnerRowByCol.get(col) === row;
       const isNoteTail = Boolean(melodyNoteInfo && melodyNoteInfo.start !== col);
       const active = isBass ? bass[row]?.[col] : isNoteStart;
       const collabNoteColor = active
@@ -594,8 +585,6 @@ export const PianoRoll = ({
       const barLock = collabBarLocks[barIndex];
       const isLocked = Boolean(barLock && !barLock.mine);
       const tutorialGhostNote = !isBass ? tutorialGhostNoteMap[`${row}-${col}`] : null;
-      const lyricKey = `${row}-${col}`;
-      const lyricLabel = !isBass && isLyricOwner ? noteLyrics[lyricKey] ?? '' : '';
       const cellStyle = {
         '--cell-accent': getAccentColor(row, isBass, isGuitar),
         '--collab-member-color': barLock?.color,
@@ -611,7 +600,17 @@ export const PianoRoll = ({
               width: `${stepWidth}px`,
               height: `${rowHeight}px`,
             }),
-        ...(!isBass && melodyNoteInfo ? { '--note-span-steps': `${melodyNoteInfo.length}` } : {}),
+        ...(!isBass && melodyNoteInfo
+          ? {
+              '--note-span-steps': `${
+                dragMelodyOrigin?.row === row &&
+                dragMelodyOrigin.col === melodyNoteInfo.start &&
+                dragMelodyPreviewLength !== null
+                  ? dragMelodyPreviewLength
+                  : melodyNoteInfo.length
+              }`,
+            }
+          : {}),
       } as unknown as CSSProperties;
 
       return (
@@ -700,6 +699,7 @@ export const PianoRoll = ({
               setIsDrawing(false);
               setDrawValue(null);
               setDragMelodyOrigin(null);
+              setDragMelodyPreviewLength(null);
               lastDrawCellRef.current = null;
               lastMelodyDragLengthRef.current = null;
               hasMelodyDragMovedRef.current = false;
@@ -712,6 +712,7 @@ export const PianoRoll = ({
             setIsDrawing(true);
             setDrawValue(true);
             setDragMelodyOrigin({ row, col });
+            setDragMelodyPreviewLength(melodyNoteLengthSteps);
             lastDrawCellRef.current = `${row}-${col}`;
             lastMelodyDragLengthRef.current = melodyNoteLengthSteps;
             hasMelodyDragMovedRef.current = false;
@@ -756,7 +757,7 @@ export const PianoRoll = ({
               }
 
               lastMelodyDragLengthRef.current = nextLength;
-              toggleMelody(row, dragMelodyOrigin.col, nextLength);
+              setDragMelodyPreviewLength(nextLength);
               return;
             }
 
@@ -802,21 +803,7 @@ export const PianoRoll = ({
           }}
         >
           {!isBass && isNoteStart ? (
-            <span className="piano-roll-note-block" aria-hidden="true">
-              {lyricLabel ? <span className="piano-roll-lyric-label">{lyricLabel}</span> : null}
-            </span>
-          ) : null}
-          {!isBass && isLyricOwner && !isLocked && canEditCollab ? (
-            <input
-              className="piano-roll-lyric-input"
-              value={lyricLabel}
-              onChange={(event) => setMelodyLyric(row, col, event.target.value)}
-              onMouseDown={(event) => event.stopPropagation()}
-              onClick={(event) => event.stopPropagation()}
-              placeholder="가사"
-              aria-label={`${currentLabels[row]} ${col + 1}번 가사`}
-              maxLength={18}
-            />
+            <span className="piano-roll-note-block" aria-hidden="true" />
           ) : null}
           {!isBass && tutorialGhostNote ? (
             <span
@@ -847,18 +834,17 @@ export const PianoRoll = ({
     collabNoteColors,
     currentLabels,
     dragMelodyOrigin,
+    dragMelodyPreviewLength,
     drawValue,
     editTool,
     gridGap,
     isBass,
     isDrawing,
     isGuitar,
-    lyricOwnerRowByCol,
     melodyNoteInfoMap,
     melodyNoteLengthSteps,
     modeClass,
     marqueeOrigin,
-    noteLyrics,
     onCommitChordOperation,
     onCommitMelodyOperation,
     onRequestZoom,
@@ -866,7 +852,6 @@ export const PianoRoll = ({
     releaseCollabBarLock,
     rowCount,
     selectedRange,
-    setMelodyLyric,
     steps,
     toggleBass,
     toggleMelody,

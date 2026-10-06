@@ -77,7 +77,7 @@ export const useSessionRecruitStore = create<SessionRecruitStoreState>()(
               bootstrapError:
                 error instanceof Error
                   ? error.message
-                  : '세션 모집 데이터를 서버에서 불러오지 못했습니다.',
+                  : '팀원 모집글을 서버에서 불러오지 못했습니다.',
             }));
             throw error;
           })

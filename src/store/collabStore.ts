@@ -6,7 +6,7 @@ import { createRandomCollabMemberColor } from '../utils/collabMemberColor';
 import { isLocalDevelopmentHost } from '../utils/localEnvironment';
 import { APP_SERVER_URL } from '../utils/serverApi';
 import { 
-  collection, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, onSnapshot, increment, arrayUnion, query, where, orderBy, limit, writeBatch
+  collection, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, onSnapshot, increment, query, where, orderBy, limit, writeBatch
 } from 'firebase/firestore';
 
 // ============================================================================
@@ -406,8 +406,30 @@ export const useCollabStore = create<CollabState>((set, get) => ({
       applyLocalSnapshot(response.snapshot);
       return;
     }
-    await updateDoc(doc(db, 'collab_projects', projectId), {
-      members: arrayUnion({ email: payload.email, name: payload.name, role: 'editor', joinedAt: Date.now(), color: createRandomCollabMemberColor().accent })
+    const projectRef = doc(db, 'collab_projects', projectId);
+    const projectSnapshot = await getDoc(projectRef);
+    if (!projectSnapshot.exists()) {
+      throw new CollabRequestError('작업실을 찾을 수 없습니다.', 404);
+    }
+
+    const project = restoreFromFirestore({ id: projectSnapshot.id, ...projectSnapshot.data() }) as CollabProject;
+    const email = payload.email.trim().toLowerCase();
+    if (project.members.some((member) => member.email.trim().toLowerCase() === email)) {
+      return;
+    }
+
+    await updateDoc(projectRef, {
+      members: [
+        ...project.members,
+        {
+          email: payload.email,
+          name: payload.name,
+          role: 'editor',
+          joinedAt: Date.now(),
+          color: createRandomCollabMemberColor().accent,
+        },
+      ],
+      updatedAt: Date.now(),
     });
   },
 

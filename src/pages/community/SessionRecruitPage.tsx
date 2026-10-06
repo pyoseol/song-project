@@ -5,38 +5,28 @@ import { useSearchParams } from 'react-router-dom';
 import CollabHubTabs from '../../components/collab/CollabHubTabs';
 import SiteHeader from '../../components/layout/SiteHeader';
 import { useAuthStore } from '../../store/authStore';
+import { useCollabStore } from '../../store/collabStore';
 import { useSessionRecruitStore } from '../../store/sessionRecruitStore';
 import type {
   SessionRecruitPost,
-  SessionMeetingType,
-  SessionRegion,
   SessionRole,
   SessionStatus,
 } from '../../types/sessionRecruit';
 import './SessionRecruitPage.css';
 
 type RoleFilter = 'all' | SessionRole;
-type RegionFilter = 'all' | SessionRegion;
 type StatusFilter = 'all' | SessionStatus;
 
 const ROLE_OPTIONS: Array<{ key: RoleFilter; label: string }> = [
   { key: 'all', label: '전체' },
-  { key: 'vocal', label: '보컬' },
-  { key: 'guitar', label: '기타' },
-  { key: 'bass', label: '베이스' },
+  { key: 'lyrics', label: '작사' },
+  { key: 'melody', label: '멜로디·작곡' },
+  { key: 'arrangement', label: '코드·편곡' },
   { key: 'drums', label: '드럼' },
-  { key: 'keys', label: '건반' },
-  { key: 'producer', label: '프로듀서' },
-  { key: 'mix', label: '믹스/레코딩' },
-];
-
-const REGION_OPTIONS: Array<{ key: RegionFilter; label: string }> = [
-  { key: 'all', label: '전체 지역' },
-  { key: 'seoul', label: '서울' },
-  { key: 'gyeonggi', label: '경기' },
-  { key: 'incheon', label: '인천' },
-  { key: 'busan', label: '부산' },
-  { key: 'online', label: '온라인' },
+  { key: 'bass', label: '베이스' },
+  { key: 'instrument', label: '악기 파트' },
+  { key: 'vocal', label: '보컬' },
+  { key: 'mix', label: '믹싱' },
 ];
 
 const STATUS_OPTIONS: Array<{ key: StatusFilter; label: string }> = [
@@ -49,24 +39,15 @@ const STATUS_OPTIONS: Array<{ key: StatusFilter; label: string }> = [
 const PAGE_SIZE = 6;
 
 const FORM_ROLE_OPTIONS: Array<{ key: SessionRole; label: string }> = [
-  { key: 'vocal', label: '보컬' },
-  { key: 'guitar', label: '기타' },
-  { key: 'bass', label: '베이스' },
+  { key: 'lyrics', label: '작사' },
+  { key: 'melody', label: '멜로디·작곡' },
+  { key: 'arrangement', label: '코드·편곡' },
   { key: 'drums', label: '드럼' },
-  { key: 'keys', label: '건반' },
-  { key: 'producer', label: '프로듀서' },
-  { key: 'mix', label: '믹스/레코딩' },
+  { key: 'bass', label: '베이스' },
+  { key: 'instrument', label: '악기 파트' },
+  { key: 'vocal', label: '보컬' },
+  { key: 'mix', label: '믹싱' },
 ];
-
-const FORM_REGION_OPTIONS: Array<{ key: SessionRegion; label: string }> = [
-  { key: 'seoul', label: '서울' },
-  { key: 'gyeonggi', label: '경기' },
-  { key: 'incheon', label: '인천' },
-  { key: 'busan', label: '부산' },
-  { key: 'online', label: '온라인' },
-];
-
-const FORM_MEETING_OPTIONS = ['온라인', '오프라인', '온/오프 병행'] as const;
 
 const SESSION_COVERS = [
   '/landing-assets/shared-fallback-band.jpg',
@@ -106,7 +87,6 @@ function matchesKeyword(post: SessionRecruitPost, keyword: string) {
     post.genre,
     post.hostName,
     post.summary,
-    post.location,
     ...post.tags,
   ].some((value) => value.toLowerCase().includes(keyword));
 }
@@ -148,9 +128,10 @@ export default function SessionRecruitPage() {
   const bootstrapError = useSessionRecruitStore((state) => state.bootstrapError);
   const seedSessionRecruit = useSessionRecruitStore((state) => state.seedSessionRecruit);
   const createPost = useSessionRecruitStore((state) => state.createPost);
+  const collabProjects = useCollabStore((state) => state.projects);
+  const initializeRealtime = useCollabStore((state) => state.initializeRealtime);
 
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
-  const [regionFilter, setRegionFilter] = useState<RegionFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchKeyword, setSearchKeyword] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -160,11 +141,9 @@ export default function SessionRecruitPage() {
   const [title, setTitle] = useState('');
   const [genre, setGenre] = useState('');
   const [summary, setSummary] = useState('');
-  const [location, setLocation] = useState('');
   const [schedule, setSchedule] = useState('');
-  const [region, setRegion] = useState<SessionRegion>('online');
-  const [meetingType, setMeetingType] = useState<(typeof FORM_MEETING_OPTIONS)[number]>('온라인');
-  const [wantedRoles, setWantedRoles] = useState<SessionRole[]>(['producer']);
+  const [selectedCollabProjectId, setSelectedCollabProjectId] = useState('');
+  const [wantedRoles, setWantedRoles] = useState<SessionRole[]>(['melody']);
   const [maxMembers, setMaxMembers] = useState('4');
   const [tagInput, setTagInput] = useState('');
   const [urgent, setUrgent] = useState(false);
@@ -173,7 +152,27 @@ export default function SessionRecruitPage() {
     void seedSessionRecruit().catch((error) => {
       console.error(error);
     });
-  }, [seedSessionRecruit]);
+    void initializeRealtime().catch((error) => {
+      console.error(error);
+    });
+  }, [initializeRealtime, seedSessionRecruit]);
+
+  const ownedCollabProjects = useMemo(
+    () => user
+      ? collabProjects.filter((project) => project.ownerEmail.toLowerCase() === user.email.toLowerCase())
+      : [],
+    [collabProjects, user]
+  );
+  const workspacePosts = useMemo(
+    () => posts.filter((post) => Boolean(post.collabProjectId)),
+    [posts]
+  );
+
+  useEffect(() => {
+    if (!selectedCollabProjectId && ownedCollabProjects.length) {
+      setSelectedCollabProjectId(ownedCollabProjects[0].id);
+    }
+  }, [ownedCollabProjects, selectedCollabProjectId]);
 
   useEffect(() => {
     if (searchParams.get('write') !== '1') {
@@ -184,34 +183,29 @@ export default function SessionRecruitPage() {
     setTitle(searchParams.get('title') ?? '');
     setGenre(searchParams.get('genre') ?? '');
     setSummary(searchParams.get('summary') ?? '');
-    setLocation('온라인');
     setSchedule('협의');
-    setRegion('online');
-    setMeetingType('온라인');
+    setSelectedCollabProjectId(searchParams.get('collabProjectId') ?? '');
     const roles = (searchParams.get('roles') ?? '')
       .split(',')
       .filter((role): role is SessionRole =>
         FORM_ROLE_OPTIONS.some((option) => option.key === role)
       );
-    setWantedRoles(roles.length ? roles : ['producer']);
-    setTagInput('#작곡 #협업 #파트모집');
+    setWantedRoles(roles.length ? roles : ['melody']);
+    setTagInput('#작곡 #온라인협업 #팀원모집');
   }, [searchParams]);
 
   const filteredPosts = useMemo(() => {
     const normalizedKeyword = searchKeyword.trim().toLowerCase();
 
-    return posts
+    return workspacePosts
       .filter((post) => {
         const matchesRole =
           roleFilter === 'all' ? true : post.wantedRoles.includes(roleFilter);
-        const matchesRegion =
-          regionFilter === 'all' ? true : post.region === regionFilter;
         const matchesStatus =
           statusFilter === 'all' ? true : post.status === statusFilter;
 
         return (
           matchesRole &&
-          matchesRegion &&
           matchesStatus &&
           matchesKeyword(post, normalizedKeyword)
         );
@@ -228,7 +222,7 @@ export default function SessionRecruitPage() {
 
         return right.updatedAt - left.updatedAt;
       });
-  }, [posts, regionFilter, roleFilter, searchKeyword, statusFilter]);
+  }, [roleFilter, searchKeyword, statusFilter, workspacePosts]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPosts.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
@@ -239,27 +233,27 @@ export default function SessionRecruitPage() {
   const sessionMetrics = useMemo(
     () => [
       {
-        label: '모집중 세션',
-        value: posts.filter((post) => post.status === 'open').length,
-        note: '바로 연락 가능한 팀',
+        label: '모집 중 프로젝트',
+        value: workspacePosts.filter((post) => post.status === 'open').length,
+        note: '지금 지원 가능한 작업',
       },
       {
-        label: '온라인 가능',
-        value: posts.filter((post) => post.region === 'online').length,
-        note: '원격 협업 중심 세션',
+        label: '모집 중인 파트',
+        value: workspacePosts.reduce((total, post) => total + post.wantedRoles.length, 0),
+        note: '작업실에서 필요한 역할',
       },
       {
         label: '마감 임박',
-        value: posts.filter((post) => post.status === 'closing').length,
-        note: '빠른 합류가 필요한 팀',
+        value: workspacePosts.filter((post) => post.status === 'closing').length,
+        note: '빠른 합류가 필요한 작업',
       },
       {
-        label: '공연 목표',
-        value: posts.filter((post) => post.tags.includes('공연')).length,
-        note: '라이브/쇼케이스 준비 팀',
+        label: '작업실 연결',
+        value: workspacePosts.length,
+        note: '승인 후 바로 참여 가능',
       },
     ],
-    [posts]
+    [workspacePosts]
   );
 
   const myApplications = useMemo(() => {
@@ -267,14 +261,14 @@ export default function SessionRecruitPage() {
       return [];
     }
 
-    return posts
+    return workspacePosts
       .flatMap((post) =>
         (post.applicants ?? [])
           .filter((applicant) => applicant.email === user.email)
           .map((applicant) => ({ post, applicant }))
       )
       .sort((left, right) => right.applicant.updatedAt - left.applicant.updatedAt);
-  }, [posts, user]);
+  }, [user, workspacePosts]);
 
   const handleMoveWithAuth = (route: string) => {
     navigate(user ? route : '/login');
@@ -287,7 +281,7 @@ export default function SessionRecruitPage() {
     }
 
     setIsWriteOpen((current) => !current);
-    setWriteError('');
+    setWriteError(ownedCollabProjects.length ? '' : '먼저 내 작업실을 만든 뒤 팀원을 모집할 수 있습니다.');
   };
 
   const handleToggleWantedRole = (role: SessionRole) => {
@@ -304,11 +298,9 @@ export default function SessionRecruitPage() {
     setTitle('');
     setGenre('');
     setSummary('');
-    setLocation('');
     setSchedule('');
-    setRegion('online');
-    setMeetingType('온라인');
-    setWantedRoles(['producer']);
+    setSelectedCollabProjectId(ownedCollabProjects[0]?.id ?? '');
+    setWantedRoles(['melody']);
     setMaxMembers('4');
     setTagInput('');
     setUrgent(false);
@@ -325,7 +317,6 @@ export default function SessionRecruitPage() {
     const trimmedTitle = title.trim();
     const trimmedGenre = genre.trim();
     const trimmedSummary = summary.trim();
-    const trimmedLocation = location.trim();
     const trimmedSchedule = schedule.trim();
     const nextMaxMembers = Math.max(1, Number.parseInt(maxMembers, 10) || 1);
     const tags = tagInput
@@ -334,8 +325,13 @@ export default function SessionRecruitPage() {
       .filter(Boolean)
       .slice(0, 6);
 
-    if (!trimmedTitle || !trimmedGenre || !trimmedSummary || !trimmedLocation || !trimmedSchedule) {
-      setWriteError('제목, 장르, 소개, 지역, 일정을 모두 입력해주세요.');
+    if (!selectedCollabProjectId || !ownedCollabProjects.some((project) => project.id === selectedCollabProjectId)) {
+      setWriteError('팀원을 모집할 내 작업실을 선택해주세요.');
+      return;
+    }
+
+    if (!trimmedTitle || !trimmedGenre || !trimmedSummary || !trimmedSchedule) {
+      setWriteError('제목, 장르, 소개, 작업 마감을 모두 입력해주세요.');
       return;
     }
 
@@ -348,9 +344,9 @@ export default function SessionRecruitPage() {
         hostName: user.name,
         hostEmail: user.email,
         summary: trimmedSummary,
-        location: trimmedLocation,
-        region,
-        meetingType: meetingType as SessionMeetingType,
+        location: '작곡밥 온라인 작업실',
+        region: 'online',
+        meetingType: '온라인',
         status: 'open',
         wantedRoles,
         tags,
@@ -358,6 +354,7 @@ export default function SessionRecruitPage() {
         maxMembers: nextMaxMembers,
         schedule: trimmedSchedule,
         urgent,
+        collabProjectId: selectedCollabProjectId,
       });
 
       resetWriteForm();
@@ -374,7 +371,6 @@ export default function SessionRecruitPage() {
 
   const handleFilterReset = () => {
     setRoleFilter('all');
-    setRegionFilter('all');
     setStatusFilter('all');
     setSearchKeyword('');
     setCurrentPage(1);
@@ -396,8 +392,8 @@ export default function SessionRecruitPage() {
               <div className="session-side-list">
                 {ROLE_OPTIONS.map((option) => {
                   const count = option.key === 'all'
-                    ? posts.length
-                    : posts.filter((post) => post.wantedRoles.includes(option.key as SessionRole)).length;
+                    ? workspacePosts.length
+                    : workspacePosts.filter((post) => post.wantedRoles.includes(option.key as SessionRole)).length;
                   return (
                     <button key={option.key} type="button" className={`session-side-button${roleFilter === option.key ? ' is-active' : ''}`} onClick={() => { setRoleFilter(option.key); setCurrentPage(1); }}>
                       <span>{option.label}</span><b>{count}</b>
@@ -412,10 +408,10 @@ export default function SessionRecruitPage() {
           <section className="session-content">
             <section className="session-hero">
               <div className="session-hero-copy">
-                <h1>합주와 세션 모집을 한곳에서<br />바로 이어보세요</h1>
+                <h1>함께 곡을 완성할 팀원을<br />여기서 찾아보세요</h1>
                 <div className="session-hero-actions">
-                  <button type="button" className="session-primary-button" onClick={() => handleMoveWithAuth('/messages')}><SessionIcon name="message" />메시지로 바로 연락하기 <span>→</span></button>
-                  <button type="button" className="session-secondary-button" onClick={() => handleMoveWithAuth('/collab')}>협업 작업실 보러가기</button>
+                  <button type="button" className="session-primary-button" onClick={handleOpenWrite}><SessionIcon name="plus" />팀원 모집하기 <span>→</span></button>
+                  <button type="button" className="session-secondary-button" onClick={() => handleMoveWithAuth('/collab')}>내 작업실 보기</button>
                 </div>
               </div>
             </section>
@@ -455,23 +451,36 @@ export default function SessionRecruitPage() {
 
             <section className={`session-board${isWriteOpen ? ' is-writing' : ''}`}>
               <div className="session-search-row">
-                <label className="session-search" aria-label="세션 모집 검색"><SessionIcon name="search" /><input type="search" value={searchKeyword} onChange={(event) => { setSearchKeyword(event.target.value); setCurrentPage(1); }} placeholder="제목, 장르, 지역, 태그로 검색하세요" /></label>
-                <button type="button" className="session-primary-button session-write-button" onClick={handleOpenWrite}><SessionIcon name="plus" />{isWriteOpen ? '작성 닫기' : '모집글 작성'}</button>
+                <label className="session-search" aria-label="팀원 모집 검색"><SessionIcon name="search" /><input type="search" value={searchKeyword} onChange={(event) => { setSearchKeyword(event.target.value); setCurrentPage(1); }} placeholder="프로젝트, 장르, 파트로 검색하세요" /></label>
+                <button type="button" className="session-primary-button session-write-button" onClick={handleOpenWrite}><SessionIcon name="plus" />{isWriteOpen ? '작성 닫기' : '팀원 모집하기'}</button>
               </div>
 
               {isWriteOpen ? (
                 <form className="session-write-panel" onSubmit={handleSubmitRecruit}>
                   <div className="session-write-head">
-                    <strong>모집글 작성</strong>
+                    <strong>팀원 모집하기</strong>
                   </div>
 
                   <div className="session-write-grid">
+                    <label className="session-write-field session-write-field--wide">
+                      <span>모집할 작업실</span>
+                      <select
+                        value={selectedCollabProjectId}
+                        onChange={(event) => setSelectedCollabProjectId(event.target.value)}
+                        disabled={!ownedCollabProjects.length}
+                      >
+                        {ownedCollabProjects.length ? ownedCollabProjects.map((project) => (
+                          <option key={project.id} value={project.id}>{project.title}</option>
+                        )) : <option value="">먼저 내 작업실을 만들어주세요</option>}
+                      </select>
+                    </label>
+
                     <label className="session-write-field session-write-field--wide">
                       <span>제목</span>
                       <input
                         value={title}
                         onChange={(event) => setTitle(event.target.value)}
-                        placeholder="예: 주말 합주할 기타/보컬 구합니다"
+                        placeholder="예: 시티팝 데모를 함께 완성할 보컬을 찾습니다"
                         maxLength={80}
                       />
                     </label>
@@ -487,57 +496,17 @@ export default function SessionRecruitPage() {
                     </label>
 
                     <label className="session-write-field">
-                      <span>지역</span>
-                      <input
-                        value={location}
-                        onChange={(event) => setLocation(event.target.value)}
-                        placeholder="홍대 / 온라인 / 부산 서면"
-                        maxLength={60}
-                      />
-                    </label>
-
-                    <label className="session-write-field">
-                      <span>지역 분류</span>
-                      <select
-                        value={region}
-                        onChange={(event) => setRegion(event.target.value as SessionRegion)}
-                      >
-                        {FORM_REGION_OPTIONS.map((option) => (
-                          <option key={option.key} value={option.key}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label className="session-write-field">
-                      <span>진행 방식</span>
-                      <select
-                        value={meetingType}
-                        onChange={(event) =>
-                          setMeetingType(event.target.value as (typeof FORM_MEETING_OPTIONS)[number])
-                        }
-                      >
-                        {FORM_MEETING_OPTIONS.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label className="session-write-field">
-                      <span>일정</span>
+                      <span>작업 마감</span>
                       <input
                         value={schedule}
                         onChange={(event) => setSchedule(event.target.value)}
-                        placeholder="매주 토요일 오후 / 협의"
+                        placeholder="마감 목표 또는 가능한 일정"
                         maxLength={80}
                       />
                     </label>
 
                     <label className="session-write-field">
-                      <span>최대 인원</span>
+                      <span>모집 인원</span>
                       <input
                         type="number"
                         min="1"
@@ -552,7 +521,7 @@ export default function SessionRecruitPage() {
                       <textarea
                         value={summary}
                         onChange={(event) => setSummary(event.target.value)}
-                        placeholder="어떤 음악을 하고 싶은지, 필요한 파트와 작업 방식을 적어주세요."
+                        placeholder="현재 곡의 상태와 팀원이 작업실에서 맡을 내용을 적어주세요."
                         maxLength={240}
                         rows={4}
                       />
@@ -563,7 +532,7 @@ export default function SessionRecruitPage() {
                       <input
                         value={tagInput}
                         onChange={(event) => setTagInput(event.target.value)}
-                        placeholder="#공연 #작곡 #커버"
+                        placeholder="#작곡 #편곡 #보컬녹음"
                         maxLength={80}
                       />
                     </label>
@@ -607,7 +576,7 @@ export default function SessionRecruitPage() {
                     <button
                       type="submit"
                       className="session-primary-button"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || !ownedCollabProjects.length}
                     >
                       {isSubmitting ? '등록 중...' : '등록하기'}
                     </button>
@@ -616,22 +585,6 @@ export default function SessionRecruitPage() {
               ) : null}
 
               <div className="session-toolbar">
-                <div className="session-filter-row"><strong>지역</strong><div className="session-filter-group">{REGION_OPTIONS.map((option) => (
-                    <button
-                      key={option.key}
-                      type="button"
-                      className={`session-chip${
-                        regionFilter === option.key ? ' is-active' : ''
-                      }`}
-                      onClick={() => {
-                        setRegionFilter(option.key);
-                        setCurrentPage(1);
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}</div></div>
-
                 <div className="session-filter-row"><strong>상태</strong><div className="session-filter-group">{STATUS_OPTIONS.map((option) => (
                     <button
                       key={option.key}
@@ -651,21 +604,21 @@ export default function SessionRecruitPage() {
                 </div>
               </div>
 
-              {!posts.length && bootstrapStatus === 'loading' ? (
+              {!workspacePosts.length && bootstrapStatus === 'loading' ? (
                 <div className="session-empty-state">
-                  <strong>세션 모집 데이터를 불러오는 중입니다.</strong>
-                  <span>잠시만 기다리면 최신 모집글이 표시됩니다.</span>
+                  <strong>팀원 모집글을 불러오는 중입니다.</strong>
+                  <span>잠시만 기다리면 최신 프로젝트가 표시됩니다.</span>
                 </div>
               ) : null}
 
-              {!posts.length && bootstrapStatus === 'error' ? (
+              {!workspacePosts.length && bootstrapStatus === 'error' ? (
                 <div className="session-empty-state">
-                  <strong>세션 모집 데이터를 불러오지 못했습니다.</strong>
+                  <strong>팀원 모집글을 불러오지 못했습니다.</strong>
                   <span>{bootstrapError ?? '서버 연결 상태를 확인해주세요.'}</span>
                 </div>
               ) : null}
 
-              {posts.length || (bootstrapStatus !== 'loading' && bootstrapStatus !== 'error') ? (
+              {workspacePosts.length || (bootstrapStatus !== 'loading' && bootstrapStatus !== 'error') ? (
                 <>
                   <div className="session-card-grid">
                     {visiblePosts.map((post, index) => (
@@ -684,7 +637,7 @@ export default function SessionRecruitPage() {
                           <div className="session-card-title"><strong>{post.title}</strong><span className={`session-status-chip is-${post.status}`}>{getStatusLabel(post.status)}</span></div>
                           <p>{post.summary}</p>
                           <div className="session-card-chips">
-                            <span className="session-meta-chip is-meeting">{post.meetingType}</span><span className="session-meta-chip">{post.location}</span>
+                            <span className="session-meta-chip is-meeting">온라인 작업실</span>
                             {post.wantedRoles.map((role) => <span key={role} className="session-role-chip">{getRoleLabel(role)}</span>)}
                             <span className="session-tag-chip">{post.genre}</span>
                             {post.urgent ? <span className="session-meta-chip is-urgent">급구</span> : null}
@@ -713,7 +666,7 @@ export default function SessionRecruitPage() {
                   {visiblePosts.length === 0 ? (
                     <div className="session-empty-state">
                       <strong>조건에 맞는 모집글이 아직 없습니다.</strong>
-                      <span>검색어를 바꾸거나 다른 파트/지역 필터를 선택해보세요.</span>
+                      <span>작업실에서 팀원 모집을 시작하거나 다른 파트·상태 필터를 선택해보세요.</span>
                     </div>
                   ) : null}
 
@@ -765,8 +718,8 @@ export default function SessionRecruitPage() {
             </section>
 
             <section className="session-side-card session-popular-card">
-              <header><span><SessionIcon name="location" />인기 지역</span><button type="button" onClick={handleFilterReset}>더보기 ›</button></header>
-              <ol>{REGION_OPTIONS.slice(1).map((option, index) => <li key={option.key}><i>{index + 1}</i><b>{option.label}</b><span>{posts.filter((post) => post.region === option.key).length}</span></li>)}</ol>
+              <header><span><SessionIcon name="users" />많이 찾는 파트</span><button type="button" onClick={handleFilterReset}>전체 보기 ›</button></header>
+              <ol>{FORM_ROLE_OPTIONS.slice(0, 5).map((option, index) => <li key={option.key}><i>{index + 1}</i><b>{option.label}</b><span>{workspacePosts.filter((post) => post.wantedRoles.includes(option.key)).length}</span></li>)}</ol>
             </section>
           </aside>
         </div>

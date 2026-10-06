@@ -1,5 +1,7 @@
 import { collection, getDocs, getDoc, doc, setDoc, deleteDoc, query, limit, orderBy } from 'firebase/firestore';
 import { db } from '../firebase'; // ★ 주의: 실제 firebase.ts 경로에 맞게 수정하세요!
+import { isLocalDevelopmentHost } from './localEnvironment';
+import { fetchServerJson } from './serverApi';
 import type {
   SessionMeetingType,
   SessionRecruitApplicant,
@@ -29,6 +31,7 @@ export type CreateSessionRecruitPayload = {
   maxMembers: number;
   schedule: string;
   urgent: boolean;
+  collabProjectId?: string | null;
 };
 
 export type UpdateSessionRecruitPayload = CreateSessionRecruitPayload & {
@@ -63,18 +66,50 @@ export type SetSessionRecruitStatusPayload = {
   status: SessionStatus;
 };
 
+const SESSION_ROLE_COMPATIBILITY: Record<string, SessionRole> = {
+  lyrics: 'lyrics',
+  melody: 'melody',
+  arrangement: 'arrangement',
+  vocal: 'vocal',
+  bass: 'bass',
+  drums: 'drums',
+  instrument: 'instrument',
+  mix: 'mix',
+  producer: 'melody',
+  guitar: 'instrument',
+  keys: 'arrangement',
+};
+
+function normalizeSessionRecruitPost(post: SessionRecruitPost): SessionRecruitPost {
+  return {
+    ...post,
+    wantedRoles: post.wantedRoles
+      .map((role) => SESSION_ROLE_COMPATIBILITY[String(role)])
+      .filter((role): role is SessionRole => Boolean(role)),
+    applicants: post.applicants?.map((applicant) => ({
+      ...applicant,
+      role: SESSION_ROLE_COMPATIBILITY[String(applicant.role)] ?? 'melody',
+    })),
+  };
+}
+
 // ============================================================================
 // 🔥 파이어베이스 세션 모집 API
 // ============================================================================
 
 export async function fetchSessionRecruitBootstrap(): Promise<SessionRecruitSnapshot> {
+  if (isLocalDevelopmentHost()) {
+    const snapshot = await fetchServerJson<SessionRecruitSnapshot>('/api/sessions/bootstrap');
+    return { posts: snapshot.posts.map(normalizeSessionRecruitPost) };
+  }
+
   // 파이어베이스에서 세션 모집 글 목록을 모두 가져옵니다.
   const q = query(collection(db, 'session_recruit_posts'), orderBy('createdAt', 'desc'), limit(20));
   const snap = await getDocs(q);
-  const posts = snap.docs.map(docSnap => ({
-    id: docSnap.id, // 파이어베이스 문서 ID를 글 ID로 사용
+  const posts = snap.docs.map(docSnap => normalizeSessionRecruitPost({
+    id: docSnap.id,
     ...docSnap.data()
-  })) as SessionRecruitPost[];
+  } as SessionRecruitPost));
   
   // (선택) 최신 글이 위로 오게 정렬하고 싶다면 아래 주석을 푸세요!
   // posts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -83,6 +118,13 @@ export async function fetchSessionRecruitBootstrap(): Promise<SessionRecruitSnap
 }
 
 export async function createSessionRecruitPostOnServer(payload: CreateSessionRecruitPayload): Promise<{ postId: string; snapshot: SessionRecruitSnapshot }> {
+  if (isLocalDevelopmentHost()) {
+    return fetchServerJson<{ postId: string; snapshot: SessionRecruitSnapshot }>('/api/sessions', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   // 새 글을 위한 ID 생성
   const postRef = doc(collection(db, 'session_recruit_posts'));
   
@@ -104,6 +146,13 @@ export async function createSessionRecruitPostOnServer(payload: CreateSessionRec
 }
 
 export async function updateSessionRecruitPostOnServer(payload: UpdateSessionRecruitPayload): Promise<{ snapshot: SessionRecruitSnapshot }> {
+  if (isLocalDevelopmentHost()) {
+    return fetchServerJson<{ snapshot: SessionRecruitSnapshot }>(`/api/sessions/${encodeURIComponent(payload.postId)}/update`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   const postRef = doc(db, 'session_recruit_posts', payload.postId);
   
   // 기존 글에 수정된 내용만 덮어쓰기 (merge: true)
@@ -116,6 +165,13 @@ export async function updateSessionRecruitPostOnServer(payload: UpdateSessionRec
 }
 
 export async function deleteSessionRecruitPostOnServer(payload: { postId: string; userEmail: string }): Promise<{ snapshot: SessionRecruitSnapshot }> {
+  if (isLocalDevelopmentHost()) {
+    return fetchServerJson<{ snapshot: SessionRecruitSnapshot }>(`/api/sessions/${encodeURIComponent(payload.postId)}/delete`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   // 파이어베이스에서 해당 글 삭제
   await deleteDoc(doc(db, 'session_recruit_posts', payload.postId));
   
@@ -123,6 +179,13 @@ export async function deleteSessionRecruitPostOnServer(payload: { postId: string
 }
 
 export async function applySessionRecruitPostOnServer(payload: ApplySessionRecruitPayload): Promise<{ snapshot: SessionRecruitSnapshot }> {
+  if (isLocalDevelopmentHost()) {
+    return fetchServerJson<{ snapshot: SessionRecruitSnapshot }>(`/api/sessions/${encodeURIComponent(payload.postId)}/apply`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   const postRef = doc(db, 'session_recruit_posts', payload.postId);
   const snap = await getDoc(postRef);
 
@@ -170,6 +233,13 @@ export async function applySessionRecruitPostOnServer(payload: ApplySessionRecru
 }
 
 export async function reviewSessionRecruitApplicationOnServer(payload: ReviewSessionRecruitApplicationPayload): Promise<{ snapshot: SessionRecruitSnapshot }> {
+  if (isLocalDevelopmentHost()) {
+    return fetchServerJson<{ snapshot: SessionRecruitSnapshot }>(`/api/sessions/${encodeURIComponent(payload.postId)}/review`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   const postRef = doc(db, 'session_recruit_posts', payload.postId);
   const snap = await getDoc(postRef);
 
@@ -220,6 +290,13 @@ export async function reviewSessionRecruitApplicationOnServer(payload: ReviewSes
 }
 
 export async function linkSessionRecruitCollabOnServer(payload: LinkSessionRecruitCollabPayload): Promise<{ snapshot: SessionRecruitSnapshot }> {
+  if (isLocalDevelopmentHost()) {
+    return fetchServerJson<{ snapshot: SessionRecruitSnapshot }>(`/api/sessions/${encodeURIComponent(payload.postId)}/link-collab`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   const postRef = doc(db, 'session_recruit_posts', payload.postId);
   const snap = await getDoc(postRef);
 
@@ -246,6 +323,13 @@ export async function linkSessionRecruitCollabOnServer(payload: LinkSessionRecru
 }
 
 export async function setSessionRecruitStatusOnServer(payload: SetSessionRecruitStatusPayload): Promise<{ snapshot: SessionRecruitSnapshot }> {
+  if (isLocalDevelopmentHost()) {
+    return fetchServerJson<{ snapshot: SessionRecruitSnapshot }>(`/api/sessions/${encodeURIComponent(payload.postId)}/status`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   const postRef = doc(db, 'session_recruit_posts', payload.postId);
   const snap = await getDoc(postRef);
 

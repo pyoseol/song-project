@@ -159,7 +159,11 @@
 }
 .session-hero-lettering span { margin-left: 18px; }
 
-.session-board { padding: 20px 22px 22px; }
+.session-board {
+  display: flex;
+  flex-direction: column;
+  padding: 20px 22px 22px;
+}
 .session-board-head { margin-bottom: 10px; }
 .session-search-row { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 14px; }
 .session-search { position: relative; display: block; }
@@ -226,8 +230,25 @@
 
 .session-empty-state { margin-top: 14px; padding: 28px; border: 1px dashed #cedae6; border-radius: 13px; background: #f8fafc; color: #77879b; font-size: 11px; text-align: center; }
 .session-empty-state strong { display: block; margin-bottom: 7px; color: #34465e; }
-.session-pagination { display: flex; justify-content: center; gap: 7px; margin-top: 16px; }
-.session-page-button { min-width: 34px; min-height: 34px; padding: 0 10px; border-radius: 9px; color: #62738a; font-size: 10px; }
+.session-pagination {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin-top: auto;
+  padding-top: 26px;
+}
+.session-page-button {
+  display: inline-flex;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  color: #62738a;
+  font-size: 10px;
+  line-height: 1;
+}
 .session-page-button.is-active { border-color: #25bd92; background: #25bd92; color: #fff; }
 .session-page-button:disabled { cursor: not-allowed; opacity: .45; }
 
@@ -328,7 +349,10 @@ html[data-theme='light'] .session-page .session-tag-chip { background: #f0f3f7 !
     flex-direction: column;
   }
 
-  .session-role-card,
+  .session-role-card {
+    flex: 1 1 auto;
+  }
+
   .session-board {
     flex: 1 1 auto;
   }

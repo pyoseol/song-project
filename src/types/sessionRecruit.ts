@@ -1,10 +1,11 @@
 export type SessionRole =
+  | 'lyrics'
+  | 'melody'
+  | 'arrangement'
   | 'vocal'
-  | 'guitar'
   | 'bass'
   | 'drums'
-  | 'keys'
-  | 'producer'
+  | 'instrument'
   | 'mix';
 
 export type SessionRegion = 'seoul' | 'gyeonggi' | 'incheon' | 'busan' | 'online';

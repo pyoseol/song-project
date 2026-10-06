@@ -5,6 +5,7 @@ import SiteHeader from '../components/layout/SiteHeader';
 import { useAuthStore } from '../store/authStore';
 import { useCollabStore, type CollabProject } from '../store/collabStore';
 import { useComposerLibraryStore } from '../store/composerLibraryStore';
+import { useSessionRecruitStore } from '../store/sessionRecruitStore';
 import { isLocalDevelopmentHost } from '../utils/localEnvironment';
 import './CollabPage.css';
 
@@ -78,7 +79,6 @@ export default function CollabPage() {
   const projects = useCollabStore((state) => state.projects);
   const messages = useCollabStore((state) => state.messages);
   const tasks = useCollabStore((state) => state.tasks);
-  const joinProject = useCollabStore((state) => state.joinProject);
   const renameProject = useCollabStore((state) => state.renameProject);
   const deleteProject = useCollabStore((state) => state.deleteProject);
   const createFromComposerProject = useCollabStore((state) => state.createFromComposerProject);
@@ -87,6 +87,8 @@ export default function CollabPage() {
   const connectionError = useCollabStore((state) => state.connectionError);
   const composerProjects = useComposerLibraryStore((state) => state.projects);
   const seedLibrary = useComposerLibraryStore((state) => state.seedLibrary);
+  const recruitPosts = useSessionRecruitStore((state) => state.posts);
+  const seedSessionRecruit = useSessionRecruitStore((state) => state.seedSessionRecruit);
   const [actionError, setActionError] = useState('');
   const [openMenuProjectId, setOpenMenuProjectId] = useState<string | null>(null);
   const [renameTarget, setRenameTarget] = useState<CollabProject | null>(null);
@@ -103,6 +105,10 @@ export default function CollabPage() {
   useEffect(() => {
     void seedLibrary().catch(console.error);
   }, [seedLibrary]);
+
+  useEffect(() => {
+    void seedSessionRecruit().catch(console.error);
+  }, [seedSessionRecruit]);
 
   const sortedProjects = useMemo(
     () => [...projects].sort((left, right) => right.updatedAt - left.updatedAt),
@@ -131,6 +137,15 @@ export default function CollabPage() {
         .map((project) => [project.sourceProjectId as string, project])
     ),
     [projects]
+  );
+
+  const recruitPostByProject = useMemo(
+    () => new Map(
+      recruitPosts
+        .filter((post) => Boolean(post.collabProjectId))
+        .map((post) => [post.collabProjectId as string, post])
+    ),
+    [recruitPosts]
   );
 
   const nearCompletionCount = useMemo(
@@ -200,29 +215,25 @@ export default function CollabPage() {
     }
   };
 
-  const handleOpenProject = async (project: CollabProject) => {
+  const handleOpenProject = (project: CollabProject) => {
     if (!user) {
-      if (isLocalDevelopmentHost()) {
-        navigate(`/collab/${project.id}`);
-        return;
-      }
       navigate('/login');
       return;
     }
 
     const isMember = project.members.some((member) => member.email === user.email);
-    if (!isMember) {
-      try {
-        setActionError('');
-        await joinProject(project.id, { email: user.email, name: user.name });
-      } catch (error) {
-        console.error(error);
-        setActionError(error instanceof Error ? error.message : '협업 프로젝트에 참여하지 못했습니다.');
-        return;
-      }
+    if (isMember) {
+      navigate(`/collab/${project.id}`);
+      return;
     }
 
-    navigate(`/collab/${project.id}`);
+    const recruitPost = recruitPostByProject.get(project.id);
+    if (recruitPost) {
+      navigate(`/community/sessions/${recruitPost.id}`);
+      return;
+    }
+
+    setActionError('이 작업실은 연결된 팀원 모집글에서 지원하고 승인받아야 참여할 수 있습니다.');
   };
 
   const handleCreateFromFirstProject = () => {
@@ -295,7 +306,7 @@ export default function CollabPage() {
                   onClick={() => sortedProjects[0] && void handleOpenProject(sortedProjects[0])}
                   disabled={!projects.length}
                 >
-                  <CollabIcon name="plus" /> 작업실 열기
+                  <CollabIcon name="plus" /> 최근 작업실 열기
                 </button>
                 <button type="button" className="collab-secondary-button" onClick={handleCreateFromFirstProject}>
                   <CollabIcon name="userPlus" /> 새 협업 만들기
@@ -347,7 +358,7 @@ export default function CollabPage() {
         <div className="collab-content-grid">
           <section className="collab-project-panel" id="collab-projects">
             <header className="collab-section-head">
-              <h2>진행 중인 협업</h2>
+              <h2>내 작업실</h2>
               <div className="collab-project-controls">
                 <select aria-label="협업 프로젝트 정렬" defaultValue="latest"><option value="latest">최신순</option><option value="oldest">오래된순</option></select>
                 <span className="is-active">전체 {projects.length}</span>
@@ -360,6 +371,7 @@ export default function CollabPage() {
             <div className="collab-project-list">
               {sortedProjects.length ? sortedProjects.map((project, index) => {
                 const isMember = user ? project.members.some((member) => member.email === user.email) : false;
+                const recruitPost = recruitPostByProject.get(project.id);
                 const isOwner = user
                   ? project.ownerEmail.trim().toLowerCase() === user.email.trim().toLowerCase()
                   : false;
@@ -430,7 +442,14 @@ export default function CollabPage() {
                       <span><strong>{progress}%</strong><small>남은 작업 {openTasksByProject.get(project.id) ?? 0}</small></span>
                       <i><b style={{ width: `${progress}%` }} /></i>
                     </div>
-                    <button type="button" className="collab-card-open" onClick={() => void handleOpenProject(project)}>{isMember ? '작업실 열기' : '참여하기'}</button>
+                    <button
+                      type="button"
+                      className="collab-card-open"
+                      onClick={() => handleOpenProject(project)}
+                      disabled={!isMember && !recruitPost}
+                    >
+                      {isMember ? '작업실 열기' : recruitPost ? '모집글에서 지원하기' : '모집 준비 중'}
+                    </button>
                   </article>
                 );
               }) : <div className="collab-empty-card">아직 진행 중인 협업 프로젝트가 없습니다.</div>}
@@ -479,7 +498,7 @@ export default function CollabPage() {
           >
             <div>
               <strong id="collab-create-title">새 협업 만들기</strong>
-              <p>협업 작업실로 가져올 내 곡을 선택하세요.</p>
+              <p>새 작업실로 가져올 내 곡을 선택하세요.</p>
             </div>
             <div className="collab-create-project-list">
               {myComposerProjects.map((project) => {

@@ -36,19 +36,25 @@ function normalizeRoles(value) {
   }
 
   const allowed = new Set([
+    'lyrics',
+    'melody',
+    'arrangement',
     'vocal',
-    'guitar',
     'bass',
     'drums',
-    'keys',
-    'producer',
+    'instrument',
     'mix',
   ]);
+  const legacyRoleMap = {
+    producer: 'melody',
+    guitar: 'instrument',
+    keys: 'arrangement',
+  };
 
   return Array.from(
     new Set(
       value
-        .map((item) => String(item || '').trim())
+        .map((item) => legacyRoleMap[String(item || '').trim()] ?? String(item || '').trim())
         .filter((item) => allowed.has(item))
     )
   );
@@ -247,7 +253,16 @@ function saveState() {
 
 export function getSessionRecruitSnapshot() {
   return {
-    posts: [...state.posts].sort(
+    posts: state.posts.map((post) => ({
+      ...post,
+      wantedRoles: normalizeRoles(post.wantedRoles),
+      applicants: Array.isArray(post.applicants)
+        ? post.applicants.map((applicant) => ({
+            ...applicant,
+            role: normalizeRoles([applicant.role])[0] ?? 'melody',
+          }))
+        : [],
+    })).sort(
       (left, right) => right.updatedAt - left.updatedAt || right.createdAt - left.createdAt
     ),
   };
@@ -284,6 +299,8 @@ export function createSessionRecruitPost(payload) {
     createdAt: timestamp,
     updatedAt: timestamp,
     urgent: Boolean(payload.urgent),
+    applicants: [],
+    collabProjectId: normalizeText(payload.collabProjectId) || null,
   };
 
   state = {
@@ -327,6 +344,10 @@ export function updateSessionRecruitPost(postId, payload) {
             schedule: normalizeText(payload.schedule, post.schedule),
             urgent:
               typeof payload.urgent === 'boolean' ? payload.urgent : Boolean(post.urgent),
+            collabProjectId:
+              payload.collabProjectId === undefined
+                ? post.collabProjectId ?? null
+                : normalizeText(payload.collabProjectId) || null,
             updatedAt: Date.now(),
           }
         : post
@@ -356,4 +377,130 @@ export function deleteSessionRecruitPost(postId, userEmail) {
   return {
     snapshot: getSessionRecruitSnapshot(),
   };
+}
+
+export function applySessionRecruitPost(postId, payload) {
+  const target = findPostOrThrow(postId);
+  const email = normalizeEmail(payload.email);
+
+  if (!email) {
+    throw createHttpError(400, '지원자 이메일이 필요합니다.');
+  }
+  if (email === normalizeEmail(target.hostEmail)) {
+    throw createHttpError(400, '내 모집글에는 지원할 수 없습니다.');
+  }
+  if (target.status === 'closed') {
+    throw createHttpError(400, '모집이 완료된 작업입니다.');
+  }
+
+  const applicants = Array.isArray(target.applicants) ? target.applicants : [];
+  if (applicants.some((applicant) => normalizeEmail(applicant.email) === email && applicant.status !== 'rejected')) {
+    throw createHttpError(409, '이미 지원한 모집글입니다.');
+  }
+
+  const role = normalizeRoles([payload.role])[0];
+  if (!role || !normalizeRoles(target.wantedRoles).includes(role)) {
+    throw createHttpError(400, '모집 중인 파트를 선택해주세요.');
+  }
+
+  const timestamp = Date.now();
+  const applicant = {
+    id: createId('applicant'),
+    email,
+    name: normalizeText(payload.name, email.split('@')[0]),
+    role,
+    message: normalizeText(payload.message),
+    status: 'pending',
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+
+  state = {
+    ...state,
+    posts: state.posts.map((post) =>
+      post.id === postId
+        ? { ...post, applicants: [...applicants, applicant], updatedAt: timestamp }
+        : post
+    ),
+  };
+  saveState();
+  return { snapshot: getSessionRecruitSnapshot() };
+}
+
+export function reviewSessionRecruitApplication(postId, payload) {
+  const target = findPostOrThrow(postId);
+  if (normalizeEmail(payload.userEmail) !== normalizeEmail(target.hostEmail)) {
+    throw createHttpError(403, '모집글 작성자만 지원자를 관리할 수 있습니다.');
+  }
+
+  const applicants = Array.isArray(target.applicants) ? target.applicants : [];
+  const currentApplicant = applicants.find((applicant) => applicant.id === payload.applicantId);
+  if (!currentApplicant) {
+    throw createHttpError(404, '지원자를 찾을 수 없습니다.');
+  }
+
+  const nextApplicationStatus = payload.status === 'approved' ? 'approved' : 'rejected';
+  const approvalDelta = Number(nextApplicationStatus === 'approved') - Number(currentApplicant.status === 'approved');
+  const nextMembers = Math.min(target.maxMembers, Math.max(1, target.currentMembers + approvalDelta));
+  const timestamp = Date.now();
+
+  state = {
+    ...state,
+    posts: state.posts.map((post) =>
+      post.id === postId
+        ? {
+            ...post,
+            applicants: applicants.map((applicant) =>
+              applicant.id === payload.applicantId
+                ? { ...applicant, status: nextApplicationStatus, updatedAt: timestamp }
+                : applicant
+            ),
+            currentMembers: nextMembers,
+            status: nextMembers >= target.maxMembers ? 'closed' : post.status,
+            updatedAt: timestamp,
+          }
+        : post
+    ),
+  };
+  saveState();
+  return { snapshot: getSessionRecruitSnapshot() };
+}
+
+export function linkSessionRecruitCollab(postId, payload) {
+  const target = findPostOrThrow(postId);
+  if (normalizeEmail(payload.userEmail) !== normalizeEmail(target.hostEmail)) {
+    throw createHttpError(403, '모집글 작성자만 작업실을 연결할 수 있습니다.');
+  }
+
+  const collabProjectId = normalizeText(payload.collabProjectId);
+  if (!collabProjectId) {
+    throw createHttpError(400, '연결할 작업실을 선택해주세요.');
+  }
+
+  state = {
+    ...state,
+    posts: state.posts.map((post) =>
+      post.id === postId ? { ...post, collabProjectId, updatedAt: Date.now() } : post
+    ),
+  };
+  saveState();
+  return { snapshot: getSessionRecruitSnapshot() };
+}
+
+export function setSessionRecruitStatus(postId, payload) {
+  const target = findPostOrThrow(postId);
+  if (normalizeEmail(payload.userEmail) !== normalizeEmail(target.hostEmail)) {
+    throw createHttpError(403, '모집글 작성자만 모집 상태를 바꿀 수 있습니다.');
+  }
+
+  state = {
+    ...state,
+    posts: state.posts.map((post) =>
+      post.id === postId
+        ? { ...post, status: normalizeStatus(payload.status), updatedAt: Date.now() }
+        : post
+    ),
+  };
+  saveState();
+  return { snapshot: getSessionRecruitSnapshot() };
 }

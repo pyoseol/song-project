@@ -9,6 +9,7 @@ import {
   type CollabStatus,
 } from '../store/collabStore';
 import { useComposerLibraryStore } from '../store/composerLibraryStore';
+import { useSessionRecruitStore } from '../store/sessionRecruitStore';
 import { getRecruitUrlFromSketch } from '../utils/songSketchDna';
 import {
   getCollabMemberColor,
@@ -72,7 +73,6 @@ export default function CollabRoomPage() {
   const connectionStatus = useCollabStore((state) => state.connectionStatus);
   const connectionError = useCollabStore((state) => state.connectionError);
   const initializeRealtime = useCollabStore((state) => state.initializeRealtime);
-  const joinProject = useCollabStore((state) => state.joinProject);
   const setCollabMemberColor = useCollabStore((state) => state.setMemberColor);
   const addMessage = useCollabStore((state) => state.addMessage);
   const addTask = useCollabStore((state) => state.addTask);
@@ -83,6 +83,8 @@ export default function CollabRoomPage() {
   const leavePresence = useCollabStore((state) => state.leavePresence);
   const composerProjects = useComposerLibraryStore((state) => state.projects);
   const seedLibrary = useComposerLibraryStore((state) => state.seedLibrary);
+  const recruitPosts = useSessionRecruitStore((state) => state.posts);
+  const seedSessionRecruit = useSessionRecruitStore((state) => state.seedSessionRecruit);
 
   const [messageDraft, setMessageDraft] = useState('');
   const [taskDraft, setTaskDraft] = useState('');
@@ -98,8 +100,13 @@ export default function CollabRoomPage() {
     void seedLibrary().catch(console.error);
   }, [seedLibrary]);
 
+  useEffect(() => {
+    void seedSessionRecruit().catch(console.error);
+  }, [seedSessionRecruit]);
+
   const project = projects.find((item) => item.id === projectId) ?? null;
   const linkedProject = composerProjects.find((item) => item.id === project?.sourceProjectId) ?? null;
+  const linkedRecruitPost = recruitPosts.find((post) => post.collabProjectId === projectId) ?? null;
 
   const projectMessages = useMemo(
     () =>
@@ -217,7 +224,7 @@ export default function CollabRoomPage() {
         <SiteHeader activeSection="collab" />
         <main className="collab-room-shell">
           <section className="collab-room-missing">
-            <strong>협업 작업실을 찾을 수 없습니다.</strong>
+            <strong>작업실을 찾을 수 없습니다.</strong>
             <button type="button" className="collab-secondary-button" onClick={() => navigate('/collab')}>
               협업 목록으로 돌아가기
             </button>
@@ -227,20 +234,39 @@ export default function CollabRoomPage() {
     );
   }
 
-  const handleJoin = async () => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-
-    try {
-      setRoomError('');
-      await joinProject(project.id, { email: user.email, name: user.name });
-    } catch (error) {
-      console.error(error);
-      setRoomError(error instanceof Error ? error.message : '협업 참여에 실패했습니다.');
-    }
-  };
+  if (!user || !isMember) {
+    return (
+      <div className="collab-room-page">
+        <SiteHeader activeSection="collab" />
+        <main className="collab-room-shell">
+          <section className="collab-room-missing">
+            <strong>승인된 멤버만 작업실에 들어갈 수 있습니다.</strong>
+            <span>
+              {linkedRecruitPost
+                ? '팀원 모집글에서 원하는 파트로 지원한 뒤 방장의 승인을 받아주세요.'
+                : '아직 연결된 팀원 모집글이 없습니다. 방장이 모집을 시작하면 지원할 수 있습니다.'}
+            </span>
+            {user && linkedRecruitPost ? (
+              <button
+                type="button"
+                className="collab-primary-button"
+                onClick={() => navigate(`/community/sessions/${linkedRecruitPost.id}`)}
+              >
+                모집글에서 지원하기
+              </button>
+            ) : !user ? (
+              <button type="button" className="collab-primary-button" onClick={() => navigate('/login')}>
+                로그인하기
+              </button>
+            ) : null}
+            <button type="button" className="collab-secondary-button" onClick={() => navigate('/collab')}>
+              협업 목록으로 돌아가기
+            </button>
+          </section>
+        </main>
+      </div>
+    );
+  }
 
   const handleOpenComposer = () => {
     const snapshot = project.snapshot ?? linkedProject?.project;
@@ -499,12 +525,6 @@ export default function CollabRoomPage() {
               <div className="collab-room-panel-head"><strong><i className="collab-heading-glyph"><RoomIcon name="bolt" /></i> 빠른 액션</strong></div>
 
               <div className="collab-room-side-actions">
-                {!isMember ? (
-                  <button type="button" className="collab-primary-button" onClick={handleJoin}>
-                    협업 참여하기
-                  </button>
-                ) : null}
-
                 <button
                   type="button"
                   className="collab-primary-button collab-composer-button"
@@ -521,9 +541,9 @@ export default function CollabRoomPage() {
                 <button
                   type="button"
                   className="collab-secondary-button"
-                  onClick={() => navigate(getRecruitUrlFromSketch(project.title, project.genre, 'vocal,guitar,drums,bass'))}
+                  onClick={() => navigate(getRecruitUrlFromSketch(project.title, project.genre, 'vocal,instrument,drums,bass', project.id))}
                 >
-                  <RoomIcon name="users" /> 파트 모집 자동 연결
+                  <RoomIcon name="users" /> 팀원 모집하기
                 </button>
 
                 <button type="button" className="collab-leave-button" onClick={() => navigate('/collab')}><RoomIcon name="exit" /> 나가기</button>

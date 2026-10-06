@@ -231,13 +231,21 @@ export function createAirInstrumentProject(mode: 'guitar' | 'drum' | 'piano'): S
   return project;
 }
 
-export function getRecruitUrlFromSketch(title: string, genre = 'pop', roles = 'vocal,guitar,drums') {
+export function getRecruitUrlFromSketch(
+  title: string,
+  genre = 'pop',
+  roles = 'vocal,instrument,drums',
+  collabProjectId?: string
+) {
   const params = new URLSearchParams({
     write: '1',
-    title: `${title} 파트 모집`,
+    title: `${title} 팀원 모집`,
     genre,
-    summary: '작업 중인 곡 스케치를 같이 완성할 파트를 찾습니다.',
+    summary: '작업 중인 곡을 작곡밥 작업실에서 같이 완성할 팀원을 찾습니다.',
     roles,
   });
+  if (collabProjectId) {
+    params.set('collabProjectId', collabProjectId);
+  }
   return `/community/sessions?${params.toString()}`;
 }

@@ -10,13 +10,14 @@ import type { SessionRole, SessionStatus } from '../../types/sessionRecruit';
 import './SessionRecruitDetailPage.css';
 
 const ROLE_LABELS: Record<SessionRole, string> = {
-  vocal: '보컬',
-  guitar: '기타',
-  bass: '베이스',
+  lyrics: '작사',
+  melody: '멜로디·작곡',
+  arrangement: '코드·편곡',
   drums: '드럼',
-  keys: '건반',
-  producer: '프로듀서',
-  mix: '믹스/레코딩',
+  bass: '베이스',
+  instrument: '악기 파트',
+  vocal: '보컬',
+  mix: '믹싱',
 };
 
 const STATUS_LABELS: Record<SessionStatus, string> = {
@@ -58,19 +59,19 @@ function DetailIcon({ name }: { name: DetailIconName }) {
 
 const DETAIL_PARTS: Array<{
   key: string;
-  role?: SessionRole;
+  role: SessionRole;
   label: string;
   description: string;
   icon: DetailIconName;
 }> = [
-  { key: 'producer', role: 'producer', label: '프로듀서', description: '곡 전체 기획', icon: 'user' },
-  { key: 'guitar', role: 'guitar', label: '작곡', description: '멜로디/코드', icon: 'music' },
-  { key: 'keys', role: 'keys', label: '편곡', description: '사운드 배치', icon: 'parts' },
+  { key: 'lyrics', role: 'lyrics', label: '작사', description: '가사 작성', icon: 'file' },
+  { key: 'melody', role: 'melody', label: '멜로디·작곡', description: '멜로디 구성', icon: 'music' },
+  { key: 'arrangement', role: 'arrangement', label: '코드·편곡', description: '코드와 사운드 배치', icon: 'parts' },
+  { key: 'drums', role: 'drums', label: '드럼', description: '리듬 패턴', icon: 'parts' },
+  { key: 'bass', role: 'bass', label: '베이스', description: '베이스 라인', icon: 'music' },
+  { key: 'instrument', role: 'instrument', label: '악기 파트', description: '악기 트랙', icon: 'music' },
   { key: 'vocal', role: 'vocal', label: '보컬', description: '가이드/녹음', icon: 'message' },
   { key: 'mix', role: 'mix', label: '믹싱', description: '음향 편집', icon: 'parts' },
-  { key: 'master', label: '마스터링', description: '최종 음원', icon: 'music' },
-  { key: 'video', label: '영상', description: '뮤직비디오', icon: 'file' },
-  { key: 'other', label: '기타', description: '직접 입력', icon: 'parts' },
 ];
 
 function formatDate(timestamp: number) {
@@ -274,6 +275,19 @@ export default function SessionRecruitDetailPage() {
         ownerName: user.name,
         snapshot: sourceProject.project,
       });
+
+      const approvedApplicants = applicants.filter(
+        (applicant) => applicant.status === 'approved'
+      );
+      await Promise.all(
+        approvedApplicants.map((applicant) =>
+          joinProject(collabProjectId, {
+            email: applicant.email,
+            name: applicant.name,
+          })
+        )
+      );
+
       await linkCollabProject({
         postId: post.id,
         userEmail: user.email,
@@ -281,7 +295,7 @@ export default function SessionRecruitDetailPage() {
       });
       pushNotification({
         kind: 'collab',
-        title: '모집글에 협업 작업실을 연결했습니다',
+        title: '모집글에 작업실을 연결했습니다',
         body: `${post.title}에서 바로 작업실로 이동할 수 있습니다.`,
         route: `/collab/${collabProjectId}`,
         actorName: user.name,
@@ -289,7 +303,7 @@ export default function SessionRecruitDetailPage() {
     } catch (error) {
       console.error(error);
       setApplicationError(
-        error instanceof Error ? error.message : '협업 작업실을 만들지 못했습니다.'
+        error instanceof Error ? error.message : '작업실을 연결하지 못했습니다.'
       );
     } finally {
       setIsCreatingCollab(false);
@@ -386,7 +400,7 @@ export default function SessionRecruitDetailPage() {
                 <p>{post.summary || '함께 멋진 곡을 만들어보세요.'}</p>
                 <div className="session-detail-badges">
                   <span>{post.genre || '자유'}</span>
-                  <span>{post.location}</span>
+                  <span>{linkedCollabProject?.title ?? '온라인 작업실'}</span>
                   <span>{post.schedule}</span>
                   <span>{post.currentMembers}/{post.maxMembers}</span>
                   {post.wantedRoles[0] ? <span>{ROLE_LABELS[post.wantedRoles[0]]}</span> : null}
@@ -396,9 +410,9 @@ export default function SessionRecruitDetailPage() {
 
               <dl className="session-detail-meta-grid">
                 <div><i><DetailIcon name="music" /></i><span>장르<strong>{post.genre || '자유'}</strong></span></div>
-                <div><i><DetailIcon name="location" /></i><span>지역<strong>{post.location}</strong></span></div>
-                <div><i><DetailIcon name="calendar" /></i><span>일정<strong>{post.schedule}</strong></span></div>
-                <div><i><DetailIcon name="users" /></i><span>모집 인원<strong>{post.currentMembers}/{post.maxMembers}</strong></span></div>
+                <div><i><DetailIcon name="location" /></i><span>작업실<strong>{linkedCollabProject?.title ?? '연결 확인 중'}</strong></span></div>
+                <div><i><DetailIcon name="calendar" /></i><span>작업 마감<strong>{post.schedule}</strong></span></div>
+                <div><i><DetailIcon name="users" /></i><span>모집 현황<strong>{post.currentMembers}/{post.maxMembers}</strong></span></div>
               </dl>
 
               <div className="session-detail-intro">
@@ -425,8 +439,8 @@ export default function SessionRecruitDetailPage() {
 
               <div className="session-collab-link-panel">
                 <div>
-                  <strong>연결된 협업 작업실</strong>
-                  <p>{post.collabProjectId ? linkedCollabProject?.title ?? '협업 작업실이 연결되어 있습니다.' : '모집글과 연결된 작업실이 아직 없습니다.'}</p>
+                  <strong>연결된 작업실</strong>
+                  <p>{post.collabProjectId ? linkedCollabProject?.title ?? '작업실이 연결되어 있습니다.' : '팀원이 합류할 작업실이 아직 연결되지 않았습니다.'}</p>
                 </div>
                 {post.collabProjectId ? (
                   <button type="button" onClick={() => navigate(`/collab/${post.collabProjectId}`)}>작업실 열기</button>
@@ -435,10 +449,10 @@ export default function SessionRecruitDetailPage() {
                     <select value={selectedSourceProjectId} onChange={(event) => setSelectedSourceProjectId(event.target.value)} disabled={!ownerComposerProjects.length}>
                       {ownerComposerProjects.length ? ownerComposerProjects.map((project) => <option key={project.id} value={project.id}>{project.title}</option>) : <option value="">저장곡 없음</option>}
                     </select>
-                    <button type="button" onClick={handleCreateCollabProject} disabled={!ownerComposerProjects.length || isCreatingCollab}>{isCreatingCollab ? '연결 중...' : '작업실 만들기'}</button>
+                    <button type="button" onClick={handleCreateCollabProject} disabled={!ownerComposerProjects.length || isCreatingCollab}>{isCreatingCollab ? '연결 중...' : '작업실 연결하기'}</button>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => handleMoveWithAuth('/collab')}>작업 목록 보기</button>
+                  <button type="button" onClick={() => handleMoveWithAuth('/collab')}>내 작업실 보기</button>
                 )}
               </div>
 
@@ -493,10 +507,9 @@ export default function SessionRecruitDetailPage() {
             <article className="session-detail-side-card session-parts-card">
               <header><h2><DetailIcon name="parts" /> 필요한 파트</h2><span>{post.wantedRoles.length}개 선택됨</span></header>
               <div className="session-part-grid">
-                {DETAIL_PARTS.map((item) => {
-                  const isSelected = Boolean(item.role && post.wantedRoles.includes(item.role));
-                  return <div key={item.key} className={`session-part-item${isSelected ? ' is-selected' : ''}`}><i><DetailIcon name={item.icon} /></i><strong>{item.label}</strong><small>{item.description}</small>{isSelected ? <b>✓</b> : null}</div>;
-                })}
+                {DETAIL_PARTS.filter((item) => post.wantedRoles.includes(item.role)).map((item) => (
+                  <div key={item.key} className="session-part-item is-selected"><i><DetailIcon name={item.icon} /></i><strong>{item.label}</strong><small>{item.description}</small><b>✓</b></div>
+                ))}
               </div>
             </article>
 

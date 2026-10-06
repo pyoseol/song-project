@@ -75,9 +75,13 @@ import {
   updateShort,
 } from './shortsService.mjs';
 import {
+  applySessionRecruitPost,
   createSessionRecruitPost,
   deleteSessionRecruitPost,
   getSessionRecruitSnapshot,
+  linkSessionRecruitCollab,
+  reviewSessionRecruitApplication,
+  setSessionRecruitStatus,
   updateSessionRecruitPost,
 } from './sessionRecruitService.mjs';
 import {
@@ -1069,6 +1073,7 @@ function handleApplyComposerOperation(projectId, payload) {
 
 function handleJoinProject(projectId, payload) {
   const timestamp = Date.now();
+  let joined = false;
 
   state = {
     ...state,
@@ -1081,6 +1086,8 @@ function handleJoinProject(projectId, payload) {
       if (project.members.some((member) => member.email === payload.email)) {
         return project;
       }
+
+      joined = true;
 
       return {
         ...project,
@@ -1096,21 +1103,42 @@ function handleJoinProject(projectId, payload) {
         ],
       };
     }),
-    messages: [
-      {
-        id: createId('collab-message'),
-        projectId,
-        authorEmail: payload.email,
-        authorName: payload.name,
-        content: '협업에 참여했어요.',
-        createdAt: timestamp,
-      },
-      ...state.messages,
-    ],
+    messages: joined
+      ? [
+          {
+            id: createId('collab-message'),
+            projectId,
+            authorEmail: payload.email,
+            authorName: payload.name,
+            content: '협업에 참여했어요.',
+            createdAt: timestamp,
+          },
+          ...state.messages,
+        ]
+      : state.messages,
   };
 
-  saveState();
-  broadcastSnapshot();
+  if (joined) {
+    saveState();
+    broadcastSnapshot();
+  }
+
+  return joined;
+}
+
+function addApprovedRecruitMembers(post) {
+  if (!post?.collabProjectId || !Array.isArray(post.applicants)) {
+    return;
+  }
+
+  post.applicants
+    .filter((applicant) => applicant.status === 'approved')
+    .forEach((applicant) => {
+      handleJoinProject(post.collabProjectId, {
+        email: applicant.email,
+        name: applicant.name,
+      });
+    });
 }
 
 function handleAddMessage(projectId, payload) {
@@ -1960,6 +1988,50 @@ const server = createServer(async (request, response) => {
       const body = await readBody(request);
       handleSetStatus(statusMatch[1], body.status);
       writeJson(response, 200, { ok: true, snapshot: createSnapshot() });
+      return;
+    }
+
+    const sessionApplyMatch = pathname.match(/^\/api\/sessions\/([^/]+)\/apply$/);
+    if (request.method === 'POST' && sessionApplyMatch) {
+      const body = await readBody(request);
+      maybeRequireSession(request, body.email);
+      const result = applySessionRecruitPost(sessionApplyMatch[1], body);
+      writeJson(response, 200, result);
+      return;
+    }
+
+    const sessionReviewMatch = pathname.match(/^\/api\/sessions\/([^/]+)\/review$/);
+    if (request.method === 'POST' && sessionReviewMatch) {
+      const body = await readBody(request);
+      maybeRequireSession(request, body.userEmail);
+      const result = reviewSessionRecruitApplication(sessionReviewMatch[1], body);
+      if (body.status === 'approved') {
+        addApprovedRecruitMembers(
+          result.snapshot.posts.find((post) => post.id === sessionReviewMatch[1])
+        );
+      }
+      writeJson(response, 200, result);
+      return;
+    }
+
+    const sessionLinkMatch = pathname.match(/^\/api\/sessions\/([^/]+)\/link-collab$/);
+    if (request.method === 'POST' && sessionLinkMatch) {
+      const body = await readBody(request);
+      maybeRequireSession(request, body.userEmail);
+      const result = linkSessionRecruitCollab(sessionLinkMatch[1], body);
+      addApprovedRecruitMembers(
+        result.snapshot.posts.find((post) => post.id === sessionLinkMatch[1])
+      );
+      writeJson(response, 200, result);
+      return;
+    }
+
+    const sessionStatusMatch = pathname.match(/^\/api\/sessions\/([^/]+)\/status$/);
+    if (request.method === 'POST' && sessionStatusMatch) {
+      const body = await readBody(request);
+      maybeRequireSession(request, body.userEmail);
+      const result = setSessionRecruitStatus(sessionStatusMatch[1], body);
+      writeJson(response, 200, result);
       return;
     }
 

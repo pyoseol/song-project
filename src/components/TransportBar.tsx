@@ -235,6 +235,7 @@ type TransportBarProps = {
   onScoreClick?: () => void;
   scoreActive?: boolean;
   onAddAiVocalTrack?: (voice: 'female' | 'male') => void;
+  onGenerateAiVocal?: (voice: 'female' | 'male') => void | Promise<void>;
   songTitle?: string;
   onSongTitleChange?: (title: string) => void;
   workMode?: 'personal' | 'collab';
@@ -382,6 +383,7 @@ export const TransportBar = ({
   onScoreClick,
   scoreActive = false,
   onAddAiVocalTrack,
+  onGenerateAiVocal,
   songTitle = '',
   onSongTitleChange,
   workMode = 'personal',
@@ -480,19 +482,38 @@ export const TransportBar = ({
   };
 
   const handleAddAiVocal = async () => {
-    if (!aiVocalLyrics) {
-      alert('보컬 트랙에 사용할 가사를 먼저 입력해 주세요.');
-      return;
-    }
+  if (!aiVocalLyrics) {
+    alert('보컬 트랙에 사용할 가사를 먼저 입력해 주세요.');
+    return;
+  }
 
-    stopVocalPreview();
-    setIsAddingVocal(true);
+  stopVocalPreview();
+  setIsAddingVocal(true);
+
+  try {
     await new Promise((resolve) => window.setTimeout(resolve, 650));
+
+    // AI 보컬 트랙 생성
     onAddAiVocalTrack?.(aiVocalVoice);
-    setIsAddingVocal(false);
+
+    // 실제 Aqua Planet 보컬 생성 요청
+    await onGenerateAiVocal?.(aiVocalVoice);
+
     setIsAiVocalPanelOpen(false);
     setAiCompletionToast('vocal');
-  };
+  } catch (error) {
+    console.error('[AI Vocal] generation failed:', error);
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : String(error);
+
+    alert(`AI 보컬 생성에 실패했습니다.\n\n${message}`);
+  } finally {
+    setIsAddingVocal(false);
+  }
+};
 
   useEffect(() => () => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {

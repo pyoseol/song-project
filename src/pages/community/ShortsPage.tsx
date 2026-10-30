@@ -336,6 +336,7 @@ export default function ShortsPage() {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [isInfoPanelOpen, setIsInfoPanelOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [pausedShortId, setPausedShortId] = useState<string | null>(null);
   const [movementDirection, setMovementDirection] = useState<'up' | 'down' | null>(null);
   const [activeCommentShortId, setActiveCommentShortId] = useState<string | null>(null);
   const [commentDraftByShortId, setCommentDraftByShortId] = useState<Record<string, string>>({});
@@ -671,6 +672,7 @@ export default function ShortsPage() {
 
         if (nextIndex !== currentIndex) {
           setActiveCommentShortId(null);
+          setPausedShortId(null);
           resetMovementAnimation(direction);
         }
 
@@ -700,7 +702,9 @@ export default function ShortsPage() {
         return;
       }
 
-      if (index === safeActiveIndex) {
+      const shouldPlay =
+        index === safeActiveIndex && filteredShorts[index]?.id !== pausedShortId;
+      if (shouldPlay) {
         void video.play().catch(() => undefined);
         return;
       }
@@ -713,15 +717,41 @@ export default function ShortsPage() {
         return;
       }
 
-      if (index === safeActiveIndex && filteredShorts[index]?.audioUrl) {
+      const shouldPlay =
+        index === safeActiveIndex &&
+        filteredShorts[index]?.id !== pausedShortId &&
+        filteredShorts[index]?.audioUrl;
+      if (shouldPlay) {
         void audio.play().catch(() => undefined);
         return;
       }
 
       audio.pause();
-      audio.currentTime = 0;
+      if (index !== safeActiveIndex) {
+        audio.currentTime = 0;
+      }
     });
-  }, [filteredShorts, safeActiveIndex]);
+  }, [filteredShorts, pausedShortId, safeActiveIndex]);
+
+  const toggleShortPlayback = useCallback((shortId: string, index: number) => {
+    const video = videoRefs.current[index];
+    const audio = audioRefs.current[index];
+    const isPlaying = Boolean((video && !video.paused) || (audio && !audio.paused));
+
+    if (isPlaying) {
+      video?.pause();
+      audio?.pause();
+      setPausedShortId(shortId);
+      return;
+    }
+
+    setPausedShortId(null);
+    if (video) {
+      void video.play().catch(() => undefined);
+    } else if (audio) {
+      void audio.play().catch(() => undefined);
+    }
+  }, []);
 
   useEffect(() => {
     if (!activeShort || viewedShortIdsRef.current.has(activeShort.id)) {
@@ -1541,6 +1571,7 @@ export default function ShortsPage() {
               >
                 {filteredShorts.map((short, index) => {
                   const isActive = index === safeActiveIndex;
+                  const isPlaybackPaused = isActive && pausedShortId === short.id;
                   const isOwnShort = user?.email === short.creatorEmail;
                   const isLiked = user ? getShortLikedBy(short).includes(user.email) : false;
                   const reelComments = commentsByShortId[short.id] ?? [];
@@ -1615,6 +1646,27 @@ export default function ShortsPage() {
                         ) : null}
 
                         <div className="shorts-reel-overlay" />
+
+                        {isActive && (resolvedVideoUrl || resolvedAudioUrl) ? (
+                          <button
+                            type="button"
+                            className={`shorts-reel-playback-button${
+                              isPlaybackPaused ? ' is-paused' : ''
+                            }`}
+                            onClick={() => toggleShortPlayback(short.id, index)}
+                            aria-label={isPlaybackPaused ? '클립 재생' : '클립 일시정지'}
+                          >
+                            {isPlaybackPaused ? (
+                              <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="m8 5 11 7-11 7V5Z" />
+                              </svg>
+                            ) : (
+                              <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M8 5v14M16 5v14" />
+                              </svg>
+                            )}
+                          </button>
+                        ) : null}
 
                         <div className="shorts-reel-top">
                           <span className="shorts-reel-chip">

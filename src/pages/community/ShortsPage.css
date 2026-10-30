@@ -330,6 +330,59 @@
   pointer-events: none;
 }
 
+.shorts-reel-playback-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  display: grid;
+  width: 58px;
+  height: 58px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 50%;
+  background: rgba(8, 11, 12, 0.52);
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  opacity: 0.72;
+  transform: translate(-50%, -50%);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: opacity 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.shorts-reel-playback-button:hover,
+.shorts-reel-playback-button:focus-visible,
+.shorts-reel-playback-button.is-paused {
+  opacity: 1;
+  background: rgba(8, 11, 12, 0.76);
+}
+
+.shorts-reel-playback-button:hover {
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+.shorts-reel-playback-button:focus-visible {
+  outline: 3px solid rgba(45, 212, 164, 0.72);
+  outline-offset: 3px;
+}
+
+.shorts-reel-playback-button svg {
+  width: 25px;
+  height: 25px;
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 2.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.shorts-reel-playback-button.is-paused svg {
+  margin-left: 3px;
+  stroke: none;
+}
+
 .shorts-reel-attached-audio { display: none; }
 
 .shorts-reel-top {

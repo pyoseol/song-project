@@ -328,7 +328,9 @@ export const PianoRoll = ({
   const pendingScrollLeftRef = useRef(0);
   const lastDrawCellRef = useRef<string | null>(null);
   const lastMelodyDragLengthRef = useRef<number | null>(null);
+  const initialMelodyDragLengthRef = useRef<number | null>(null);
   const hasMelodyDragMovedRef = useRef(false);
+  const isFinalizingMelodyRef = useRef(false);
 
   useEffect(() => {
     if (editTool === 'select' || editTool === 'marquee') {
@@ -549,7 +551,11 @@ export const PianoRoll = ({
     activeLockRef.current = null;
   }, [releaseCollabBarLock]);
 
-  const finalizeMelodyDraw = () => {
+  const finalizeMelodyDraw = async () => {
+    if (isFinalizingMelodyRef.current) {
+      return;
+    }
+
     if (!pendingMelodyCommitRef.current) {
       setIsDrawing(false);
       setDrawValue(null);
@@ -557,47 +563,62 @@ export const PianoRoll = ({
       setDragMelodyPreviewLength(null);
       lastDrawCellRef.current = null;
       lastMelodyDragLengthRef.current = null;
+      initialMelodyDragLengthRef.current = null;
       hasMelodyDragMovedRef.current = false;
       releaseActiveLock();
       return;
     }
 
     const { row, col, barIndex } = pendingMelodyCommitRef.current;
-    if (dragMelodyPreviewLength !== null) {
-      const currentLength = isExternalGrid
-        ? currentLengths[row]?.[col] ?? 1
-        : useSongStore.getState().melodyLengths[row]?.[col] ?? 1;
-      if (currentLength !== dragMelodyPreviewLength) {
-        if (isExternalGrid && onResizeNote) {
-          void onResizeNote(row, col, dragMelodyPreviewLength);
-        } else {
-          toggleMelody(row, col, dragMelodyPreviewLength, false);
-        }
-      }
-    }
-
-    const liveMelody = isExternalGrid ? currentGrid : useSongStore.getState().melody;
-    const liveMelodyLengths = isExternalGrid
-      ? currentLengths
-      : useSongStore.getState().melodyLengths;
-    const noteInfo = findMelodyNoteInfo(liveMelody[row] ?? [], liveMelodyLengths[row] ?? [], col);
-
-    onCommitMelodyOperation?.({
-      row,
-      col,
-      length: noteInfo?.start === col ? noteInfo.length : 0,
-      barIndex,
-    });
-
+    const finalDragLength = lastMelodyDragLengthRef.current ?? dragMelodyPreviewLength;
+    isFinalizingMelodyRef.current = true;
     pendingMelodyCommitRef.current = null;
     setIsDrawing(false);
     setDrawValue(null);
-    setDragMelodyOrigin(null);
-    setDragMelodyPreviewLength(null);
-    lastDrawCellRef.current = null;
-    lastMelodyDragLengthRef.current = null;
-    hasMelodyDragMovedRef.current = false;
-    releaseActiveLock();
+
+    try {
+      if (finalDragLength !== null) {
+        const currentLength = isExternalGrid
+          ? currentLengths[row]?.[col] ?? 1
+          : useSongStore.getState().melodyLengths[row]?.[col] ?? 1;
+        if (currentLength !== finalDragLength) {
+          if (isExternalGrid && onResizeNote) {
+            await onResizeNote(row, col, finalDragLength);
+          } else {
+            toggleMelody(row, col, finalDragLength, false);
+          }
+        }
+      }
+
+      const liveMelody = isExternalGrid ? currentGrid : useSongStore.getState().melody;
+      const liveMelodyLengths = isExternalGrid
+        ? currentLengths
+        : useSongStore.getState().melodyLengths;
+      const noteInfo = findMelodyNoteInfo(
+        liveMelody[row] ?? [],
+        liveMelodyLengths[row] ?? [],
+        col
+      );
+
+      onCommitMelodyOperation?.({
+        row,
+        col,
+        length:
+          finalDragLength ?? (noteInfo?.start === col ? noteInfo.length : 0),
+        barIndex,
+      });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      isFinalizingMelodyRef.current = false;
+      setDragMelodyOrigin(null);
+      setDragMelodyPreviewLength(null);
+      lastDrawCellRef.current = null;
+      lastMelodyDragLengthRef.current = null;
+      initialMelodyDragLengthRef.current = null;
+      hasMelodyDragMovedRef.current = false;
+      releaseActiveLock();
+    }
   };
 
   const handleCellChange = useCallback((row: number, col: number, nextValue: boolean) => {
@@ -838,7 +859,7 @@ export const PianoRoll = ({
               return;
             }
 
-            if (isLocked || !canEditCollab) {
+            if (isLocked || !canEditCollab || isFinalizingMelodyRef.current) {
               return;
             }
 
@@ -899,6 +920,7 @@ export const PianoRoll = ({
               setDragMelodyPreviewLength(null);
               lastDrawCellRef.current = null;
               lastMelodyDragLengthRef.current = null;
+              initialMelodyDragLengthRef.current = null;
               hasMelodyDragMovedRef.current = false;
               releaseActiveLock();
               return;
@@ -916,6 +938,7 @@ export const PianoRoll = ({
             setDragMelodyPreviewLength(melodyNoteLengthSteps);
             lastDrawCellRef.current = `${row}-${col}`;
             lastMelodyDragLengthRef.current = melodyNoteLengthSteps;
+            initialMelodyDragLengthRef.current = melodyNoteLengthSteps;
             hasMelodyDragMovedRef.current = false;
             pendingMelodyCommitRef.current = {
               row,
@@ -955,7 +978,10 @@ export const PianoRoll = ({
               }
 
               hasMelodyDragMovedRef.current = true;
-              const nextLength = col - dragMelodyOrigin.col + 1;
+              const nextLength = Math.max(
+                initialMelodyDragLengthRef.current ?? 1,
+                col - dragMelodyOrigin.col + 1
+              );
               if (lastMelodyDragLengthRef.current === nextLength) {
                 return;
               }
@@ -1092,11 +1118,11 @@ export const PianoRoll = ({
         style={pianoRollStyle}
         onMouseUp={() => {
           setMarqueeOrigin(null);
-          finalizeMelodyDraw();
+          void finalizeMelodyDraw();
         }}
         onMouseLeave={() => {
           setMarqueeOrigin(null);
-          finalizeMelodyDraw();
+          void finalizeMelodyDraw();
         }}
       >
         {SHOW_LEGACY_EDITOR_ASSIST_CONTROLS ? <div className="piano-roll-melody-topbar">
@@ -1217,11 +1243,11 @@ export const PianoRoll = ({
       }}
       onMouseUp={() => {
         setMarqueeOrigin(null);
-        finalizeMelodyDraw();
+        void finalizeMelodyDraw();
       }}
       onMouseLeave={() => {
         setMarqueeOrigin(null);
-        finalizeMelodyDraw();
+        void finalizeMelodyDraw();
       }}
     >
       <div className="piano-roll-sidebar">

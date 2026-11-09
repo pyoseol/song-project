@@ -5775,7 +5775,10 @@ export function Composer() {
                               return;
                             }
 
-                            const nextLength = col - drag.col + 1;
+                            const nextLength = Math.max(
+                              drag.initialLength,
+                              col - drag.col + 1
+                            );
                             if (nextLength === drag.currentLength) return;
 
                             drag.currentLength = nextLength;
